@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ball Battle Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=101">
+</head>
+<body>
+
+<!-- QUICK CREATE NAME PROMPT -->
+<div id="qc-name-modal">
+  <div id="qc-name-box">
+    <h3>⚡ Quick Create — Name your Radoser</h3>
+    <input id="qc-name-input" type="text" maxlength="24" placeholder="Leave blank for random name…" autocomplete="off" />
+    <div class="qc-modal-btns">
+      <button id="qc-confirm-btn">⚡ Create!</button>
+      <button id="qc-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATS LOG MODAL -->
+<div id="stats-log-modal">
+  <div id="stats-log-box">
+    <div id="stats-log-header">
+      <h3 id="stats-log-title">📊 Match Stats</h3>
+      <div id="stats-chart-tabs">
+        <button class="sc-tab sel" data-chart="speed">Speed</button>
+        <button class="sc-tab" data-chart="spin">Spin Speed</button>
+        <button class="sc-tab" data-chart="dmg">Damage / s</button>
+        <button class="sc-tab" data-chart="scale">Scale</button>
+      </div>
+    </div>
+    <div id="stats-chart-wrap">
+      <canvas id="stats-chart-canvas" width="540" height="220"></canvas>
+    </div>
+    <div id="stats-chart-legend"></div>
+    <button id="stats-log-close-btn">Close</button>
+  </div>
+</div>
+
+<!-- BATTLE LOG MODAL -->
+<div id="battle-log-modal">
+  <div id="battle-log-box">
+    <h3>📋 Battle Log</h3>
+    <div id="battle-log-scroll"></div>
+    <button id="battle-log-close-btn">Close</button>
+  </div>
+</div>
+
+<!-- STATS MODAL -->
+<div id="statsModal">
+  <div class="stats-modal-box" id="statsModalBox">
+    <button class="stats-modal-close" id="statsModalClose">✕</button>
+    <div class="stats-modal-name" id="smo-name"></div>
+    <div class="stats-modal-race" id="smo-race"></div>
+    <div class="stats-modal-grid" id="smo-grid"></div>
+    <div class="stats-modal-weapon" id="smo-weapon"></div>
+    <div class="smo-collapse-header" id="smo-derived-toggle">✦ Stats <span class="smo-arrow">▾</span></div>
+    <div class="stats-modal-derived" id="smo-derived"></div>
+    <div class="stats-modal-skills" id="smo-skills" style="display:none"></div>
+  </div>
+</div>
+
+<!-- CHARGEN -->
+<div id="chargen" class="screen">
+  <div class="cg-header">⚗️ CHARACTER CREATION</div>
+  <div class="cg-step-row" id="cgDots"></div>
+  <div id="cg-content"></div>
+</div>
+
+<!-- MENU -->
+<div id="menu" class="screen active">
+
+  <!-- Title -->
+  <div id="menu-hero">
+    <div class="game-title">TORACO</div>
+    <div class="game-subtitle">Inspired by Wheel of Multiverse and Weapon Ball Battles</div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="menu-tabs">
+    <button class="menu-tab active" data-tab="tab-showcase">Showcase</button>
+    <button class="menu-tab"        data-tab="tab-radosers">Radosers</button>
+    <button class="menu-tab"        data-tab="tab-battle">Battle</button>
+  </div>
+
+  <!-- Tab: Showcase -->
+  <div class="menu-tab-pane active" id="tab-showcase">
+    <div id="showcase-card-wrap"></div>
+    <div class="showcase-nav" id="showcase-nav" style="display:none">
+      <button class="sc-nav-btn" id="scPrev">&#8249;</button>
+      <div class="sc-dots" id="scDots"></div>
+      <button class="sc-nav-btn" id="scNext">&#8250;</button>
+    </div>
+  </div>
+
+  <!-- Tab: Radosers -->
+  <div class="menu-tab-pane" id="tab-radosers">
+    <div class="roster-grid" id="rosterGrid">
+      <div class="roster-empty">No characters yet — create one below!</div>
+    </div>
+    <div class="tab-footer-btns">
+      <button class="quick-create-btn" id="quickCreateBtn">⚡ Quick Create</button>
+      <button class="create-char-btn"  id="createCharBtn">⚗️ Create Character</button>
+      <button class="roster-io-btn export-btn" id="exportRosterBtn">📤 Export</button>
+      <button class="roster-io-btn import-btn" id="importRosterBtn">📥 Import</button>
+    </div>
+  </div>
+
+  <!-- Import Roster Modal -->
+  <div class="modal-backdrop" id="importModal" style="display:none">
+    <div class="import-modal-box">
+      <button class="import-modal-close" id="importModalClose">✕</button>
+      <div class="import-modal-title">📥 Import Radosers</div>
+
+      <label class="import-file-label" id="importFileLabel">
+        <span id="importFileLabelText">📂 Choose JSON file…</span>
+        <input type="file" id="importFileInput" accept=".json" style="display:none">
+      </label>
+
+      <div class="import-preview" id="importPreview" style="display:none">
+        <span id="importPreviewText"></span>
+      </div>
+
+      <div class="import-actions" id="importActions" style="display:none">
+        <button class="import-action-btn merge"   id="importMergeBtn">➕ Merge  <span class="import-hint">add to existing</span></button>
+        <button class="import-action-btn replace" id="importReplaceBtn">🔄 Replace <span class="import-hint">clear &amp; import</span></button>
+      </div>
+
+      <div class="import-error" id="importError" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Battle -->
+  <div class="menu-tab-pane" id="tab-battle">
+    <div class="battle-cards">
+
+      <!-- Quick Match -->
+      <div class="battle-card" id="quick-match-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">⚔️</div>
+          <div class="battle-card-title">Quick Match</div>
+        </div>
+        <div id="fighters-panel"></div>
+        <div class="arena-row">
+          <label>Arena:</label>
+          <button class="a-btn sel" data-a="square">Square</button>
+          <button class="a-btn"     data-a="circle">Circle</button>
+          <button class="a-btn"     data-a="rect">Rectangle</button>
+          <button class="a-btn"     data-a="cross">Cross</button>
+          <button class="a-btn"     data-a="hole">Hole</button>
+        </div>
+        <button class="start-btn" id="startBtn">⚔️ FIGHT!</button>
+      </div>
+
+      <!-- Tournament -->
+      <div class="battle-card tournament-battle-card" id="tournament-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">🏆</div>
+          <div class="battle-card-title">Tournament</div>
+        </div>
+        <div class="battle-card-desc">Single-elimination bracket. Compete with up to 64 Radosers across BO1, BO3, or BO5 matches.</div>
+        <button class="t-btn" id="tournamentBtn">🏆 Enter Tournament</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+  <div id="game-zoom-wrapper">
+    <div id="arena-layout">
+      <div id="hud-left"  class="hud-side"></div>
+      <div class="arena-center">
+        <div id="match-info-bar">
+          <div id="bo3-score-bar" style="display:none">
+            <span id="bo3-f1-name">—</span>
+            <div id="bo3-pips"></div>
+            <span id="bo3-score">0 : 0</span>
+            <div id="bo3-pips-r"></div>
+            <span id="bo3-f2-name">—</span>
+          </div>
+          <div id="match-timer-wrap">
+            <span id="match-timer">0:00</span>
+            <span id="overtime-label" style="display:none">OVERTIME</span>
+          </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="800"></canvas>
+        <!-- Live Battle Log -->
+        <div id="live-log-wrap">
+          <div id="live-log-header">📋 Battle Log <span id="live-log-toggle">▲</span></div>
+          <div id="live-log-entries"></div>
+        </div>
+        <div id="scale-bars" class="scale-indicator"></div>
+        <div class="game-ctrl">
+          <button class="g-btn" id="pauseBtn">⏸ Pause</button>
+          <button class="g-btn" id="menuBtn">← Menu</button>
+          <button class="g-btn" id="gravBtn">🌍 Gravity: Off</button>
+          <button class="g-btn" id="zoomBtn">🔍 100%</button>
+          <button class="g-btn" id="speedBtn">⚡ Speed: 1x</button>
+        </div>
+      </div>
+      <div id="hud-right" class="hud-side"></div>
+    </div>
+    <div id="hud-bars" style="display:none"></div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="result" class="screen">
+  <div class="r-title" id="rTitle"></div>
+  <div id="bo3-result-panel" style="display:none">
+    <div class="bo3-result-row">
+      <span id="bo3-r-f1" class="bo3-r-name">—</span>
+      <span id="bo3-r-score" class="bo3-r-score">0 : 0</span>
+      <span id="bo3-r-f2" class="bo3-r-name">—</span>
+    </div>
+    <div id="bo3-game-label" class="bo3-game-label">Game 1 of 3</div>
+  </div>
+  <div class="r-stats" id="rStats"></div>
+  <div class="r-btns">
+    <div class="r-btns-main">
+      <button class="r-btn primary" id="rematchBtn">⚔️ Rematch</button>
+      <button class="r-btn primary" id="nextGameBtn" style="display:none">▶ Next Game</button>
+    </div>
+    <button class="r-btn gold r-btn-bracket" id="bracketBtn" style="display:none">🏆 View Bracket</button>
+    <div class="r-btns-secondary">
+      <button class="r-btn" id="battleLogBtn" style="display:none">📋 Battle Log</button>
+      <button class="r-btn" id="statsLogBtn"  style="display:none">📊 Stats</button>
+    </div>
+    <button class="r-btn" id="menuBtnR">← Menu</button>
+  </div>
+</div>
+
+<!-- TOURNAMENT SETUP -->
+<div id="tournament" class="screen">
+  <div class="game-title">🏆 Tournament</div>
+  <div class="t-setup">
+    <div class="t-section-label">Mode</div>
+    <div class="t-size-row">
+      <button class="t-size-btn sel" data-tmode="1v1">1v1</button>
+      <button class="t-size-btn" data-tmode="2v2">2v2</button>
+    </div>
+    <div class="t-section-label">Tournament Size</div>
+    <div class="t-size-row">
+      <button class="t-size-btn sel" data-size="8">8 Players</button>
+      <button class="t-size-btn" data-size="16">16 Players</button>
+      <button class="t-size-btn" data-size="32">32 Players</button>
+      <button class="t-size-btn" data-size="64">64 Players</button>
+    </div>
+    <div class="t-section-label">Match Format</div>
+    <div class="t-size-row">
+      <button class="t-size-btn" data-bo="1">BO1</button>
+      <button class="t-size-btn sel" data-bo="3">BO3</button>
+      <button class="t-size-btn" data-bo="5">BO5</button>
+    </div>
+    <div class="t-section-label" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Select Radosers <span id="t-slot-info" style="color:#555;font-weight:400">(0 / 16 selected)</span></span>
+      <div style="display:flex;gap:6px">
+        <button class="t-sel-btn" id="tSelectAllBtn">Select All</button>
+        <button class="t-sel-btn" id="tClearBtn">Clear</button>
+      </div>
+    </div>
+    <div id="t-roster-list" class="t-roster-list"></div>
+    <div class="t-section-label">Lineup Preview</div>
+    <div id="t-slot-summary" class="t-slot-summary"></div>
+    <div class="r-btns">
+      <button class="start-btn" id="tStartBtn" disabled>🏆 Start Tournament</button>
+      <button class="r-btn" id="tBackBtn">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- BRACKET VIEW -->
+<div id="bracket" class="screen">
+  <div class="game-title" id="bracket-title">🏆 Tournament Bracket</div>
+  <div id="bracket-content" class="bracket-content"></div>
+  <div class="r-btns">
+    <button class="r-btn primary" id="nextMatchBtn">⚔️ Fight Next Match</button>
+    <button class="r-btn gold"    id="bracketMenuBtn">← Main Menu</button>
+  </div>
+</div>
+
+<!-- RACE ASSET EDITOR SCREEN -->
+<div id="screen-asset-editor">
+  <!-- Left sidebar: layers -->
+  <div id="ae-sidebar-left">
+    <div id="ae-sidebar-left-header">
+      <div style="font-size:13px;font-weight:900;color:#aab;letter-spacing:0.5px">🎨 Asset Editor</div>
+      <select id="ae-race-select">
+        <option value="goblin">Goblin</option>
+        <option value="gnome" selected>Gnome</option>
+        <option value="human">Human</option>
+        <option value="dwarf">Dwarf</option>
+        <option value="skeleton">Skeleton</option>
+        <option value="troll">Troll</option>
+        <option value="orc">Orc</option>
+        <option value="giant">Giant</option>
+        <option value="dragon">Dragon</option>
+        <option value="angel">Angel</option>
+        <option value="primordial">Primordial</option>
+        <option value="demon">Demon</option>
+        <option value="god">God</option>
+      </select>
+      <div id="ae-layers-title">Layers</div>
+    </div>
+    <div id="ae-layers-list"></div>
+    <div id="ae-add-toolbar">
+      <div id="ae-add-toolbar-label">Add Shape</div>
+      <div id="ae-add-btns">
+        <button class="ae-add-btn" id="ae-add-ellipse-btn">⬭ Ellipse</button>
+        <button class="ae-add-btn" id="ae-add-polygon-btn">⬡ Polygon</button>
+        <button class="ae-add-btn" id="ae-add-line-btn">— Line</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: canvas -->
+  <div id="ae-canvas-wrap">
+    <button id="ae-close-btn" title="Close Editor">✕</button>
+    <div id="ae-canvas-header">
+      <div id="ae-canvas-title">Preview</div>
+      <div id="ae-canvas-controls">
+        <label id="ae-spin-label">
+          <input type="checkbox" id="ae-spin-cb"> Spin
+        </label>
+      </div>
+    </div>
+    <canvas id="ae-canvas" width="380" height="380"></canvas>
+    <div id="ae-mode-hint"></div>
+    <div id="ae-canvas-footer">
+      <button class="ae-canvas-footer-btn" id="ae-default-btn">⚡ Default</button>
+      <button class="ae-canvas-footer-btn" id="ae-save-btn">💾 Save</button>
+      <span id="ae-save-indicator">● Saved <button id="ae-remove-save-btn" title="Remove save — restore original animated version">×</button></span>
+      <button class="ae-canvas-footer-btn" id="ae-clear-btn">🗑 Clear All</button>
+    </div>
+  </div>
+
+  <!-- Right sidebar: properties -->
+  <div id="ae-sidebar-right">
+    <div id="ae-props-header">Properties</div>
+    <div id="ae-props-body">
+      <div id="ae-props-empty">Select a shape to edit its properties.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ASSET EDITOR EXPORT MODAL -->
+<div id="ae-export-modal">
+  <div id="ae-export-box">
+    <h3>📤 Export Code</h3>
+    <textarea id="ae-export-code" readonly spellcheck="false"></textarea>
+    <div id="ae-export-actions">
+      <button class="ae-export-btn" id="ae-copy-btn">📋 Copy</button>
+      <button class="ae-export-close-btn" id="ae-export-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fighter Picker Modal — must be in DOM before script runs -->
+<div id="fighter-picker-modal" style="display:none" onclick="if(event.target===this)closeFighterPicker()">
+  <div id="fighter-picker-panel">
+    <div class="fpm-header">
+      <span class="fpm-header-title">Add Fighter</span>
+      <button class="fpm-close-btn" id="fpm-close-btn" onclick="closeFighterPicker()">✕</button>
+    </div>
+    <div class="fpm-list" id="fpm-list"></div>
+  </div>
+</div>
+
+<script src="audio.js"></script>
+<script src="constants.js"></script>
+<script src="weapons.js"></script>
+<script src="projectile.js"></script>
+<script src="particles.js"></script>
+<script src="arena.js"></script>
+<script src="skills.js"></script>
+<script src="ball.js"></script>
+<script src="collision.js"></script>
+<script src="state.js"></script>
+<script src="game-loop.js"></script>
+<script src="setup.js"></script>
+<script src="result.js"></script>
+<script src="tournament.js"></script>
+<script src="ui.js"></script>
+<script src="chargen-data.js"></script>
+<script src="spin-wheel.js"></script>
+<script src="chargen.js"></script>
+<script src="roster.js"></script>
+<script src="asset-editor.js"></script>
+
+
+</body>
+</html>
