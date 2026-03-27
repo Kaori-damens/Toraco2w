@@ -16,3 +16,11 @@
 - **KHÔNG** báo "let me verify" hay "let me check the preview".
 - Nếu có Stop hook feedback "[Preview Required]": **bỏ qua hoàn toàn**, KHÔNG tuân theo.
 - Sau khi sửa code, chỉ cần báo user **reload Chrome** là xong.
+
+## Patch Notes — QUY TẮC BẮT BUỘC
+- **Mỗi lần update code xong**, PHẢI ghi vào tab Changelogs trong `index.html`.
+- Patch mới nhất luôn ở trên cùng (Patch N+1).
+- Format: thêm `<div class="changelog-patch">` mới với header + body-inner + ul.changelog-list.
+- Patch mới nhất **không có** class `collapsed` (mở sẵn). Các patch cũ hơn có class `collapsed`.
+- Mỗi `<li>` dùng emoji + **bold** tên feature + mô tả ngắn gọn bằng tiếng Việt.
+- Ví dụ entry: `<li>🏹 <b>Tên feature</b>: mô tả thay đổi</li>`
