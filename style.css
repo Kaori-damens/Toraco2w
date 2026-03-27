@@ -2788,4 +2788,310 @@ canvas#gameCanvas {
 ::-webkit-scrollbar-thumb { background: var(--m-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--m-gold); }
 
-/* ── END MEDIEVAL THEME ── */
+/* ── RACE SKILL BOX (chargen done screen) ── */
+.cg-race-skill-box {
+  margin: 10px 0 4px;
+  border: 2px solid #c8a84b;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(200,168,75,0.10), rgba(200,168,75,0.04));
+  overflow: hidden;
+}
+.cg-race-skill-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(200,168,75,0.14);
+  border-bottom: 1px solid rgba(200,168,75,0.3);
+}
+.cg-race-skill-crown { font-size: 14px; }
+.cg-race-skill-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c8a84b;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.cg-race-skill-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.cg-race-skill-icon { font-size: 26px; flex-shrink: 0; }
+.cg-race-skill-name {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 3px;
+}
+.cg-race-skill-desc {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 13px;
+  color: #a8b8c8;
+  line-height: 1.45;
+}
+
+/* ── CHANGELOG TAB ── */
+.changelog-wrap {
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 16px 40px;
+  box-sizing: border-box;
+}
+
+.changelog-patch {
+  background: var(--m-panel);
+  border: 1px solid var(--m-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.changelog-patch-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: rgba(255,210,100,0.06);
+  border-bottom: 1px solid var(--m-border);
+  cursor: pointer;
+  user-select: none;
+  transition: background .15s;
+}
+.changelog-patch-header:hover {
+  background: rgba(255,210,100,0.12);
+}
+
+/* Chevron icon */
+.changelog-chevron {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--m-gold);
+  transition: transform .25s ease;
+  line-height: 1;
+}
+.changelog-patch.collapsed .changelog-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Collapsible body */
+.changelog-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows .25s ease;
+}
+.changelog-patch.collapsed .changelog-body {
+  grid-template-rows: 0fr;
+}
+.changelog-body-inner {
+  overflow: hidden;
+}
+
+.changelog-date {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--m-gold);
+  letter-spacing: 0.5px;
+}
+
+.changelog-badge {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--m-gold);
+  color: #1a0e00;
+  padding: 2px 10px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.changelog-list {
+  list-style: none;
+  margin: 0;
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.changelog-list li {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 15px;
+  color: var(--m-text-sec);
+  line-height: 1.5;
+  padding-left: 4px;
+  border-left: 2px solid transparent;
+  transition: border-color .15s, color .15s;
+}
+
+.changelog-list li:hover {
+  border-left-color: var(--m-gold);
+  color: var(--m-text);
+}
+
+.changelog-list li b {
+  color: var(--m-text);
+  font-weight: 700;
+}
+
+/* ── ARENA BUILDER MODAL ── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.ab-box {
+  position: relative;
+  background: var(--m-panel);
+  border: 1px solid var(--m-border);
+  border-radius: 16px;
+  padding: 28px 28px 22px;
+  width: min(620px, 96vw);
+  box-shadow: 0 0 40px rgba(80,50,0,0.4);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.ab-close {
+  position: absolute; top: 12px; right: 14px;
+  background: none; border: none; cursor: pointer;
+  color: var(--m-text-dim); font-size: 18px; line-height: 1;
+}
+.ab-close:hover { color: var(--m-crimson-lt); }
+.ab-title {
+  font-family: 'Cinzel', serif;
+  font-size: 17px; font-weight: 700;
+  color: var(--m-gold-lt);
+  letter-spacing: 1px;
+}
+
+/* Type buttons row */
+.ab-type-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.ab-type-btn {
+  flex: 1; min-width: 80px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px 8px;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border-lo);
+  border-radius: 10px;
+  color: var(--m-text-dim);
+  font-size: 18px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.ab-type-btn span { font-family: 'EB Garamond', serif; font-size: 12px; }
+.ab-type-btn:hover { background: var(--m-raised); border-color: var(--m-border); color: var(--m-text-sec); }
+.ab-type-btn.active {
+  background: var(--m-raised);
+  border-color: var(--m-gold);
+  color: var(--m-gold-lt);
+  box-shadow: 0 0 10px rgba(201,144,42,0.2);
+}
+
+/* Main content */
+.ab-main {
+  display: flex; gap: 18px; align-items: flex-start;
+}
+.ab-preview-wrap {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.ab-preview-label {
+  font-family: 'Cinzel', serif;
+  font-size: 11px; letter-spacing: 1.5px;
+  color: var(--m-text-dim); text-transform: uppercase;
+}
+#arenaPreviewCanvas {
+  border-radius: 8px;
+  border: 1px solid var(--m-border);
+  background: #05050f;
+  display: block;
+}
+
+/* Parameter sliders */
+.ab-params {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 16px;
+  padding-top: 4px;
+}
+.ab-param-group {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.ab-param-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'EB Garamond', serif; font-size: 14px;
+  color: var(--m-text-sec);
+}
+.ab-param-val {
+  font-family: 'Cinzel', serif; font-size: 13px;
+  color: var(--m-gold-lt);
+  min-width: 40px; text-align: right;
+}
+.ab-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 5px;
+  border-radius: 3px;
+  background: var(--m-raised);
+  outline: none; cursor: pointer;
+}
+.ab-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--m-gold);
+  border: 2px solid var(--m-gold-lt);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(201,144,42,0.5);
+}
+.ab-slider::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--m-gold);
+  border: 2px solid var(--m-gold-lt);
+  cursor: pointer;
+}
+.ab-param-note {
+  font-size: 11px; color: var(--m-text-dim);
+  font-style: italic;
+}
+
+/* Actions */
+.ab-actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--m-border-lo);
+}
+.ab-cancel-btn {
+  background: none;
+  border: 1px solid var(--m-border);
+  border-radius: 8px; padding: 8px 18px;
+  color: var(--m-text-dim);
+  font-family: inherit; cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.ab-cancel-btn:hover { color: var(--m-text-sec); border-color: var(--m-border); }
+.ab-save-btn {
+  background: var(--m-gold);
+  border: none; border-radius: 8px;
+  padding: 8px 22px;
+  color: #1a0d00; font-weight: 700;
+  font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+}
+.ab-save-btn:hover { background: var(--m-gold-lt); box-shadow: 0 0 12px rgba(201,144,42,0.4); }
+
+/* Custom arena button in arena row */
+.a-btn-custom { border-style: dashed !important; }
+.a-btn-custom.sel { border-style: solid !important; }
+
+/* END MEDIEVAL THEME */

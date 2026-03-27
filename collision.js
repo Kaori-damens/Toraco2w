@@ -36,7 +36,9 @@ function collidePair(b1, b2) {
 
   // 2. Parry check and weapon hits — skip for teammates (no friendly fire)
   if (b1.teamId >= 0 && b1.teamId === b2.teamId) return; // body bounce still happened above
-  if (b1.weapon.parryCooldown === 0 && b2.weapon.parryCooldown === 0) {
+  const b1Stuck = (b1.rs_weaponStuck > 0);
+  const b2Stuck = (b2.rs_weaponStuck > 0);
+  if (b1.weapon.parryCooldown === 0 && b2.weapon.parryCooldown === 0 && !b1Stuck && !b2Stuck) {
     const pts1 = b1.weaponDef.getHitPoints(b1);
     const pts2 = b2.weaponDef.getHitPoints(b2);
     let parryOccurred = false;
@@ -127,28 +129,30 @@ function resolveProjectiles(players, projectiles) {
       if (target === proj.owner || !target.alive) continue;
       if (proj.owner && proj.owner.teamId >= 0 && proj.owner.teamId === target.teamId) continue;
 
-      // Check weapon deflect
-      const tpts = target.weaponDef.getHitPoints(target);
-      let deflected = false;
-      for (const tp of tpts) {
-        if (dist2(proj.x, proj.y, tp.x, tp.y) < (tp.r + proj.r) * (tp.r + proj.r)) {
-          deflected = true; break;
+      // Check weapon deflect — skip if target's weapon is stuck (Void Grip)
+      if (target.rs_weaponStuck <= 0) {
+        const tpts = target.weaponDef.getHitPoints(target);
+        let deflected = false;
+        for (const tp of tpts) {
+          if (dist2(proj.x, proj.y, tp.x, tp.y) < (tp.r + proj.r) * (tp.r + proj.r)) {
+            deflected = true; break;
+          }
         }
-      }
-      if (deflected) {
-        const da = Math.atan2(proj.y - target.y, proj.x - target.x);
-        const spd = Math.sqrt(proj.vx*proj.vx + proj.vy*proj.vy);
-        proj.vx = Math.cos(da) * spd * 1.05;
-        proj.vy = Math.sin(da) * spd * 1.05;
-        proj.owner = target;
-        proj.immuneFrames = target.weaponDef.id === 'fists' ? 20 : 8;
-        if (target.weaponDef.id === 'fists') {
-          // Fists parry ranged: take 50% damage, projectile bounces as normal
-          target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner);
+        if (deflected) {
+          const da = Math.atan2(proj.y - target.y, proj.x - target.x);
+          const spd = Math.sqrt(proj.vx*proj.vx + proj.vy*proj.vy);
+          proj.vx = Math.cos(da) * spd * 1.05;
+          proj.vy = Math.sin(da) * spd * 1.05;
+          proj.owner = target;
+          proj.immuneFrames = target.weaponDef.id === 'fists' ? 20 : 8;
+          if (target.weaponDef.id === 'fists') {
+            // Fists parry ranged: take 50% damage, projectile bounces as normal
+            target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner);
+          }
+          spawnSparks(proj.x, proj.y, 5);
+          sfxParry();
+          break;
         }
-        spawnSparks(proj.x, proj.y, 5);
-        sfxParry();
-        break;
       }
 
       // Check body hit

@@ -2,7 +2,11 @@
 // GAME SETUP
 // ============================================================
 function initGame() {
-  const arenaConfig = JSON.parse(JSON.stringify(ARENAS[state.arenaId]));
+  const arenaConfig = JSON.parse(JSON.stringify(
+    (state.arenaId === 'custom' && state.customArena)
+      ? state.customArena
+      : (ARENAS[state.arenaId] || ARENAS.square)
+  ));
   state.arena = arenaConfig;
   const N = state.fighters.length;
 
@@ -59,6 +63,7 @@ function initGame() {
     ball.skills = fighter.skills || [];
     applySkillPassives(ball, fighter);
     initRoundSkillState(ball);
+    initRaceSkillState(ball);
 
     // launchSpeed: nếu có chargen SPD → SPD + random(1~3), không thì 3 + random(0~3)
     const launchAngle = Math.atan2(pos.y - cy, pos.x - cx) + (Math.random() - 0.5) * 0.8;
@@ -85,7 +90,9 @@ function initGame() {
   });
 
   state.players = balls;
-  state.projectiles = [];
+  state.projectiles  = [];
+  state.trollNets    = [];
+  state.smiteEffects = [];
   state.frame = 0;
   state.ended = false;
   state.winner = null;

@@ -105,6 +105,10 @@ function buildFightersPanel() {
 // Arena selection
 document.querySelectorAll('.a-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (btn.dataset.a === 'custom') {
+      openArenaBuilder();
+      return; // don't select until user saves
+    }
     document.querySelectorAll('.a-btn').forEach(b => b.classList.remove('sel'));
     btn.classList.add('sel');
     state.arenaId = btn.dataset.a;
@@ -352,6 +356,181 @@ document.getElementById('bracketMenuBtn').addEventListener('click', () => {
   state.bo3 = null;
   showScreen('menu');
   buildFightersPanel();
+});
+
+// ============================================================
+// ARENA BUILDER
+// ============================================================
+
+// Parameter definitions for each arena type
+const AB_PARAMS = {
+  square: [
+    { id:'size',   label:'Size',        min:200, max:740, step:10, def:600, unit:'px',
+      note:'Width = Height — equal sides' }
+  ],
+  circle: [
+    { id:'radius', label:'Radius',      min:80,  max:360, step:5,  def:220, unit:'px',
+      note:'Diameter = radius × 2' }
+  ],
+  rect: [
+    { id:'width',  label:'Width',       min:250, max:760, step:10, def:600, unit:'px' },
+    { id:'height', label:'Height',      min:150, max:700, step:10, def:400, unit:'px' }
+  ],
+  cross: [
+    { id:'arm',   label:'Arm Length',   min:120, max:380, step:10, def:240, unit:'px',
+      note:'Total span = arm × 2' },
+    { id:'thick', label:'Arm Width',    min:80,  max:320, step:10, def:300, unit:'px' }
+  ],
+  hole: [
+    { id:'size',  label:'Arena Size',   min:300, max:780, step:10, def:800, unit:'px' },
+    { id:'holeR', label:'Hole Radius',  min:30,  max:180, step:5,  def:70,  unit:'px',
+      note:'Void in the center — bounce outward' }
+  ],
+};
+
+// Current builder state
+let _abType   = 'square';
+let _abParams = {};  // { type: { paramId: value } }
+// Init defaults for all types
+for (const [type, defs] of Object.entries(AB_PARAMS)) {
+  _abParams[type] = {};
+  for (const p of defs) _abParams[type][p.id] = p.def;
+}
+
+// Build an arena config object from current type + params
+function abBuildConfig(type, params) {
+  switch (type) {
+    case 'square': {
+      const s = params.size;
+      return { type:'square', x:(800-s)/2, y:(800-s)/2, w:s, h:s };
+    }
+    case 'circle': {
+      return { type:'circle', cx:400, cy:400, r:params.radius };
+    }
+    case 'rect': {
+      const { width:w, height:h } = params;
+      return { type:'rect', x:(800-w)/2, y:(800-h)/2, w, h };
+    }
+    case 'cross': {
+      return { type:'cross', cx:400, cy:400, arm:params.arm, thick:params.thick };
+    }
+    case 'hole': {
+      const s = params.size;
+      return { type:'hole', x:(800-s)/2, y:(800-s)/2, w:s, h:s,
+               holeCx:400, holeCy:400, holeR:params.holeR };
+    }
+  }
+}
+
+// Draw the arena preview at 260×260, scaled from 800×800
+function abRenderPreview() {
+  const canvas = document.getElementById('arenaPreviewCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const SCALE = W / 800;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#05050f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Scale down and draw
+  ctx.save();
+  ctx.scale(SCALE, SCALE);
+  const cfg = abBuildConfig(_abType, _abParams[_abType]);
+  drawArena(ctx, cfg);
+  ctx.restore();
+}
+
+// Render parameter sliders for the current type
+function abRenderParams() {
+  const container = document.getElementById('abParams');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const defs = AB_PARAMS[_abType] || [];
+  if (defs.length === 0) {
+    container.innerHTML = '<div style="color:var(--m-text-dim);font-size:13px;">No adjustable parameters.</div>';
+    return;
+  }
+
+  for (const p of defs) {
+    const val = _abParams[_abType][p.id];
+    const group = document.createElement('div');
+    group.className = 'ab-param-group';
+
+    const labelRow = document.createElement('div');
+    labelRow.className = 'ab-param-label';
+    labelRow.innerHTML = `<span>${p.label}</span><span class="ab-param-val" id="abVal_${p.id}">${val}${p.unit}</span>`;
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'ab-slider';
+    slider.min = p.min; slider.max = p.max; slider.step = p.step; slider.value = val;
+    slider.addEventListener('input', () => {
+      _abParams[_abType][p.id] = +slider.value;
+      const valEl = document.getElementById(`abVal_${p.id}`);
+      if (valEl) valEl.textContent = slider.value + p.unit;
+      abRenderPreview();
+    });
+
+    group.appendChild(labelRow);
+    group.appendChild(slider);
+    if (p.note) {
+      const note = document.createElement('div');
+      note.className = 'ab-param-note';
+      note.textContent = p.note;
+      group.appendChild(note);
+    }
+    container.appendChild(group);
+  }
+}
+
+// Open / close modal
+function openArenaBuilder() {
+  // If there's already a saved custom arena, pre-load its type
+  if (state.customArena) {
+    _abType = state.customArena.type;
+  }
+  document.querySelectorAll('.ab-type-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === _abType);
+  });
+  abRenderParams();
+  abRenderPreview();
+  document.getElementById('arenaBuilderModal').style.display = 'flex';
+}
+
+function closeArenaBuilder() {
+  document.getElementById('arenaBuilderModal').style.display = 'none';
+}
+
+// Type selector buttons
+document.querySelectorAll('.ab-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _abType = btn.dataset.type;
+    document.querySelectorAll('.ab-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    abRenderParams();
+    abRenderPreview();
+  });
+});
+
+// Close / cancel
+document.getElementById('arenaBuilderClose').addEventListener('click', closeArenaBuilder);
+document.getElementById('arenaBuilderCancel').addEventListener('click', closeArenaBuilder);
+// Click backdrop to close
+document.getElementById('arenaBuilderModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeArenaBuilder();
+});
+
+// Save — apply custom arena
+document.getElementById('arenaBuilderSave').addEventListener('click', () => {
+  state.customArena = abBuildConfig(_abType, _abParams[_abType]);
+  state.arenaId     = 'custom';
+  // Mark the Custom button as selected
+  document.querySelectorAll('.a-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('arenaCustomBtn').classList.add('sel');
+  closeArenaBuilder();
 });
 
 // ============================================================

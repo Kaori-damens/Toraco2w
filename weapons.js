@@ -462,12 +462,8 @@ const WEAPON_DEFS = [
     },
     onHit(w) {
       w.hits++;
-      w.shurikenHitBuffer = (w.shurikenHitBuffer || 0) + 1;
-      if (w.shurikenHitBuffer >= 2) {
-        w.shurikenHitBuffer = 0;
-        w.shurikenCount = Math.min((w.shurikenCount||1) + this.scaling.amount, this.scaling.max);
-        sfxScale();
-      }
+      w.shurikenCount = Math.min((w.shurikenCount||1) + this.scaling.amount, this.scaling.max);
+      sfxScale();
     }
   }
 ];

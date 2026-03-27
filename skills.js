@@ -157,6 +157,18 @@ function skillOnHit(attacker, defender, dmg) {
     addBattleLog('heal', { attacker: getBallLabel(attacker), aColor: attacker.color, heal, hpAfter: +attacker.hp.toFixed(1), source: 'Vampiric' });
     flashSkillHUD(attacker, SKILL_MAP['vampiric']);
   }
+
+  // ── Race: Orc Blood Frenzy stack ──────────────────────────────
+  if (attacker.charRace === 'orc' && attacker.rs_active) {
+    attacker.rs_stacks = (attacker.rs_stacks || 0) + 1;
+    if (attacker.rs_stacks % 3 === 0 || attacker.rs_stacks === 1) {
+      spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 14,
+        `🗡️ ×${attacker.rs_stacks}`, '#ff4444');
+    }
+  }
+
+  // ── Race: Primordial Void Grip ────────────────────────────────
+  if (typeof raceSkillOnHitDefending === 'function') raceSkillOnHitDefending(attacker, defender);
 }
 
 // ── ON-PARRY hook ──────────────────────────────────────────
@@ -249,5 +261,560 @@ function skillOnPostCombat(ball, won, fighter) {
   if (ball.skills.includes('adaptation') && ball._killedBy?.weaponDef) {
     fighter.adaptResist = ball._killedBy.weaponDef.id;
     flashSkillHUD(ball, SKILL_MAP['adaptation']);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RACE SKILLS — unique active abilities, auto-assigned by race
+// ═══════════════════════════════════════════════════════════════════
+
+const RACE_SKILL_DEFS = {
+  dragon:     { id:'race_flame_breath', name:'Flame Breath', icon:'🔥',
+                desc:'Breathes a wide fire cone for 3s. Damage scales with STR, cone width with MA, cooldown reduced by SPD.' },
+  troll:      { id:'race_net_throw',    name:'Net Throw',    icon:'🕸️',
+                desc:'Hurls a net at the nearest foe. Cooldown 6–10s by SPD (miss = 70% cooldown). Trap duration 2–3.5s scales with BIQ.' },
+  primordial: { id:'race_void_grip',    name:'Void Grip',    icon:'🌌',
+                desc:'Melee weapons that strike this Primordial may get stuck in the void. Chance scales with BIQ, duration with MA.' },
+  orc:        { id:'race_blood_frenzy', name:'Blood Frenzy', icon:'🗡️',
+                desc:'Activates every 10s. Each hit during frenzy stacks +10% damage. Resets on expiry.' },
+  angel:      { id:'race_smite',        name:'Smite',        icon:'✨',
+                desc:'Calls divine lightning on the nearest foe every 15s. Deals damage + stuns. Scales with IQ & MA.' },
+};
+
+function getRaceSkillDef(race) { return RACE_SKILL_DEFS[race] ?? null; }
+
+// Called from setup.js after Ball is constructed
+function initRaceSkillState(ball) {
+  const race = ball.charRace;
+  ball.raceSkillDef = RACE_SKILL_DEFS[race] ?? null;
+  if (!ball.raceSkillDef) return;
+  const spd = ball.charSPD ?? 5;
+  const str = ball.charSTR ?? 5;
+  const ma  = ball.charMA  ?? 5;
+  const biq = ball.charBIQ ?? 5;
+  const iq  = ball.charIQ  ?? 5;
+
+  if (race === 'dragon') {
+    ball.rs_maxCooldown = Math.max(600, 1800 - spd * 40);
+    ball.rs_cooldown    = 0;                        // start ready
+    ball.rs_active      = false;
+    ball.rs_timer       = 0;
+    ball.rs_duration    = 120 + ma * 12;            // ~3s at MA5
+    ball.rs_dmgPerFrame = 0.05 + str * 0.02;
+    ball.rs_halfCone    = Math.PI / 6 + ma * 0.012; // wider with MA
+  }
+  if (race === 'troll') {
+    // Cooldown: SPD=5→600f(10s), SPD=10→360f(6s) — floor 360f
+    ball.rs_maxCooldown = Math.max(360, 840 - spd * 48);
+    ball.rs_cooldown    = 0;
+    // Trap duration: BIQ=5→120f(2s), BIQ=10→210f(3.5s) — floor 60f
+    ball.rs_trapDur     = Math.max(60, 30 + biq * 18);
+  }
+  if (race === 'primordial') {
+    ball.rs_stuckChance = Math.min(0.60, biq * 0.06);
+    ball.rs_stuckDur    = 60 + ma * 15;
+    ball.rs_maxCooldown = 0; // passive — no cooldown bar
+  }
+  if (race === 'orc') {
+    ball.rs_maxCooldown = Math.max(300, 600 - spd * 15);
+    ball.rs_cooldown    = 0;
+    ball.rs_active      = false;
+    ball.rs_timer       = 0;
+    ball.rs_frenzyDur   = 180 + str * 18;           // ~5s at STR5
+    ball.rs_stacks      = 0;
+  }
+  if (race === 'angel') {
+    ball.rs_maxCooldown = Math.max(420, 900 - spd * 40);
+    ball.rs_cooldown    = 0;
+    ball.rs_smiteDmg    = 15 + iq * 3;
+    ball.rs_smiteStun   = 60 + ma * 12;
+  }
+}
+
+// Called every frame for ALL alive balls (regardless of race skill).
+// Must run outside updateRaceSkills so non-race-skill balls (goblin, human…)
+// are also processed — updateRaceSkills early-returns for them.
+function updateVoidGripPhysics(ball) {
+  if (!ball.alive || !(ball.rs_weaponStuck > 0)) return;
+
+  ball.rs_weaponStuck--;
+  const tgt = ball.rs_stuckTarget;
+
+  if (tgt && tgt.alive) {
+    // Prevent stuck attacker from dealing damage — keep weapon on permanent cooldown
+    ball.weapon.cooldown = ball.weapon.attackCooldown || 30;
+
+    // World position of the stuck point (moves rigidly with Primordial)
+    const wpx = tgt.x + ball.rs_stuckLocalX;
+    const wpy = tgt.y + ball.rs_stuckLocalY;
+
+    // Lock attacker position: stay at weaponLength from stuck point, original direction
+    ball.x = wpx + Math.cos(ball.rs_stuckBallAngle) * ball.rs_stuckWeaponLen;
+    ball.y = wpy + Math.sin(ball.rs_stuckBallAngle) * ball.rs_stuckWeaponLen;
+
+    // Clamp stuck ball to arena bounds so it never gets dragged out-of-bounds
+    if (state.arena) clampToBall(ball, state.arena);
+
+    // Lock weapon angle to point from ball → stuck point (re-compute after clamp)
+    ball.weapon.angle = Math.atan2(wpy - ball.y, wpx - ball.x);
+
+    // Zero attacker velocity (completely pinned — dragged by Primordial, not own physics)
+    ball.vx = 0; ball.vy = 0;
+  }
+
+  // Release when timer expires OR Primordial died
+  if (ball.rs_weaponStuck === 0 || !tgt?.alive) {
+    ball.rs_weaponStuck = 0;
+    if (ball.rs_savedMaxSpd != null) {
+      ball.maxSpd = ball.rs_savedMaxSpd;
+      ball.rs_savedMaxSpd = null;
+    }
+    ball.rs_stuckTarget = null;
+    // Launch-away impulse on release so it doesn't just freeze in place
+    const ang = Math.random() * Math.PI * 2;
+    ball.vx = Math.cos(ang) * 4;
+    ball.vy = Math.sin(ang) * 4;
+  }
+}
+
+// Called every frame from game-loop step() for each ball
+function updateRaceSkills(ball, players, rstate) {
+  if (!ball.raceSkillDef || !ball.alive) return;
+  const race = ball.charRace;
+
+  // Tick shared timers
+  if (ball.rs_cooldown > 0) ball.rs_cooldown--;
+  if (ball.netTrapped  > 0) { ball.netTrapped--; ball.vx *= 0.08; ball.vy *= 0.08; }
+  if (ball.stunTimer   > 0) ball.stunTimer--;
+
+  // Orc frenzy timer
+  if (race === 'orc' && ball.rs_active) {
+    ball.rs_timer--;
+    if (ball.rs_timer <= 0) {
+      ball.rs_active = false; ball.rs_stacks = 0;
+      ball.rs_cooldown = ball.rs_maxCooldown;
+    }
+  }
+
+  const enemies = players.filter(p => p !== ball && p.alive);
+  if (!enemies.length) return;
+  const nearest = enemies.reduce((a,b) =>
+    Math.hypot(ball.x-a.x,ball.y-a.y) < Math.hypot(ball.x-b.x,ball.y-b.y) ? a : b);
+
+  // ── DRAGON: Flame Breath ─────────────────────────────────────
+  if (race === 'dragon') {
+    if (ball.rs_active) {
+      ball.rs_timer--;
+      ball.rs_flameTick = (ball.rs_flameTick || 0) + 1;
+      const coneAng = ball.weapon.angle;
+      const coneLen = 80 + ball.rs_duration * 0.25;
+
+      // Deal damage every 20 frames (≈0.33s per tick), using separate flameImmunity
+      if (ball.rs_flameTick % 20 === 0) {
+        const flameDmg = (ball.charSTR ?? 5) * 3;   // STR5 → 15 per tick, STR10 → 30
+        for (const en of enemies) {
+          if (!en.alive) continue;
+          if ((en.flameImmunity || 0) > 0) continue; // separate from weapon immunityFrames
+          const dx = en.x - ball.x, dy = en.y - ball.y;
+          if (Math.hypot(dx, dy) > coneLen + en.radius) continue;
+          let diff = Math.atan2(dy, dx) - coneAng;
+          while (diff >  Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
+          if (Math.abs(diff) < ball.rs_halfCone + 0.15) {
+            en.hp = Math.max(0, en.hp - flameDmg);
+            en.flameImmunity = 18;   // per-enemy, doesn't block regular weapon hits
+            en.hitFlash = 6;
+            ball.stats.damageDone += flameDmg;
+            spawnDamageNumber(en.x, en.y - en.radius - 14, `-${flameDmg} 🔥`, '#ff8800');
+            addBattleLog('hit', {
+              attacker: getBallLabel(ball), aColor: ball.color,
+              defender: getBallLabel(en),  dColor: en.color,
+              dmg: flameDmg, weapon: 'Flame Breath', isCrit: false
+            });
+            if (en.hp <= 0 && en.alive) { en.alive = false; skillOnKill(ball, en); }
+          }
+        }
+      }
+      // Tick down per-enemy flame immunity (separate from weapon immunityFrames)
+      for (const en of enemies) {
+        if ((en.flameImmunity || 0) > 0) en.flameImmunity--;
+      }
+
+      if (ball.rs_timer <= 0) {
+        ball.rs_active    = false;
+        ball.rs_flameTick = 0;
+        ball.rs_cooldown  = ball.rs_maxCooldown;
+      }
+    } else if (ball.rs_cooldown === 0) {
+      ball.rs_active    = true;
+      ball.rs_timer     = ball.rs_duration;
+      ball.rs_flameTick = 0;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 22, '🔥 FLAME BREATH!', '#ff6600');
+      addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🔥 Flame Breath!' });
+    }
+  }
+
+  // ── ORC: Blood Frenzy (auto-activate) ──────────────────────
+  if (race === 'orc' && !ball.rs_active && ball.rs_cooldown === 0) {
+    ball.rs_active = true;
+    ball.rs_timer  = ball.rs_frenzyDur;
+    ball.rs_stacks = 0;
+    spawnDamageNumber(ball.x, ball.y - ball.radius - 22, '🗡️ BLOOD FRENZY!', '#ff2222');
+    addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🗡️ Blood Frenzy activated!' });
+  }
+
+  // ── ANGEL: Smite ─────────────────────────────────────────────
+  if (race === 'angel' && ball.rs_cooldown === 0) {
+    ball.rs_cooldown = ball.rs_maxCooldown;
+    rstate.smiteEffects = rstate.smiteEffects || [];
+    rstate.smiteEffects.push({
+      x: nearest.x, y: nearest.y, target: nearest,
+      timer: 60, maxTimer: 60,
+      dmg: ball.rs_smiteDmg, stunDur: ball.rs_smiteStun,
+      caster: ball, hit: false,
+    });
+    spawnDamageNumber(nearest.x, nearest.y - nearest.radius - 22, '✨ SMITE!', '#ffffaa');
+    addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
+      text: `✨ Smite → ${getBallLabel(nearest)}` });
+  }
+}
+
+// Called once per step() to update troll nets + smite effects
+function updateRaceSkillProjectiles(rstate) {
+  const players = rstate.players;
+
+  // ── Troll Nets ────────────────────────────────────────────────
+  rstate.trollNets = rstate.trollNets || [];
+
+  // Spawn new nets
+  for (const ball of players) {
+    if (!ball.alive || ball.charRace !== 'troll' || !ball.raceSkillDef) continue;
+    if (ball.rs_cooldown > 0) continue;
+    const enemies = players.filter(p => p !== ball && p.alive);
+    if (!enemies.length) continue;
+    const target = enemies.reduce((a,b) =>
+      Math.hypot(ball.x-a.x,ball.y-a.y) < Math.hypot(ball.x-b.x,ball.y-b.y) ? a : b);
+    const dx = target.x - ball.x, dy = target.y - ball.y;
+    const dist = Math.hypot(dx,dy) || 1;
+    rstate.trollNets.push({
+      x: ball.x, y: ball.y,
+      vx: (dx/dist)*5, vy: (dy/dist)*5,
+      caster: ball, trapDur: ball.rs_trapDur,
+      life: 120, r: 10,
+    });
+    ball.rs_cooldown = ball.rs_maxCooldown;
+    addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🕸️ Net thrown!' });
+  }
+
+  // Move + hit-check nets
+  for (let i = rstate.trollNets.length - 1; i >= 0; i--) {
+    const net = rstate.trollNets[i];
+    net.x += net.vx; net.y += net.vy; net.life--;
+    let hit = false;
+    for (const p of players) {
+      if (!p.alive || p === net.caster) continue;
+      if (Math.hypot(p.x - net.x, p.y - net.y) < p.radius + net.r) {
+        p.netTrapped = net.trapDur;
+        spawnDamageNumber(p.x, p.y - p.radius - 22, '🕸️ TRAPPED!', '#ccaa55');
+        spawnSparks(p.x, p.y, 8);
+        addBattleLog('race_skill', { attacker: getBallLabel(net.caster), aColor: net.caster.color,
+          text: `🕸️ Net trapped ${getBallLabel(p)}!` });
+        hit = true; break;
+      }
+    }
+    if (hit || net.life <= 0) {
+      // Miss penalty: only 70% of full cooldown (minus flight time already elapsed)
+      if (!hit && net.caster.alive) {
+        const missCD = Math.max(0, Math.round(net.caster.rs_maxCooldown * 0.70) - 120);
+        net.caster.rs_cooldown = missCD;
+        addBattleLog('race_skill', { attacker: getBallLabel(net.caster), aColor: net.caster.color,
+          text: '🕸️ Net missed!' });
+      }
+      rstate.trollNets.splice(i, 1);
+    }
+  }
+
+  // ── Smite Effects ─────────────────────────────────────────────
+  rstate.smiteEffects = rstate.smiteEffects || [];
+  for (let i = rstate.smiteEffects.length - 1; i >= 0; i--) {
+    const s = rstate.smiteEffects[i];
+    s.timer--;
+    if (!s.hit && s.timer <= Math.floor(s.maxTimer * 0.45)) {
+      s.hit = true;
+      if (s.target.alive) {
+        s.target.hp = Math.max(0, s.target.hp - s.dmg);
+        s.target.stunTimer = s.stunDur;
+        s.target.hitFlash  = 20;
+        s.caster.stats.damageDone += s.dmg;
+        spawnDamageNumber(s.target.x, s.target.y - s.target.radius - 16,
+          `⚡ -${s.dmg.toFixed(0)}`, '#ffffaa');
+        spawnSparks(s.target.x, s.target.y, 14);
+        addBattleLog('race_skill', { attacker: getBallLabel(s.caster), aColor: s.caster.color,
+          text: `✨ Smite hit ${getBallLabel(s.target)} for ${s.dmg.toFixed(0)}!` });
+        if (s.target.hp <= 0 && s.target.alive) {
+          s.target.alive = false; skillOnKill(s.caster, s.target);
+        }
+      }
+    }
+    if (s.timer <= 0) rstate.smiteEffects.splice(i, 1);
+  }
+}
+
+// Called from skillOnHit when a melee weapon hits a Primordial
+function raceSkillOnHitDefending(attacker, defender) {
+  if (defender.charRace !== 'primordial' || !defender.raceSkillDef) return;
+  const melee = ['fists','sword','dagger','spear','scythe','hammer'];
+  if (!melee.includes(attacker.weapon?.id)) return;
+  if (attacker.rs_weaponStuck > 0) return; // already stuck
+
+  // Guard: verify weapon tip is physically near the Primordial
+  // Filters out projectile hits (skillOnHit fires for both melee + projectile)
+  const L    = attacker.getWeaponLength ? attacker.getWeaponLength() : (attacker.radius + 30);
+  const tipX = attacker.x + Math.cos(attacker.weapon.angle) * L;
+  const tipY = attacker.y + Math.sin(attacker.weapon.angle) * L;
+  if (Math.hypot(tipX - defender.x, tipY - defender.y) > defender.radius + 18) return;
+
+  if (Math.random() < (defender.rs_stuckChance || 0)) {
+    // Calculate weapon tip position at moment of contact
+    const L = attacker.getWeaponLength ? attacker.getWeaponLength()
+                                       : (attacker.radius + 30);
+    const tipX = attacker.x + Math.cos(attacker.weapon.angle) * L;
+    const tipY = attacker.y + Math.sin(attacker.weapon.angle) * L;
+
+    attacker.rs_weaponStuck    = defender.rs_stuckDur || 90;
+    attacker.rs_stuckTarget    = defender;
+    // Offset from Primordial center → contact point (rigid, moves with Primordial)
+    attacker.rs_stuckLocalX    = tipX - defender.x;
+    attacker.rs_stuckLocalY    = tipY - defender.y;
+    // Weapon length (distance ball → tip)
+    attacker.rs_stuckWeaponLen = L;
+    // Angle from tip → ball (opposite of weapon.angle, used to reposition ball)
+    attacker.rs_stuckBallAngle = Math.atan2(attacker.y - tipY, attacker.x - tipX);
+    // Save and cap max speed
+    attacker.rs_savedMaxSpd    = attacker.maxSpd;
+    attacker.maxSpd            = 0;  // completely pinned
+
+    spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 22,
+      '🌌 WEAPON STUCK!', '#cc88ff');
+    addBattleLog('race_skill', { attacker: getBallLabel(defender), aColor: defender.color,
+      text: `🌌 Void Grip: ${getBallLabel(attacker)} weapon stuck!` });
+  }
+}
+
+// ── Draw global race skill effects on canvas ──────────────────
+function drawRaceSkillEffects(ctx, rstate) {
+  const t = rstate.matchTime || 0;
+
+  // Troll nets in flight
+  (rstate.trollNets || []).forEach(net => {
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = '#ccaa55';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(net.x, net.y, net.r, 0, Math.PI*2);
+    ctx.stroke();
+    for (let a = 0; a < Math.PI; a += Math.PI/3) {
+      ctx.beginPath();
+      ctx.moveTo(net.x + Math.cos(a)*net.r, net.y + Math.sin(a)*net.r);
+      ctx.lineTo(net.x - Math.cos(a)*net.r, net.y - Math.sin(a)*net.r);
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  // Smite lightning bolts
+  (rstate.smiteEffects || []).forEach(s => {
+    const progress = 1 - s.timer / s.maxTimer;
+    let alpha = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
+    alpha = Math.max(0, Math.min(1, alpha));
+    if (alpha < 0.01) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Outer glow
+    ctx.shadowColor = '#ffffaa'; ctx.shadowBlur = 24;
+    ctx.strokeStyle = '#ffffee'; ctx.lineWidth = 3 + Math.random()*2;
+    ctx.beginPath();
+    const segs = 8;
+    ctx.moveTo(s.x, 0);
+    for (let k = 1; k < segs; k++) {
+      const frac = k / segs;
+      ctx.lineTo(s.x + (Math.random()-0.5)*30*(1-frac), s.y * frac);
+    }
+    ctx.lineTo(s.x, s.y);
+    ctx.stroke();
+    // Inner core
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(s.x, 0); ctx.lineTo(s.x, s.y); ctx.stroke();
+    // Impact circle
+    if (progress > 0.4) {
+      const ir = 28 * (progress - 0.4) / 0.6;
+      ctx.globalAlpha = alpha * 0.25;
+      ctx.fillStyle = '#ffffaa';
+      ctx.beginPath(); ctx.arc(s.x, s.y, ir, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+// ── Draw per-ball overlays (auras, cooldown arc, net, stuck) ──
+function drawRaceSkillUI(ctx, ball) {
+  if (!ball.raceSkillDef || !ball.alive) return;
+  const race = ball.charRace;
+  const t    = state.matchTime || 0;
+  const cx = ball.x, cy = ball.y, r = ball.radius;
+
+  // Net-trapped: crosshatch overlay on ball
+  if (ball.netTrapped > 0) {
+    ctx.save();
+    ctx.strokeStyle = '#ccaa55'; ctx.lineWidth = 2;
+    ctx.setLineDash([3,4]); ctx.globalAlpha = 0.7;
+    for (let a = 0; a < Math.PI; a += Math.PI/3) {
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
+      ctx.lineTo(cx - Math.cos(a)*r, cy - Math.sin(a)*r);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // Weapon-stuck: violet pulsing ring
+  if (ball.rs_weaponStuck > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.5 + 0.3*Math.sin(t*0.4);
+    ctx.strokeStyle = '#cc88ff'; ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#cc88ff'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(cx, cy, r+5, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Primordial: permanent swirling void aura
+  if (race === 'primordial') {
+    ctx.save();
+    ctx.globalAlpha = 0.18 + 0.08*Math.sin(t*0.05);
+    ctx.strokeStyle = '#aa88ff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r+7, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Dragon: fire cone + pulsing glow while breathing
+  if (race === 'dragon' && ball.rs_active) {
+    const coneAng = ball.weapon.angle;
+    const coneLen = 80 + ball.rs_duration * 0.25;
+    const halfC   = ball.rs_halfCone || (Math.PI / 6);
+
+    // Draw filled cone sector with radial gradient
+    ctx.save();
+    const grad = ctx.createRadialGradient(cx, cy, r, cx, cy, coneLen);
+    grad.addColorStop(0,   `rgba(255,200, 60,${0.70 + 0.15*Math.sin(t*0.6)})`);
+    grad.addColorStop(0.4, `rgba(255,100,  0,${0.50 + 0.10*Math.sin(t*0.5)})`);
+    grad.addColorStop(1,   'rgba(180, 30, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, coneLen, coneAng - halfC, coneAng + halfC);
+    ctx.closePath();
+    ctx.fill();
+
+    // Bright edge outline of the cone
+    ctx.globalAlpha = 0.4 + 0.2*Math.sin(t*0.7);
+    ctx.strokeStyle = '#ffcc44';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(coneAng - halfC)*coneLen, cy + Math.sin(coneAng - halfC)*coneLen);
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(coneAng + halfC)*coneLen, cy + Math.sin(coneAng + halfC)*coneLen);
+    ctx.stroke();
+    ctx.restore();
+
+    // ── Animated flame particles layer (on top of cone) ──────────
+    // Clip drawing to the cone shape so particles don't bleed outside
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, coneLen + 6, coneAng - halfC, coneAng + halfC);
+    ctx.closePath();
+    ctx.clip();
+
+    const NUM_FLAME = 14;
+    for (let fi = 0; fi < NUM_FLAME; fi++) {
+      // Each particle has its own phase so they're never in sync
+      const phase    = (fi / NUM_FLAME) * Math.PI * 2;
+      const tf       = t * 0.09 + phase;                          // time seed
+      // Distance along cone axis — start at ball edge (r), spread to tip
+      const baseDist = r + (fi / NUM_FLAME) * (coneLen - r) * 0.92;
+      const dist     = baseDist + Math.sin(tf * 1.4 + fi) * 9;
+      // Angular wobble — stays within ±85% of halfCone so particles clip cleanly
+      const angWobble = Math.sin(tf * 1.1 + fi * 0.8) * halfC * 0.80;
+      const px = cx + Math.cos(coneAng + angWobble) * dist;
+      const py = cy + Math.sin(coneAng + angWobble) * dist;
+      // Size: larger near mouth, smaller at tip; pulses
+      const tRatio = (dist - r) / Math.max(1, coneLen - r);      // 0=near edge 1=far tip
+      const sz = (6 - tRatio * 3.5) + Math.sin(tf * 2.1 + fi) * 2;
+      // Alpha: fade at far end + pulse
+      const alpha = (0.55 + 0.35 * Math.sin(tf * 1.7 + fi)) * (1 - tRatio * 0.6);
+      // Color: yellow-white near ball → orange → deep red at tip
+      const gCh = Math.floor(220 - tRatio * 190);               // 220 → 30
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.shadowColor = `rgb(255,${gCh},20)`;
+      ctx.shadowBlur  = sz * 2.5;
+      ctx.fillStyle   = `rgb(255,${gCh},20)`;
+      ctx.beginPath();
+      ctx.arc(px, py, Math.max(1, sz), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore(); // end clip
+
+    // Ball glow
+    ctx.save();
+    ctx.globalAlpha = 0.35 + 0.2*Math.sin(t*0.5);
+    ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 28;
+    ctx.strokeStyle = '#ff8800'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, r+6, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Orc: red frenzy glow + stack counter
+  if (race === 'orc' && ball.rs_active) {
+    ctx.save();
+    ctx.globalAlpha = 0.25 + 0.2*Math.sin(t*0.55);
+    ctx.shadowColor = '#ff2222'; ctx.shadowBlur = 22;
+    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, r+6, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+    if (ball.rs_stacks > 0) {
+      ctx.save();
+      ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ff4444';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(`×${ball.rs_stacks}`, cx, cy - r - 4);
+      ctx.restore();
+    }
+  }
+
+  // Cooldown arc (thin arc sweeping around the ball)
+  if (ball.rs_maxCooldown > 0 && ball.rs_cooldown > 0) {
+    const pct = 1 - ball.rs_cooldown / ball.rs_maxCooldown;
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = ball.rs_active ? '#44ff88' : '#888888';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r+3, -Math.PI/2, -Math.PI/2 + pct*Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Stun indicator
+  if (ball.stunTimer > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.5 + 0.3*Math.sin(t*0.6);
+    ctx.strokeStyle = '#ffffaa'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r+5, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
   }
 }

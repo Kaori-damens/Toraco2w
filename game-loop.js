@@ -47,6 +47,15 @@ function step() {
     ball.update(state.arena, nearest, state.projectiles, state.gravity);
   }
 
+  // Race skill updates (per-ball + global projectiles)
+  if (state.phase === 'playing') {
+    // Void Grip physics runs for ALL balls — non-race-skill races (goblin, human…)
+    // are skipped by updateRaceSkills' early return, so this must be separate.
+    for (const ball of players) updateVoidGripPhysics(ball);
+    for (const ball of players) updateRaceSkills(ball, players, state);
+    updateRaceSkillProjectiles(state);
+  }
+
   // Update projectiles
   for (let i = state.projectiles.length - 1; i >= 0; i--) {
     state.projectiles[i].update(state.arena);
@@ -146,6 +155,11 @@ function render() {
   for (const b of state.players) b.draw(ctx);
 
   drawParticles(ctx);
+
+  // Race skill effects (global: lightning, nets)
+  drawRaceSkillEffects(ctx, state);
+  // Race skill per-ball UI (auras, cooldown arcs, trapped overlay)
+  for (const b of state.players) drawRaceSkillUI(ctx, b);
 
   // Game ended overlay
   if (state.ended) {

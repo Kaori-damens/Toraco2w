@@ -260,6 +260,8 @@ function getBlogText(e) {
     return `${a} → ${d} <span style="color:#44ffaa">EVADE</span>`;
   if (e.type === 'heal')
     return `${a} <span style="color:#55ee88">♥ +${(+e.heal).toFixed(1)} HP</span><span style="color:#667"> [${e.source ?? 'heal'}]</span><span style="color:#888"> HP left: ${(+(e.hpAfter ?? 0)).toFixed(1)}</span>`;
+  if (e.type === 'race_skill')
+    return `${a} <span style="color:#cc99ff">${e.text ?? ''}</span>`;
   return '';
 }
 

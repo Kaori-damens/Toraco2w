@@ -440,6 +440,7 @@ function applySubraceEffects(_cgState) { /* no-op */ }
 function cgRenderDone(box) {
   const r = cgState.race, sr = cgState.subrace, st = cgState.stats;
   const wep = CG_WEAPONS.find(w => w.id === cgState.weapon);
+  const raceSk = (typeof RACE_SKILL_DEFS !== 'undefined') ? RACE_SKILL_DEFS[r.id] : null;
   box.innerHTML = `
     <div class="cg-card">
       <div class="cg-label" style="font-size:20px;color:#fff;font-weight:900">${r.emoji} ${cgState.name}</div>
@@ -450,6 +451,20 @@ function cgRenderDone(box) {
         ${STAT_DISPLAY.map(sd => `<div class="cg-sum-row"><span class="cg-sum-lbl">${sd.emoji} ${sd.label}</span><span class="cg-sum-val" style="color:${STAT_COLORS[(st[sd.key]||1)-1]}">${st[sd.key] ?? '—'}</span></div>`).join('')}
       ${cgState.skills?.length > 0 ? cgState.skills.map(s => `<div class="cg-sum-row"><span class="cg-sum-lbl">Skill</span><span class="cg-sum-val">${s.icon} ${s.name}</span></div>`).join('') : '<div class="cg-sum-row"><span class="cg-sum-lbl">Skills</span><span class="cg-sum-val" style="color:#555">None</span></div>'}
       </div>
+      ${raceSk ? `
+      <div class="cg-race-skill-box">
+        <div class="cg-race-skill-header">
+          <span class="cg-race-skill-crown">👑</span>
+          <span class="cg-race-skill-title">Race Skill</span>
+        </div>
+        <div class="cg-race-skill-body">
+          <span class="cg-race-skill-icon">${raceSk.icon}</span>
+          <div>
+            <div class="cg-race-skill-name">${raceSk.name}</div>
+            <div class="cg-race-skill-desc">${raceSk.desc}</div>
+          </div>
+        </div>
+      </div>` : ''}
       ${r.trait ? `<div class="cg-trait">${r.trait}</div>` : ''}
       ${sr?.desc ? `<div class="cg-trait">Sub-Race bonus: ${sr.desc}</div>` : ''}
       <div class="cg-nav">

@@ -13,6 +13,7 @@ let state = {
   frame: 0,
   fighters: [],
   arenaId: 'square',
+  customArena: null,   // saved from Arena Builder
   winner: null,
   // Countdown + timer
   phase: 'menu',       // 'countdown' | 'playing'
@@ -26,4 +27,7 @@ let state = {
   matchMode: '1v1',    // '1v1' | '2v2'
   teamIds: [],         // array of teamId per fighter index
   winTeam: -1,         // winning team index in 2v2
+  // Race skill projectiles & effects
+  trollNets:    [],
+  smiteEffects: [],
 };

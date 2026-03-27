@@ -87,6 +87,7 @@
     <button class="menu-tab active" data-tab="tab-showcase">Showcase</button>
     <button class="menu-tab"        data-tab="tab-radosers">Radosers</button>
     <button class="menu-tab"        data-tab="tab-battle">Battle</button>
+    <button class="menu-tab"        data-tab="tab-changelog">Changelogs</button>
   </div>
 
   <!-- Tab: Showcase -->
@@ -154,6 +155,7 @@
           <button class="a-btn"     data-a="rect">Rectangle</button>
           <button class="a-btn"     data-a="cross">Cross</button>
           <button class="a-btn"     data-a="hole">Hole</button>
+          <button class="a-btn a-btn-custom" data-a="custom" id="arenaCustomBtn">⚙️ Custom</button>
         </div>
         <button class="start-btn" id="startBtn">⚔️ FIGHT!</button>
       </div>
@@ -171,6 +173,175 @@
     </div>
   </div>
 
+  <!-- Tab: Changelogs -->
+  <div class="menu-tab-pane" id="tab-changelog">
+    <div class="changelog-wrap">
+
+      <div class="changelog-patch">
+        <div class="changelog-patch-header" onclick="this.closest('.changelog-patch').classList.toggle('collapsed')">
+          <span class="changelog-date">27 Mar 2026</span>
+          <span class="changelog-badge">Patch 7</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⭐ <b>Shuriken scale</b>: giờ chỉ cần 1 hit là +1 shuriken (trước cần 2 hits)</li>
+          <li>🥊 <b>Fists damage</b>: <code>(2 + MA×0.2) × STR</code> — MA=5,STR=5 → 15 dmg; MA=10,STR=10 → 40 dmg</li>
+          <li>🗡️ <b>Dagger damage</b>: <code>(1 + MA×0.15) × STR</code> — MA=5,STR=5 → 8.75 dmg; MA=10,STR=10 → 25 dmg</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" onclick="this.closest('.changelog-patch').classList.toggle('collapsed')">
+          <span class="changelog-date">27 Mar 2026</span>
+          <span class="changelog-badge">Patch 6</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🕸️ <b>Troll Net rebalance</b>: miss penalty giảm còn <b>70% cooldown</b> thay vì full — e.g. CD 10s → miss → 7s còn lại</li>
+          <li>🕸️ Net miss giờ hiển thị trong battle log: <i>"[Troll] 🕸️ Net missed!"</i></li>
+          <li>🏹 <b>Arrow speed</b> giờ scale theo SPD (+0.25/pt) và IQ (+0.15/pt) — SPD=10, IQ=10 → 11.5 px/f thay vì 7.5</li>
+          <li>⭐ <b>Shuriken speed</b> giờ scale theo SPD (+0.4/pt) và IQ (+0.25/pt) — SPD=10, IQ=10 → 9.5 px/f thay vì 3</li>
+          <li>🏹 <b>Bow multi-stream</b>: MA≥5 → bắn 2 luồng lệch ±5°, MA≥10 → 3 luồng lệch ±10°; tổng arrow giữ nguyên, chia đều ra các luồng</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" onclick="this.closest('.changelog-patch').classList.toggle('collapsed')">
+          <span class="changelog-date">27 Mar 2026</span>
+          <span class="changelog-badge">Patch 5</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📋 <b>Battle Log</b>: race skill trigger events giờ hiển thị màu tím trong log — <i>e.g. "Kira 🌌 Void Grip: X weapon stuck!"</i></li>
+          <li>🌌 <b>Void Grip fix</b>: ball bị stuck không thể parry melee và không deflect projectile nữa — shuriken/arrow đánh trúng thẳng</li>
+          <li>🔥 <b>Flame Breath visual</b>: thêm 14 hạt lửa animated (yellow → orange → red) trên lớp cone — clip theo đúng hình nón, mỗi hạt có phase riêng để không đồng bộ</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" onclick="this.closest('.changelog-patch').classList.toggle('collapsed')">
+          <span class="changelog-date">27 Mar 2026</span>
+          <span class="changelog-badge">Patch 4</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>👑 Thêm hệ thống <b>Race Skill</b> — mỗi race có 1 active skill đặc biệt, tự động gán khi tạo Radoser</li>
+          <li>🔥 Dragon — <b>Flame Breath</b>: phun lửa hình nón trước mặt, damage theo STR, cooldown giảm theo SPD</li>
+          <li>🕸️ Troll — <b>Net Throw</b>: ném lưới trói đối thủ (không di chuyển được, spin vũ khí -30%), duration theo STR</li>
+          <li>🌌 Primordial — <b>Void Grip</b>: vũ khí melee tấn công Primordial có thể bị kẹt (stuck) trong void, chance theo BIQ, duration theo MA</li>
+          <li>🗡️ Orc — <b>Blood Frenzy</b>: tự kích hoạt mỗi 10s, mỗi đòn đánh trúng stack +10% damage trong 5s</li>
+          <li>✨ Angel — <b>Smite</b>: sét thiêng giáng xuống đối thủ gần nhất, gây damage + stun, scale theo IQ &amp; MA</li>
+          <li>🎨 Race Skill hiển thị đặc biệt trong chargen done screen với khung vàng riêng</li>
+          <li>⚡ Cooldown arc hiển thị quanh bóng — thấy được khi skill sắp sẵn sàng</li>
+          <li>📋 Tab Changelogs thêm vào menu</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" onclick="this.closest('.changelog-patch').classList.toggle('collapsed')">
+          <span class="changelog-date">27 Mar 2026</span>
+          <span class="changelog-badge">Patch 3</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>✨ Thêm 5 skill mới: <b>Flow State, Deflection, Read &amp; React, Mind Break, Exploit</b> — scale theo MA, BIQ, IQ</li>
+          <li>⚙️ Subrace effects hiển thị inline ngay khi spin (không còn apply ngầm cuối chargen)</li>
+          <li>🔘 Nút Spin biến thành nút Next tại chỗ sau khi wheel dừng — không cần di chuột</li>
+          <li>🐉 Dragon Flame: +1 skill count hiển thị ngay tại bước skillcount spin</li>
+          <li>💎 Amethyst Dragon: -1 all stats + +4 skills hiển thị inline</li>
+          <li>🏔️ Giant trait: STR vs IQ so sánh cuối — hiển thị kết quả ở bước IQ spin</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" onclick="this.closest('.changelog-patch').classList.toggle('collapsed')">
+          <span class="changelog-date">27 Mar 2026</span>
+          <span class="changelog-badge">Patch 2</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🎨 Đổi theme toàn bộ UI sang Medieval Dark Fantasy (font Cinzel + EB Garamond)</li>
+          <li>🐲 Dragon sub-race: giảm xuống còn 5 loại — Tideborn, Flame, Crimson, Stone, Amethyst</li>
+          <li>⚡ God sub-race: 9 Norse gods với trọng số bằng nhau — Odin, Týr, Frigg, Baldur, Loki, Freyja, Eir, Bragi, Thor</li>
+          <li>👺 Goblin Horde: cập nhật 7 mốc (×1 → ×100,000) với trọng số và effect mới</li>
+          <li>👤 Human: thêm sub-race Skin Color (Trắng/Vàng/Đen) với stat constraint và guaranteed weapon</li>
+          <li>🧌 Troll: 4 loại — Regular / Ice / Mountain / Lich, thêm Ice Troll combat debuff -2 SPD cho đối thủ</li>
+          <li>📝 Toàn bộ "power/Power" trong description đổi thành "skill"</li>
+          <li>🏷️ "Inspired by Wheel of Madness" → "Wheel of Multiverse", bỏ "· Earclacks"</li>
+          <li>🔄 Showcase: random start index khi mở tab, sau đó rotate tuần tự mỗi 7s</li>
+          <li>🔧 Fix: index.html load đúng modular JS thay vì file game.js monolithic cũ</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" onclick="this.closest('.changelog-patch').classList.toggle('collapsed')">
+          <span class="changelog-date">26 Mar 2026</span>
+          <span class="changelog-badge">Patch 1</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🏗️ Tách code thành 19 module JS (audio, constants, weapons, ball, skills, chargen, roster…)</li>
+          <li>🎭 Hệ thống Chargen hoàn chỉnh: 14 bước spin từ tên → race → sub-race → 6 stats → weapon → skills</li>
+          <li>📊 6 chỉ số chiến đấu: STR / SPD / DUR / IQ / BIQ / MA, mỗi chỉ số ảnh hưởng combat khác nhau</li>
+          <li>🏃 Skill system: 25 skills chia 4 loại (Passive / Pre-Combat / In-Combat / Post-Combat)</li>
+          <li>🌍 13 chủng tộc với trọng số khác nhau, mỗi race có stat weight table riêng</li>
+          <li>💾 Roster system: lưu Radosers vào localStorage, persistent qua session</li>
+          <li>🏆 Tournament mode: single-elimination bracket, BO1/BO3/BO5</li>
+          <li>📋 Battle Log: lưu toàn bộ sự kiện trong trận, xem lại qua modal</li>
+          <li>⚡ Quick Create mode: auto-spin tất cả bước chargen</li>
+        </ul>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Arena Builder Modal -->
+<div class="modal-backdrop" id="arenaBuilderModal" style="display:none">
+  <div class="ab-box">
+    <button class="ab-close" id="arenaBuilderClose">✕</button>
+    <div class="ab-title">🏟 Arena Builder</div>
+
+    <!-- Base type selector -->
+    <div class="ab-type-row">
+      <button class="ab-type-btn active" data-type="square">⬛<span>Square</span></button>
+      <button class="ab-type-btn"        data-type="circle">⭕<span>Circle</span></button>
+      <button class="ab-type-btn"        data-type="rect">▬<span>Rectangle</span></button>
+      <button class="ab-type-btn"        data-type="cross">✚<span>Cross</span></button>
+      <button class="ab-type-btn"        data-type="hole">🔵<span>Hole</span></button>
+    </div>
+
+    <!-- Preview + params side-by-side -->
+    <div class="ab-main">
+      <div class="ab-preview-wrap">
+        <div class="ab-preview-label">Preview</div>
+        <canvas id="arenaPreviewCanvas" width="260" height="260"></canvas>
+      </div>
+      <div class="ab-params" id="abParams">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <div class="ab-actions">
+      <button class="ab-cancel-btn" id="arenaBuilderCancel">Cancel</button>
+      <button class="ab-save-btn"   id="arenaBuilderSave">✓ Use this Arena</button>
+    </div>
+  </div>
 </div>
 
 <!-- GAME -->

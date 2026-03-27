@@ -60,6 +60,11 @@ class Ball {
     this.adaptResist     = null;  // weapon id to resist (from Adaptation)
     this.adrenalineUntil = -1;    // matchTime frame when Adrenaline expires
     this._killedBy       = null;  // attacker ball reference (for Adaptation)
+
+    // Race skill state (rs_* props added dynamically by initRaceSkillState)
+    this.netTrapped   = 0;    // frames frozen by Troll Net
+    this.stunTimer    = 0;    // frames stunned by Angel Smite (weapon locked)
+    this.raceSkillDef = null;
   }
 
   _initWeapon(id) {
@@ -107,14 +112,20 @@ class Ball {
     const spearDebuff  = this.weapon.spinDebuffTimer > 0 ? 0.9 : 1.0;  // -10% from spear parry
     const hammerDebuff = this.weapon.spinSlowTimer   > 0 ? 0.7 : 1.0;  // -30% from hammer slow
     const parryBoost   = this.weapon.spinBoostTimer  > 0 ? 2.0 : 1.0;  // +100% from Parry Master
-    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost;
+    const netDebuff    = this.netTrapped > 0 ? 0.70 : 1.0;              // -30% from Troll Net
+    const stuckDebuff  = (this.rs_weaponStuck > 0 || this.stunTimer > 0) ? 0 : 1; // Void Grip / Smite stun
+    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * netDebuff * stuckDebuff;
   }
 
   getDamage() {
     const def = this.weaponDef;
     const str = this.charSTR ?? 1;
+    const ma  = this.charMA  ?? 0;
     const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0;
-    let dmg = (def.baseDamage * str + this.weapon.bonusDamage) * rageMult;
+    let base = def.baseDamage;
+    if (def.id === 'fists')  base += ma * 0.2;   // MA=10 → +2 base (×STR)
+    if (def.id === 'dagger') base += ma * 0.15;  // MA=10 → +1.5 base (×STR)
+    let dmg = (base * str + this.weapon.bonusDamage) * rageMult;
     // Skills that modify outgoing damage
     if (this.skills.includes('berserker') && this.hp / this.maxHp < 0.30) dmg *= 1.5;
     if (this.skillState?.warCryReady)  dmg *= 2;
@@ -122,6 +133,8 @@ class Ball {
     if (this.skillLearningMult > 1)    dmg *= this.skillLearningMult;
     // Mind Break debuff: opponent reduced this ball's outgoing damage at round start
     if (this.mindBreakDebuff > 0)      dmg *= (1 - this.mindBreakDebuff);
+    // Orc Blood Frenzy: each stack = +10% damage
+    if (this.charRace === 'orc' && this.rs_active) dmg *= (1 + (this.rs_stacks || 0) * 0.10);
     return dmg;
   }
 
@@ -228,7 +241,16 @@ class Ball {
             const count = def.id === 'bow'
               ? (this.weapon.arrowCount || 1)
               : (this.weapon.shurikenCount || 1);
-            this.weapon.burstQueue = count;
+            if (def.id === 'bow') {
+              // Multi-stream: MA>=5 → 2 streams, MA>=10 → 3 streams
+              const ma = this.charMA ?? 0;
+              const streams = ma >= 10 ? 3 : ma >= 5 ? 2 : 1;
+              this.weapon._bowStreams = streams;
+              this.weapon._arrowsLeft = count;
+              this.weapon.burstQueue = Math.ceil(count / streams);
+            } else {
+              this.weapon.burstQueue = count;
+            }
             this.weapon.burstTimer = 0; // fire first shot immediately
           }
         }
@@ -244,19 +266,39 @@ class Ball {
 
   // Fire a single projectile in the direction the weapon is currently pointing
   _fireSingle(projectiles) {
-    const def = this.weaponDef;
-    const a = this.weapon.angle; // current weapon spin angle — changes each frame naturally
+    const def     = this.weaponDef;
+    const a       = this.weapon.angle; // current weapon spin angle — changes each frame naturally
+    const spdStat = this.charSPD ?? 5;
+    const iqStat  = this.charIQ  ?? 5;
     sfxShoot();
     if (def.id === 'bow') {
-      const spd = def.arrowSpeed + (this.weapon.arrowSpeedBonus || 0);
-      projectiles.push(new Projectile(
-        this.x + Math.cos(a) * this.radius,
-        this.y + Math.sin(a) * this.radius,
-        Math.cos(a) * spd, Math.sin(a) * spd,
-        this, 'arrow', (this.charSTR ?? 1)
-      ));
+      // Arrow speed scales with SPD (arm strength) and IQ (technique)
+      const baseSpd = def.arrowSpeed + (this.weapon.arrowSpeedBonus || 0)
+                    + spdStat * 0.25 + iqStat * 0.15;
+
+      // Multi-stream spread: MA>=5 → 2 streams ±5°, MA>=10 → 3 streams ±10°
+      const streams    = this.weapon._bowStreams || 1;
+      const arrowsLeft = this.weapon._arrowsLeft != null ? this.weapon._arrowsLeft : streams;
+      const toFire     = Math.min(streams, arrowsLeft);
+      if (this.weapon._arrowsLeft != null) this.weapon._arrowsLeft -= toFire;
+
+      const SPREAD = 10 * Math.PI / 180; // 10 degrees between streams
+      const offsets = toFire === 1 ? [0]
+                    : toFire === 2 ? [-SPREAD / 2, SPREAD / 2]
+                    : [-SPREAD, 0, SPREAD];
+
+      for (const offset of offsets) {
+        const ang = a + offset;
+        projectiles.push(new Projectile(
+          this.x + Math.cos(ang) * this.radius,
+          this.y + Math.sin(ang) * this.radius,
+          Math.cos(ang) * baseSpd, Math.sin(ang) * baseSpd,
+          this, 'arrow', (this.charSTR ?? 1)
+        ));
+      }
     } else if (def.id === 'shuriken') {
-      const spd = def.shurikenSpeed;
+      // Shuriken speed scales more aggressively (low base, needs stats to be viable)
+      const spd = def.shurikenSpeed + spdStat * 0.4 + iqStat * 0.25;
       projectiles.push(new Projectile(
         this.x + Math.cos(a) * this.radius,
         this.y + Math.sin(a) * this.radius,
