@@ -642,3 +642,10 @@ function closeFighterPicker() {
 }
 
 // fpm event listeners are wired via onclick attrs in modal HTML
+
+// ── Changelog collapse (CSP-safe, no inline onclick) ──
+document.querySelectorAll('[data-changelog-toggle]').forEach(header => {
+  header.addEventListener('click', () => {
+    header.closest('.changelog-patch').classList.toggle('collapsed');
+  });
+});
