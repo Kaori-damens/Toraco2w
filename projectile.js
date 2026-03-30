@@ -38,39 +38,51 @@ class Projectile {
 
   draw(ctx) {
     if (!this.alive) return;
+    const ownerCol = this.owner?.color || '#ffffff';
+
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
+
     if (this.type === 'arrow') {
-      ctx.fillStyle = '#cc9944';
-      ctx.strokeStyle = '#886622';
-      ctx.lineWidth = 1.5;
+      // Arrow body — owner color
+      ctx.shadowColor = ownerCol;
+      ctx.shadowBlur  = 6;
+      ctx.fillStyle   = ownerCol;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth   = 1.5;
       ctx.beginPath();
       ctx.moveTo(12, 0);
       ctx.lineTo(-12, -2);
       ctx.lineTo(-12, 2);
       ctx.closePath();
       ctx.fill(); ctx.stroke();
-      // fletching
-      ctx.fillStyle = '#88bb44';
+      // Fletching — slightly darker owner color
+      ctx.shadowBlur  = 0;
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle   = ownerCol;
       ctx.beginPath();
       ctx.moveTo(-10, 0);
       ctx.lineTo(-14, -4);
-      ctx.lineTo(-8, 0);
-      ctx.lineTo(-14, 4);
-      ctx.closePath(); ctx.fill();
+      ctx.lineTo(-8,   0);
+      ctx.lineTo(-14,  4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
     } else {
-      // shuriken
-      ctx.strokeStyle = '#44eebb';
-      ctx.fillStyle = '#003322';
-      ctx.lineWidth = 2;
+      // Shuriken — owner color stroke + glow
+      ctx.shadowColor = ownerCol;
+      ctx.shadowBlur  = 10;
+      ctx.strokeStyle = ownerCol;
+      ctx.fillStyle   = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth   = 2;
       const spin = Date.now() * 0.015;
       for (let i = 0; i < 4; i++) {
         const a = i * Math.PI / 2 + spin;
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(Math.cos(a)*8, Math.sin(a)*8);
-        ctx.lineTo(Math.cos(a+Math.PI*0.25)*4, Math.sin(a+Math.PI*0.25)*4);
+        ctx.lineTo(Math.cos(a + Math.PI*0.25)*4, Math.sin(a + Math.PI*0.25)*4);
         ctx.closePath();
         ctx.fill(); ctx.stroke();
       }

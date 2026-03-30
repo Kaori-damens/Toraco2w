@@ -142,6 +142,13 @@ document.getElementById('pauseBtn').addEventListener('click', () => {
 
 // Menu
 document.getElementById('menuBtn').addEventListener('click', () => {
+  // Clean up PVE state when leaving mid-fight
+  if (state.pveMode) {
+    state.pveMode = false;
+    state.boss    = null;
+    const overlay = document.getElementById('pve-result-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
   showScreen('menu');
   buildFightersPanel();
 });

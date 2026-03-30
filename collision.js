@@ -147,7 +147,7 @@ function resolveProjectiles(players, projectiles) {
           proj.immuneFrames = target.weaponDef.id === 'fists' ? 20 : 8;
           if (target.weaponDef.id === 'fists') {
             // Fists parry ranged: take 50% damage, projectile bounces as normal
-            target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner);
+            target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner, false, true);
           }
           spawnSparks(proj.x, proj.y, 5);
           sfxParry();
@@ -161,9 +161,9 @@ function resolveProjectiles(players, projectiles) {
         const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0;
         const baseProjDmg = proj.damage * rageMult;
         // Skill: Predator — +15% if target has less HP
-        const predMult = (proj.owner.skills?.includes('predator') && target.hp < proj.owner.hp) ? 1.15 : 1;
+        const predMult = proj.owner.skillState?.predatorActive ? 1.15 : 1;
         const dmg = baseProjDmg * (isCrit ? proj.owner.critMult : 1) * predMult;
-        const projHit = target.takeDamage(dmg, proj.x, proj.y, isCrit, proj.owner);
+        const projHit = target.takeDamage(dmg, proj.x, proj.y, isCrit, proj.owner, false, true);
         if (projHit) {
           // log
           if (isCrit) {
@@ -210,7 +210,7 @@ function _checkWeaponHit(attacker, defender) {
         : 0;
       const baseDmgNoCrit = attacker.getDamage() + kbBonus;
       // Skill: Predator — +15% damage when target has less HP
-      const predMult = (attacker.skills?.includes('predator') && defender.hp < attacker.hp) ? 1.15 : 1;
+      const predMult = attacker.skillState?.predatorActive ? 1.15 : 1;
       // Skill: Exploit — (IQ+BIQ)×1% chance to deal double damage
       const exploitChance = attacker.skills?.includes('exploit')
         ? ((attacker.charIQ || 0) + (attacker.charBIQ || 0)) * 0.01 : 0;

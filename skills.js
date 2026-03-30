@@ -30,8 +30,14 @@ const SKILL_DEFS = [
   { id: 'deflection',  name: 'Deflection',  icon: '🪞', type: 'passive',   desc: 'MA×2% chance to completely negate a hit' },
   { id: 'mind_break',  name: 'Mind Break',  icon: '🧿', type: 'pre_combat', desc: 'If IQ > target: -(IQ gap × 3%) to their final damage' },
   // ── POST-COMBAT (triggers after round ends) ──────────────
-  { id: 'learning',   name: 'Learning',   icon: '📚', type: 'post_combat', desc: 'Losing a round: +5% damage next round' },
-  { id: 'adaptation', name: 'Adaptation', icon: '🧬', type: 'post_combat', desc: 'Losing: gain 20% resist to killer\'s weapon type' },
+  { id: 'learning',      name: 'Learning',      icon: '📚', type: 'post_combat', desc: 'Thua: +5% damage round sau' },
+  { id: 'adaptation',    name: 'Adaptation',    icon: '🧬', type: 'post_combat', desc: 'Thua: +20% resist với weapon type đã giết mình' },
+  { id: 'survivor',     name: 'Survivor',     icon: '🩹', type: 'post_combat', desc: 'Thắng với HP<20%: +10 max HP vĩnh viễn' },
+  { id: 'veteran',      name: 'Veteran',      icon: '🏅', type: 'post_combat', desc: 'Thắng: +1 stat ngẫu nhiên (không giới hạn)' },
+  { id: 'mastery',      name: 'Mastery',      icon: '🌙', type: 'post_combat', desc: 'Thắng HP<50%: MA×3% chance +1 dmg/proj vũ khí' },
+  { id: 'perfectionist',name: 'Perfectionist',icon: '💎', type: 'post_combat', desc: 'Thắng >80% HP: +15% dmg. Thắng ≤80% HP: -10% dmg' },
+  { id: 'blood_mark',   name: 'Blood Mark',   icon: '🩸', type: 'post_combat', desc: 'Thua: gắn debuff lên đối thủ — trận sau họ ra sân với 80% HP' },
+  { id: 'copycat',      name: 'Copycat',      icon: '🎭', type: 'post_combat', desc: 'Thắng: BIQ×3.5% chance học 1 skill ngẫu nhiên của đối thủ' },
 ];
 
 const SKILL_MAP = Object.fromEntries(SKILL_DEFS.map(s => [s.id, s]));
@@ -47,9 +53,54 @@ function applySkillPassives(ball, fighter) {
   if (sk.includes('sharp_eye'))   { ball.critChance += 0.10; }
   if (sk.includes('heavy_mass'))  { ball.mass *= 1.30; }
 
-  // Cross-round bonuses from previous rounds
-  ball.skillLearningMult = 1 + (fighter.learningBonus || 0);
-  ball.adaptResist       = fighter.adaptResist || null;
+  // Cross-round bonuses from previous rounds (Learning + Perfectionist stacked)
+  ball.skillLearningMult  = 1 + (fighter.learningBonus || 0);
+  ball.skillLearningMult *= (fighter.perfMult || 1);
+  fighter.perfMult        = 1;  // consumed — reset for next round
+  ball.adaptResist        = fighter.adaptResist || null;
+
+  // Survivor: permanent max HP bonus accumulated over rounds
+  if (fighter.survivorHPBonus) {
+    ball.maxHp += fighter.survivorHPBonus;
+    ball.hp     = ball.maxHp;
+  }
+
+  // Veteran: permanent stat bonuses
+  if (fighter.veteranStats) {
+    const vs = fighter.veteranStats;
+    if (vs.STR) { ball.charSTR = (ball.charSTR || 5) + vs.STR; }
+    if (vs.IQ)  { ball.charIQ  = (ball.charIQ  || 5) + vs.IQ;  }
+    if (vs.BIQ) { ball.charBIQ = (ball.charBIQ || 5) + vs.BIQ; }
+    if (vs.MA)  { ball.charMA  = (ball.charMA  || 5) + vs.MA;  }
+    if (vs.SPD) {
+      ball.charSPD = (ball.charSPD || 5) + vs.SPD;
+      // maxSpd formula: 10 + charSPD * 1.5  →  each +1 SPD = +1.5 maxSpd
+      ball.maxSpd     += vs.SPD * 1.5;
+      ball.baseMaxSpd += vs.SPD * 1.5;
+    }
+  }
+
+  // Blood Mark: opponent was marked by a loser — start round with 80% HP
+  if (fighter.bloodMarked) {
+    ball.hp = ball.maxHp * 0.80;
+    fighter.bloodMarked = false; // consumed
+    spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '🩸 BLOOD MARKED', '#cc0000');
+  }
+
+  // Mastery: persistent weapon bonus from previous win(s)
+  if (fighter.masteryDmgBonus) {
+    ball.weapon.bonusDamage = (ball.weapon.bonusDamage || 0) + fighter.masteryDmgBonus;
+  }
+  if (fighter.masteryProjBonus && ball.weapon.shurikenCount !== undefined) {
+    // Ranged (shuriken): add extra starting shurikens
+    ball.weapon.shurikenCount = (ball.weapon.shurikenCount || 1) + fighter.masteryProjBonus;
+  }
+
+  // Copycat: add the learned skill for this round (if not already owned)
+  if (fighter.copycatSkill && !ball.skills.includes(fighter.copycatSkill)) {
+    ball.skills.push(fighter.copycatSkill);
+    fighter.copycatSkill = null; // consumed
+  }
 }
 
 // ── Init per-round reactive skill state ────────────────────
@@ -63,6 +114,7 @@ function initRoundSkillState(ball) {
     counterActive:   false,
     momentumStacks:  0,
     flowStateStacks: 0,
+    predatorActive:  false,  // set at round start in skillOnPreCombat
   };
 }
 
@@ -91,6 +143,17 @@ function skillOnPreCombat(ball) {
       other.maxSpd     = Math.max(2, other.maxSpd - 3);
       other.baseMaxSpd = Math.max(2, other.baseMaxSpd - 3);
       spawnDamageNumber(other.x, other.y - other.radius - 14, '🧊 -2 SPD', '#88ccff');
+    }
+  }
+
+  // Predator: check HP once at round start — lock in for entire round
+  if (ball.skills.includes('predator')) {
+    const enemies = state.players.filter(p => p !== ball && p.alive);
+    const anyWeaker = enemies.some(e => e.hp < ball.hp);
+    ball.skillState.predatorActive = anyWeaker;
+    if (anyWeaker) {
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🦅 PREDATOR!', '#ffaa33');
+      flashSkillHUD(ball, SKILL_MAP['predator']);
     }
   }
 
@@ -248,19 +311,108 @@ function skillOnKill(killer, victim) {
 // fighter = state.fighters[i] — persists across BO3 rounds.
 function skillOnPostCombat(ball, won, fighter) {
   if (!ball.skills || ball.skills.length === 0) return;
-  if (won) return; // only losers get post-combat bonuses
 
-  // Learning: +5% damage multiplier next round
-  if (ball.skills.includes('learning')) {
-    fighter.learningBonus = (fighter.learningBonus || 0) + 0.05;
-    spawnDamageNumber(ball.x, ball.y - ball.radius, 'LEARNING +5%', '#88aaff');
-    flashSkillHUD(ball, SKILL_MAP['learning']);
+  // ── LOSER skills ───────────────────────────────────────
+  if (!won) {
+    // Learning: +5% damage multiplier next round
+    if (ball.skills.includes('learning')) {
+      fighter.learningBonus = (fighter.learningBonus || 0) + 0.05;
+      spawnDamageNumber(ball.x, ball.y - ball.radius, 'LEARNING +5%', '#88aaff');
+      flashSkillHUD(ball, SKILL_MAP['learning']);
+    }
+
+    // Adaptation: 20% resistance to the weapon that killed you
+    if (ball.skills.includes('adaptation') && ball._killedBy?.weaponDef) {
+      fighter.adaptResist = ball._killedBy.weaponDef.id;
+      flashSkillHUD(ball, SKILL_MAP['adaptation']);
+    }
+
+    // Blood Mark: debuff opponents — next round they start with 80% HP
+    if (ball.skills.includes('blood_mark')) {
+      const ballIdx = state.players.indexOf(ball);
+      state.players.forEach((other, j) => {
+        if (j === ballIdx) return;
+        const otherFi = state.fighters[j];
+        if (!otherFi) return;
+        const isOpponent = ball.teamId < 0 || ball.teamId !== other.teamId;
+        if (isOpponent) {
+          otherFi.bloodMarked = true;
+          spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🩸 BLOOD MARK!', '#cc0000');
+          flashSkillHUD(ball, SKILL_MAP['blood_mark']);
+        }
+      });
+    }
   }
 
-  // Adaptation: 20% resistance to the weapon that killed you
-  if (ball.skills.includes('adaptation') && ball._killedBy?.weaponDef) {
-    fighter.adaptResist = ball._killedBy.weaponDef.id;
-    flashSkillHUD(ball, SKILL_MAP['adaptation']);
+  // ── WINNER skills ──────────────────────────────────────
+  if (won) {
+    const hpPct = ball.hp / ball.maxHp;
+
+    // Survivor: win with < 20% HP → +10 max HP permanently
+    if (ball.skills.includes('survivor') && hpPct < 0.20) {
+      fighter.survivorHPBonus = (fighter.survivorHPBonus || 0) + 10;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🩹 +10 MAX HP!', '#ff6688');
+      flashSkillHUD(ball, SKILL_MAP['survivor']);
+    }
+
+    // Veteran: win → +1 random stat (no cap)
+    if (ball.skills.includes('veteran')) {
+      const stats = ['STR', 'SPD', 'IQ', 'BIQ', 'MA'];
+      const chosen = stats[Math.floor(Math.random() * stats.length)];
+      fighter.veteranStats = fighter.veteranStats || {};
+      fighter.veteranStats[chosen] = (fighter.veteranStats[chosen] || 0) + 1;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, `🏅 +1 ${chosen}!`, '#ffcc44');
+      flashSkillHUD(ball, SKILL_MAP['veteran']);
+    }
+
+    // Mastery: win with < 50% HP → MA×3% chance +1 dmg (melee) or +1 proj start (ranged)
+    if (ball.skills.includes('mastery') && hpPct < 0.50) {
+      const chance = (ball.charMA ?? 5) * 0.03;
+      if (Math.random() < chance) {
+        const isRanged = ball.weaponDef?.aiType === 'ranged';
+        if (isRanged) {
+          fighter.masteryProjBonus = (fighter.masteryProjBonus || 0) + 1;
+          spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🌙 +1 PROJ!', '#cc88ff');
+        } else {
+          fighter.masteryDmgBonus = (fighter.masteryDmgBonus || 0) + 1;
+          spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🌙 +1 DMG!', '#cc88ff');
+        }
+        flashSkillHUD(ball, SKILL_MAP['mastery']);
+      }
+    }
+
+    // Perfectionist: >80% HP → next round +15% dmg; ≤80% HP → -10% dmg
+    if (ball.skills.includes('perfectionist')) {
+      fighter.perfMult = hpPct > 0.80 ? 1.15 : 0.90;
+      const label = hpPct > 0.80 ? '💎 PERFECT +15%!' : '💎 NOT PERF -10%';
+      const col   = hpPct > 0.80 ? '#aaffcc' : '#ff8866';
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, label, col);
+      flashSkillHUD(ball, SKILL_MAP['perfectionist']);
+    }
+
+    // Copycat: BIQ×3.5% chance to learn 1 random skill from an opponent
+    if (ball.skills.includes('copycat')) {
+      const chance = (ball.charBIQ ?? 5) * 0.035;
+      if (Math.random() < chance) {
+        const candidateSkills = [];
+        state.players.forEach(other => {
+          if (other === ball) return;
+          const isOpponent = ball.teamId < 0 || ball.teamId !== other.teamId;
+          if (!isOpponent || !other.skills) return;
+          for (const sid of other.skills) {
+            if (ball.skills.includes(sid)) continue;
+            // Regular skills: weight ×3 (push 3 times)
+            candidateSkills.push(sid, sid, sid);
+          }
+        });
+        if (candidateSkills.length > 0) {
+          const learned = candidateSkills[Math.floor(Math.random() * candidateSkills.length)];
+          fighter.copycatSkill = learned; // applied next round in applySkillPassives
+          spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🎭 COPYCAT!', '#ffaaff');
+          flashSkillHUD(ball, SKILL_MAP['copycat']);
+        }
+      }
+    }
   }
 }
 
@@ -379,13 +531,31 @@ function updateVoidGripPhysics(ball) {
 
 // Called every frame from game-loop step() for each ball
 function updateRaceSkills(ball, players, rstate) {
-  if (!ball.raceSkillDef || !ball.alive) return;
+  if (!ball.alive) return;
+
+  // These effects can be applied to ANY ball by other races' skills — must run regardless of own raceSkillDef
+  if (ball.netTrapped > 0) {
+    // Decrement by state.speed so trap lasts the same real-time regardless of game speed
+    const speedMul = (typeof state !== 'undefined' && state.speed > 0) ? state.speed : 1;
+    ball.netTrapped = Math.max(0, ball.netTrapped - speedMul);
+    // Cap speed to near-zero (don't multiply-to-zero — ball needs some residual velocity to escape when released)
+    const netSpd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+    if (netSpd > 0.25) { ball.vx = ball.vx / netSpd * 0.25; ball.vy = ball.vy / netSpd * 0.25; }
+    // Release impulse when trap just expired — ball has no AI steering so needs a kick to start moving
+    if (ball.netTrapped === 0) {
+      const ang = Math.random() * Math.PI * 2;
+      const relSpd = (ball.maxSpd || 3) * 0.55;
+      ball.vx = Math.cos(ang) * relSpd;
+      ball.vy = Math.sin(ang) * relSpd;
+    }
+  }
+  if (ball.stunTimer  > 0) ball.stunTimer--;
+
+  if (!ball.raceSkillDef) return;
   const race = ball.charRace;
 
-  // Tick shared timers
+  // Tick race-specific cooldown
   if (ball.rs_cooldown > 0) ball.rs_cooldown--;
-  if (ball.netTrapped  > 0) { ball.netTrapped--; ball.vx *= 0.08; ball.vy *= 0.08; }
-  if (ball.stunTimer   > 0) ball.stunTimer--;
 
   // Orc frenzy timer
   if (race === 'orc' && ball.rs_active) {
@@ -498,9 +668,10 @@ function updateRaceSkillProjectiles(rstate) {
     const dist = Math.hypot(dx,dy) || 1;
     rstate.trollNets.push({
       x: ball.x, y: ball.y,
+      startX: ball.x, startY: ball.y,
       vx: (dx/dist)*5, vy: (dy/dist)*5,
       caster: ball, trapDur: ball.rs_trapDur,
-      life: 120, r: 10,
+      life: 120, r: 10, angle: 0,
     });
     ball.rs_cooldown = ball.rs_maxCooldown;
     addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🕸️ Net thrown!' });
@@ -510,6 +681,10 @@ function updateRaceSkillProjectiles(rstate) {
   for (let i = rstate.trollNets.length - 1; i >= 0; i--) {
     const net = rstate.trollNets[i];
     net.x += net.vx; net.y += net.vy; net.life--;
+    // Grow hitbox + visual as it travels — farther = bigger net
+    const traveled = Math.hypot(net.x - net.startX, net.y - net.startY);
+    net.r = 10 + traveled * 0.032;   // ~10px at origin → ~30px at 600px range
+    net.angle = (net.angle || 0) + 0.08; // slow spin for visual flair
     let hit = false;
     for (const p of players) {
       if (!p.alive || p === net.caster) continue;
@@ -610,14 +785,15 @@ function drawRaceSkillEffects(ctx, rstate) {
     ctx.save();
     ctx.globalAlpha = 0.85;
     ctx.strokeStyle = '#ccaa55';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(1.2, net.r * 0.10); // line dày dần theo size
     ctx.beginPath();
     ctx.arc(net.x, net.y, net.r, 0, Math.PI*2);
     ctx.stroke();
     for (let a = 0; a < Math.PI; a += Math.PI/3) {
+      const ra = a + (net.angle || 0);
       ctx.beginPath();
-      ctx.moveTo(net.x + Math.cos(a)*net.r, net.y + Math.sin(a)*net.r);
-      ctx.lineTo(net.x - Math.cos(a)*net.r, net.y - Math.sin(a)*net.r);
+      ctx.moveTo(net.x + Math.cos(ra)*net.r, net.y + Math.sin(ra)*net.r);
+      ctx.lineTo(net.x - Math.cos(ra)*net.r, net.y - Math.sin(ra)*net.r);
       ctx.stroke();
     }
     ctx.restore();

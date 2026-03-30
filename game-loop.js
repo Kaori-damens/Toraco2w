@@ -35,16 +35,31 @@ function step() {
   const players = state.players;
 
   // Update each ball — pass nearest alive enemy for targeting/firing
-  for (const ball of players) {
-    let nearest = null, nearestD = Infinity;
-    for (const other of players) {
-      if (other === ball || !other.alive) continue;
-      // Skip teammates in team matches
-      if (ball.teamId >= 0 && ball.teamId === other.teamId) continue;
-      const d = Math.hypot(ball.x - other.x, ball.y - other.y);
-      if (d < nearestD) { nearestD = d; nearest = other; }
+  if (state.pveMode && state.boss) {
+    // PVE: all balls target the boss as their nearest enemy
+    const bossProxy = state.boss.alive
+      ? { x: state.boss.x, y: state.boss.y, alive: true,
+          teamId: -99, radius: 80, hp: state.boss.hp, maxHp: state.boss.maxHp,
+          vx: 0, vy: 0, getScaleLabel: () => '', getSpeed: () => 0 }
+      : null;
+    for (const ball of players) {
+      if (!ball.alive) continue;
+      ball.update(state.arena, bossProxy, state.projectiles, state.gravity);
     }
-    ball.update(state.arena, nearest, state.projectiles, state.gravity);
+    // Boss AI update
+    state.boss.update(players, state.arena);
+  } else {
+    for (const ball of players) {
+      let nearest = null, nearestD = Infinity;
+      for (const other of players) {
+        if (other === ball || !other.alive) continue;
+        // Skip teammates in team matches
+        if (ball.teamId >= 0 && ball.teamId === other.teamId) continue;
+        const d = Math.hypot(ball.x - other.x, ball.y - other.y);
+        if (d < nearestD) { nearestD = d; nearest = other; }
+      }
+      ball.update(state.arena, nearest, state.projectiles, state.gravity);
+    }
   }
 
   // Race skill updates (per-ball + global projectiles)
@@ -69,8 +84,54 @@ function step() {
     }
   }
 
+  // PVE: push balls out of boss body (solid collision — no xuyên boss)
+  if (state.pveMode && state.boss) {
+    resolveBossBodyCollision(state.boss, players);
+  }
+
+  // PVE: terrain collision (balls bounce off solid, take hazard damage, slow in mud)
+  if (state.pveMode && state.terrainObjects?.length) {
+    resolveTerrainCollision(players, state.terrainObjects);
+    resolveBossTerrainCollision(state.boss, state.terrainObjects);
+    // Expire timed terrain objects (e.g. Ignar lava pools)
+    state.terrainObjects = state.terrainObjects.filter(
+      t => !t.lifetime || (state.frame - (t._spawnFrame ?? 0)) < t.lifetime
+    );
+    // Lightning rod sparks (Thunderstorm Peak ambient effect)
+    if (typeof updateRodSparks === 'function') updateRodSparks(state.terrainObjects, state.frame);
+  }
+
+  // Apply slow zone speed modifier (set by resolveTerrainCollision, consumed here)
+  for (const ball of players) {
+    if (ball._inSlowZone != null) {
+      const orig = ball._baseSlow_maxSpd ?? ball.maxSpd;
+      ball.maxSpd = orig * ball._inSlowZone;
+      ball._baseSlow_maxSpd = orig;
+      ball._inSlowZone = null;
+    } else if (ball._baseSlow_maxSpd != null) {
+      ball.maxSpd = ball._baseSlow_maxSpd;
+      ball._baseSlow_maxSpd = null;
+    }
+  }
+
   // Projectiles vs all balls
   resolveProjectiles(players, state.projectiles);
+
+  // PVE: heal orb spawning + pickup
+  if (state.pveMode && state.boss?.alive) {
+    updateHealOrbs(players);
+  }
+
+  // PVE: projectile & melee hits on boss
+  if (state.pveMode && state.boss) {
+    resolveBossProjectileHits(state.boss, state.projectiles);
+    resolveBossMeleeHits(state.boss, players);
+    // Grakk: update goblin swarm + goblin projectile hits
+    resolveGoblinAttacks(state.boss, players);
+    resolveGoblinHits(state.boss, state.projectiles);
+    // Syvara: player projectiles hit void anchors
+    resolveAnchorHits(state.boss, state.projectiles);
+  }
 
   updateParticles();
 
@@ -115,7 +176,15 @@ function step() {
 
   // Check game end
   const alive = players.filter(b => b.alive);
-  if (!state.ended && players.length > 1) {
+
+  if (state.pveMode) {
+    // PVE lose: all players dead (boss win is triggered by Boss.die())
+    if (!state.ended && alive.length === 0) {
+      state.ended   = true;
+      state.running = false;
+      setTimeout(() => showPVEResult(false), 1200);
+    }
+  } else if (!state.ended && players.length > 1) {
     if (state.matchMode === '2v2') {
       const t0 = alive.filter(b => b.teamId === 0).length;
       const t1 = alive.filter(b => b.teamId === 1).length;
@@ -139,11 +208,16 @@ function step() {
 
 function render() {
   ctx.clearRect(0, 0, CW, CH);
-  // Background
-  ctx.fillStyle = '#080818';
+  // Background — use map bg color in PVE
+  ctx.fillStyle = (state.pveMode && state.mapDef?.bgColor) ? state.mapDef.bgColor : '#080818';
   ctx.fillRect(0, 0, CW, CH);
 
   drawArena(ctx, state.arena);
+
+  // PVE terrain — solid objects below balls (pillars, walls, crates)
+  if (state.pveMode && state.terrainObjects?.length) {
+    drawTerrainBelow(ctx, state.terrainObjects);
+  }
 
   // Draw weapons behind balls
   for (const b of state.players) b.drawWeapon(ctx);
@@ -153,6 +227,17 @@ function render() {
 
   // Draw balls
   for (const b of state.players) b.draw(ctx);
+
+  // Draw heal orbs (PVE)
+  if (state.pveMode) drawHealOrbs(ctx);
+
+  // Draw boss (PVE)
+  if (state.boss) state.boss.draw(ctx);
+
+  // PVE terrain — hazard/slow overlays above everything
+  if (state.pveMode && state.terrainObjects?.length) {
+    drawTerrainAbove(ctx, state.terrainObjects, state.frame);
+  }
 
   drawParticles(ctx);
 
@@ -360,4 +445,89 @@ function buildHUD() {
     const goLeft = state.matchMode === '2v2' ? (ball.teamId === 0 || i < 2) : (i % 2 === 0);
     (goLeft ? leftEl : rightEl).appendChild(card);
   });
+}
+
+// ============================================================
+// HEAL ORBS — PVE healing pickups
+// ============================================================
+
+const HEAL_ORB_INTERVAL   = 1080; // frames between spawns (~18s)
+const HEAL_ORB_MAX        = 3;    // max orbs on field at once
+const HEAL_ORB_R          = 12;
+const HEAL_ORB_HEAL_PCT   = 0.30; // restore 30% maxHp on pickup
+let   _healOrbTimer       = 0;
+
+function updateHealOrbs(players) {
+  const orbs = state.healOrbs;
+
+  // Spawn timer
+  _healOrbTimer++;
+  if (_healOrbTimer >= HEAL_ORB_INTERVAL && orbs.length < HEAL_ORB_MAX) {
+    _healOrbTimer = 0;
+    // Random position inside arena, avoiding center boss area
+    let ox, oy, tries = 0;
+    do {
+      ox = 120 + Math.random() * (CW - 240);
+      oy = 120 + Math.random() * (CH - 240);
+      tries++;
+    } while (Math.hypot(ox - CW/2, oy - CH/2) < 140 && tries < 20);
+    orbs.push({ x: ox, y: oy, r: HEAL_ORB_R, life: 600 }); // 10s lifetime
+  }
+
+  // Age + pickup check
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    const orb = orbs[i];
+    orb.life--;
+    if (orb.life <= 0) { orbs.splice(i, 1); continue; }
+
+    for (const p of players) {
+      if (!p.alive) continue;
+      if (Math.hypot(p.x - orb.x, p.y - orb.y) < p.radius + orb.r) {
+        const healed = p.maxHp * HEAL_ORB_HEAL_PCT;
+        p.hp = Math.min(p.maxHp, p.hp + healed);
+        spawnDamageNumber(orb.x, orb.y - 12, `+${Math.round(healed)}`, '#44ff88');
+        spawnSparks(orb.x, orb.y, 10);
+        orbs.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+function drawHealOrbs(ctx) {
+  const orbs = state.healOrbs;
+  if (!orbs.length) return;
+  const t = Date.now() * 0.004;
+  for (const orb of orbs) {
+    const pulse  = 0.5 + 0.5 * Math.sin(t + orb.x * 0.01);
+    const fadeIn = Math.min(1, (600 - orb.life < 30) ? (600 - orb.life) / 30 : 1);
+    const fadeOut = orb.life < 60 ? orb.life / 60 : 1;
+    const alpha  = fadeIn * fadeOut;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Glow
+    ctx.shadowColor = '#44ff88';
+    ctx.shadowBlur  = 14 + 8 * pulse;
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, orb.r + 4 * pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(80,255,140,0.45)';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    // Core
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${60 + Math.floor(pulse * 40)},255,${120 + Math.floor(pulse * 60)},0.92)`;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Cross icon
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth   = 2.5;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(orb.x, orb.y - 5); ctx.lineTo(orb.x, orb.y + 5);
+    ctx.moveTo(orb.x - 5, orb.y); ctx.lineTo(orb.x + 5, orb.y);
+    ctx.stroke();
+    ctx.restore();
+  }
 }

@@ -1983,7 +1983,7 @@ class Ball {
       spinDebuffTimer: 0,   // frames remaining for 10% spin reduction (spear parry)
       spinSlowTimer: 0,     // frames remaining for 30% spin reduction (hammer slow)
       spinBoostTimer: 0,    // frames remaining for +100% spin boost (Parry Master)
-      arrowCount: 1,
+      arrowCount: 1 + Math.floor(((this.charAGI ?? 1) - 1) / 4), // AGI 1-4→1, 5-8→2, 9-10→3
       shurikenCount: 1,
       fireTimer: 0,
       burstQueue: 0,
@@ -2140,12 +2140,14 @@ class Ball {
     sfxShoot();
     if (def.id === 'bow') {
       const spd = def.arrowSpeed + (this.weapon.arrowSpeedBonus || 0);
-      projectiles.push(new Projectile(
+      const proj = new Projectile(
         this.x + Math.cos(a) * this.radius,
         this.y + Math.sin(a) * this.radius,
         Math.cos(a) * spd, Math.sin(a) * spd,
         this, 'arrow', (this.charSTR ?? 1)
-      ));
+      );
+      proj.r = 4 + (this.charSTR ?? 1) * 0.3; // size scales with STR (STR5→5.5, STR10→7)
+      projectiles.push(proj);
     } else if (def.id === 'shuriken') {
       const spd = def.shurikenSpeed;
       projectiles.push(new Projectile(
@@ -8347,12 +8349,14 @@ class Ball {
     sfxShoot();
     if (def.id === 'bow') {
       const spd = def.arrowSpeed + (this.weapon.arrowSpeedBonus || 0);
-      projectiles.push(new Projectile(
+      const proj = new Projectile(
         this.x + Math.cos(a) * this.radius,
         this.y + Math.sin(a) * this.radius,
         Math.cos(a) * spd, Math.sin(a) * spd,
         this, 'arrow', (this.charSTR ?? 1)
-      ));
+      );
+      proj.r = 4 + (this.charSTR ?? 1) * 0.3; // size scales with STR (STR5→5.5, STR10→7)
+      projectiles.push(proj);
     } else if (def.id === 'shuriken') {
       const spd = def.shurikenSpeed;
       projectiles.push(new Projectile(

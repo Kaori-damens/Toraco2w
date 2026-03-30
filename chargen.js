@@ -479,7 +479,7 @@ function cgRenderDone(box) {
       name: cgState.name, race: cgState.race.id, raceName: cgState.race.name,
       raceEmoji: cgState.race.emoji, subrace: cgState.subrace,
       stats: { ...cgState.stats }, weapon: cgState.weapon,
-      color: BALL_COLORS[cgRoster.length % BALL_COLORS.length],
+      color: generateRadoserColor(cgRoster.length),
       skills: (cgState.skills || []).map(s => s.id),
     };
     cgRoster.push(char);

@@ -1414,6 +1414,129 @@ canvas#gameCanvas {
   justify-content: center;
 }
 
+/* ── PVE Card ───────────────────────────────────────────── */
+.pve-battle-card {
+  border-color: #3a2800;
+  background: linear-gradient(135deg,#100a00,#1e1000);
+}
+.pve-boss-preview {
+  background: rgba(255,180,0,0.06);
+  border: 1px solid rgba(255,180,0,0.18);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  text-align: center;
+}
+.pve-boss-name {
+  font-size: 16px; font-weight: 900; color: #ffcc44; letter-spacing: .5px; margin-bottom: 6px;
+}
+.pve-boss-tags {
+  display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
+}
+.pve-boss-tag {
+  background: rgba(255,160,0,0.12); border: 1px solid rgba(255,160,0,0.25);
+  border-radius: 4px; padding: 2px 8px; font-size: 10px; color: #ffaa44;
+}
+.pve-open-btn {
+  width: 100%; padding: 9px 0; background: linear-gradient(135deg,#3a2000,#5a3800);
+  border: 1px solid #7a5000; border-radius: 8px; color: #ffcc44; font-size: 13px;
+  font-weight: 700; cursor: pointer; transition: background .15s;
+}
+.pve-open-btn:hover { background: linear-gradient(135deg,#5a3000,#7a5000); }
+.pve-fighters-panel {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  max-height: 180px; overflow-y: auto; margin: 8px 0;
+}
+.pve-fighter-btn {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,0.04); border: 1px solid #333;
+  border-radius: 7px; padding: 5px 9px; font-size: 12px; color: #aaa;
+  cursor: pointer; transition: background .12s, border-color .12s;
+}
+.pve-fighter-btn:hover { background: rgba(255,255,255,0.08); }
+.pve-fighter-btn.sel {
+  background: rgba(255,180,0,0.14); border-color: #aa6600; color: #ffcc44;
+}
+.pve-fighter-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.pve-fighter-count { font-size: 11px; color: #666; text-align: center; margin-bottom: 6px; }
+.pve-empty { font-size: 12px; color: #444; font-style: italic; text-align: center; padding: 12px 0; }
+
+/* PVE Selectors (boss + map dropdowns) */
+.pve-selectors        { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.pve-selector-row     { display: flex; align-items: center; gap: 8px; }
+.pve-sel-label        { font-size: 11px; color: #aa8844; font-weight: 700; width: 32px; flex-shrink: 0; }
+.pve-select           { flex: 1; background: #1a1206; border: 1px solid #4a3010; border-radius: 6px;
+                         color: #ffcc88; font-size: 12px; padding: 5px 8px; cursor: pointer;
+                         appearance: none; -webkit-appearance: none;
+                         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23aa7722'/%3E%3C/svg%3E");
+                         background-repeat: no-repeat; background-position: right 8px center; }
+.pve-select:focus     { outline: none; border-color: #aa6600; }
+.pve-select option[disabled] { color: #554422; }
+
+/* Boss preview card */
+.pve-boss-preview     { background: rgba(255,180,0,0.06); border: 1px solid rgba(255,180,0,0.18);
+                         border-radius: 7px; padding: 8px 10px; margin: 6px 0; text-align: center;
+                         min-height: 48px; }
+.pve-boss-name        { font-size: 14px; font-weight: 900; color: #ffcc44; letter-spacing: .5px;
+                         margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pve-boss-diff        { font-size: 11px; font-weight: 400; color: #aa8833; }
+.pve-boss-tags        { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-bottom: 5px; }
+.pve-boss-tag         { background: rgba(255,160,0,0.12); border: 1px solid rgba(255,160,0,0.25);
+                         border-radius: 4px; padding: 2px 7px; font-size: 10px; color: #ffaa44; }
+.pve-boss-desc        { font-size: 10px; color: #888; font-style: italic; line-height: 1.4; }
+
+/* ── PVE Result Overlay ─────────────────────────────────── */
+#pve-result-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.82); z-index: 9990;
+  align-items: center; justify-content: center; flex-direction: column;
+}
+#pve-result-box {
+  background: linear-gradient(135deg,#0e0e22,#1a1400);
+  border: 2px solid #5a4400; border-radius: 18px;
+  padding: 44px 60px; text-align: center;
+  box-shadow: 0 0 60px rgba(255,180,0,0.25);
+  display: flex; flex-direction: column; gap: 16px; align-items: center;
+}
+#pve-result-title {
+  font-size: 48px; font-weight: 900; letter-spacing: 1px;
+  color: #ffcc00; text-shadow: 0 0 30px rgba(255,200,0,0.6);
+}
+#pve-result-sub {
+  font-size: 15px; color: #aa9966; line-height: 1.5; max-width: 340px;
+}
+#pve-result-stats {
+  width: 340px; display: flex; flex-direction: column; gap: 8px;
+}
+.pve-stat-rating {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 8px 0;
+}
+.pve-stat-grade {
+  font-size: 52px; font-weight: 900; line-height: 1;
+  text-shadow: 0 0 24px currentColor;
+}
+.pve-stat-grade-label {
+  font-size: 14px; font-weight: 700; opacity: 0.8; letter-spacing: 1px;
+}
+.pve-stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: #aaa; border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 4px 2px;
+}
+.pve-stat-row span:last-child { color: #eee; font-weight: 700; }
+.pve-stat-table {
+  width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px;
+}
+.pve-stat-table th {
+  color: #666; text-align: left; padding: 3px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 600;
+}
+.pve-stat-table td { padding: 4px 6px; color: #ccc; }
+.pve-stat-table tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+
 /* Stats modal */
 #statsModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; }
 #statsModal.open { display:flex; }

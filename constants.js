@@ -66,3 +66,26 @@ const ARENAS = {
 };
 
 const BALL_COLORS = ['#4488ff', '#ff4455', '#44cc88', '#ffaa22', '#cc44ff', '#ff88aa'];
+
+// Generate a unique ball color using golden-ratio hue distribution
+// — guarantees max visual distance between adjacent colors, no repeat ever
+function generateRadoserColor(index) {
+  const hue = (index * 137.508) % 360;                // golden angle spacing
+  const sat = 65 + (index % 4) * 8;                   // 65 / 73 / 81 / 89 %
+  const lit = 52 + (index % 3) * 8;                   // 52 / 60 / 68 %
+  // Convert HSL → hex so downstream code (eye hash, projectile tint) works correctly
+  const h = hue / 360, s = sat / 100, l = lit / 100;
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const hue2rgb = (t) => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  };
+  const r = Math.round(hue2rgb(h + 1/3) * 255);
+  const g = Math.round(hue2rgb(h)       * 255);
+  const b = Math.round(hue2rgb(h - 1/3) * 255);
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}

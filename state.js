@@ -30,4 +30,12 @@ let state = {
   // Race skill projectiles & effects
   trollNets:    [],
   smiteEffects: [],
+  // PVE
+  pveMode:        false,
+  boss:           null,
+  bossId:         null,         // 'thunderfang' | 'krag' | ...
+  mapId:          null,         // 'thunderstorm_peak' | ...
+  mapDef:         null,         // reference to PVE_MAPS[mapId]
+  terrainObjects: [],           // flat array; bosses can push dynamic objects (lava pools, etc.)
+  healOrbs:       [],           // healing pickup orbs spawned during PVE
 };

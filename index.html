@@ -170,6 +170,53 @@
         <button class="t-btn" id="tournamentBtn">🏆 Enter Tournament</button>
       </div>
 
+      <!-- Boss Raid (PVE) -->
+      <div class="battle-card pve-battle-card" id="pve-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">⚡</div>
+          <div class="battle-card-title">Boss Raid <span style="font-size:0.7em;opacity:0.6;font-weight:normal">(Undercontructed)</span></div>
+        </div>
+        <div class="battle-card-desc">Team up with 1–8 Radosers to take down powerful bosses. Break body parts, avoid deadly attacks, and survive the onslaught.</div>
+
+        <!-- Boss & Map Selectors -->
+        <div class="pve-selectors">
+          <div class="pve-selector-row">
+            <label class="pve-sel-label">Boss</label>
+            <select id="pve-boss-select" class="pve-select">
+              <option value="thunderfang">⚡ Thunderfang</option>
+              <option value="krag">🪨 Krag the Unyielding</option>
+              <option value="vael">🌪️ Vael the Untouchable</option>
+              <option value="ignar">🔥 Ignar the Eternal Flame</option>
+              <option value="syvara"   >🌀 Syvara the Unraveled</option>
+              <option value="molthrex" >🐍 Molthrex the Festering</option>
+              <option value="maddox"   >🃏 Maddox the Mad</option>
+              <option value="grakk"    >👹 Warboss Grakk</option>
+            </select>
+          </div>
+          <div class="pve-selector-row">
+            <label class="pve-sel-label">Map</label>
+            <select id="pve-map-select" class="pve-select">
+              <option value="thunderstorm_peak">⚡ Thunderstorm Peak</option>
+              <option value="ancient_ruins">🏛️ Ancient Ruins</option>
+              <option value="volcanic_crater">🌋 Volcanic Crater</option>
+              <option value="goblin_warrens">🕳️ Goblin Warrens</option>
+              <option value="void_sanctum">🌀 Void Sanctum</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic boss preview (filled by _updatePVEBossPreview in pve.js) -->
+        <div id="pve-boss-preview" class="pve-boss-preview"></div>
+
+        <button class="pve-open-btn" id="pveCardOpenBtn">⚡ Select Party</button>
+        <button class="pve-open-btn" id="pveCardCloseBtn" style="display:none">▲ Hide Roster</button>
+        <div id="pve-roster-area" style="display:none">
+          <div id="pve-fighters-panel" class="pve-fighters-panel"></div>
+          <div id="pve-fighter-count" class="pve-fighter-count">0 / 8 selected</div>
+          <button class="start-btn" id="pveStartBtn" disabled>⚡ RAID!</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -179,12 +226,212 @@
 
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">30 Mar 2026</span>
+          <span class="changelog-badge">Patch 19</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🏹 <b>Bow — Soft Auto-aim</b>: Weapon angle nhẹ nhàng xoay về phía đối thủ mỗi frame, tốc độ tracking scale theo MA (MA1 → gần như không thấy, MA10 → rõ ràng nhưng vẫn có thể miss)</li>
+          <li>🎯 <b>Bow — Aim Cone</b>: Bow chỉ khai hỏa khi đối thủ nằm trong góc nhìn trước mũi tên, cone width scale theo IQ (IQ1 → ±24°, IQ5 → ±40°, IQ10 → ±60°)</li>
+          <li>🎨 <b>Màu Radoser đa dạng hơn</b>: Dùng Golden Ratio hue distribution — mỗi Radoser mới có màu cách xa tối đa so với các màu trước, không còn lặp màu sau 6 nhân vật</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">30 Mar 2026</span>
+          <span class="changelog-badge">Patch 18</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🏹 <b>Bow Buff — Starting Arrows</b>: Số mũi tên ban đầu scale theo AGI (AGI 1-4: 1 mũi, AGI 5-8: 2 mũi, AGI 9-10: 3 mũi)</li>
+          <li>🏹 <b>Bow Buff — Arrow Size</b>: Kích thước mũi tên scale theo STR — hitbox to hơn giúp dễ trúng hơn (STR 5 → r≈5.5, STR 10 → r≈7)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">30 Mar 2026</span>
+          <span class="changelog-badge">Patch 17</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🕸️ <b>Troll Net — Growing Net</b>: Lưới to dần khi bay xa — cả hitbox lẫn visual mở rộng theo khoảng cách</li>
+          <li>🌀 <b>Troll Net — Spin</b>: Lưới xoay nhẹ trong khi bay, đường kẻ dày dần theo size</li>
+          <li>🎨 <b>Radoser Color</b>: Màu sắc đa dạng hơn — golden ratio hue distribution, không trùng lặp</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 16</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🕸️ <b>Troll Net Throw</b>: Fix bug mục tiêu bị trap vẫn di chuyển bình thường — hiệu ứng giảm tốc giờ áp dụng đúng cho mọi race bị lưới</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 15</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>💊 <b>Heal Orbs</b>: Orb hồi máu spawn ngẫu nhiên mỗi ~18s trong PVE (tối đa 3 cùng lúc); nhặt để hồi 30% maxHp; glow xanh lá + biến mất sau 10s</li>
+          <li>⚡ <b>Boss Phase Transitions</b>: 50% HP → "Phase 2!" (speed +20%); 15% HP → "Final Phase!" (speed +55%, acceleration++); áp dụng cho tất cả 8 boss</li>
+          <li>🏆 <b>PVE Result Screen</b>: Bảng kết quả mở rộng gồm rating S/A/B/C/D, thời gian, số người sống sót, tổng damage, và stats từng fighter</li>
+          <li>🌀 <b>Map 5: Void Sanctum</b>: Arena tối tím với void maelstrom ở trung tâm (damage liên tục), 4 Rift hazard ở 4 góc, 4 cột obsidian chặn đường; thích hợp cho Syvara</li>
+          <li>🔧 <b>displayName</b>: Boss base class thêm <code>displayName</code> field → phase transition announcement dùng tên boss đúng thay vì hardcode "Thunderfang"</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 14</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🐍 <b>Molthrex the Festering</b>: Plague Hydra — 1 đầu ban đầu; phá đầu → 2 đầu nhỏ hơn mọc ra (tối đa 5 đầu); mỗi đầu bắn acid riêng; Plague Nova bùng nổ khi HP thấp</li>
+          <li>🌀 <b>Syvara the Unraveled</b>: Void Weaver — đặt 4 Void Anchor ngay khi spawn; teleport ngẫu nhiên đến anchor; phá staff → vô hiệu hoá teleport & Void Hole; anchor có thể bị projectile phá huỷ</li>
+          <li>👹 <b>Warboss Grakk</b>: Goblin Horde — 8 goblin chạy tấn công player; phá Shaman → dừng buff rush & hồi HP cho Grakk; Goblin Rush tăng tốc toàn đàn; Shaman Hex bắn orb làm chậm</li>
+          <li>🃏 <b>Maddox the Mad</b>: The Jester — random chọn 4-6 trong 8 move mỗi 20s; HP bar hiển thị ±15% sai lệch; phá Hat → mở khoá tất cả 8 move + tăng tốc; move Pratfall: windup cực dài nhưng damage siêu nhỏ</li>
+          <li>🌀 <b>Void Anchor visual</b>: anchor được vẽ với glow pulse và HP bar khi bị damage</li>
+          <li>🔧 <b>getAllHitParts()</b>: Boss base class thêm method polymorphic → resolveBossBodyCollision hỗ trợ dynamic parts (Molthrex heads)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 13</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🪨 <b>Krag the Unyielding</b>: Golem King — 4 Rune Stone quay orbit làm shield (giảm 80% damage); phá hết 4 → Berserk (tốc độ ×1.85, damage full, mở khóa Berserk Charge)</li>
+          <li>🌪️ <b>Vael the Untouchable</b>: Storm Harpy — 40% evasion mỗi hit; phá 2 cánh → evasion giảm còn 10%; di chuyển cực nhanh, Feather Storm 360°, Cyclone knockback</li>
+          <li>🔥 <b>Ignar the Eternal Flame</b>: Magma Colossus — để lại Lava Pool theo đường di chuyển (tối đa 10); phá Core → dừng sinh lava; Eruption tạo 6 lava pool hình vòng; Lava Geyser bẫy tại vị trí player</li>
+          <li>🗺️ <b>Boss ↔ Map pairing</b>: Krag → Ancient Ruins (tường breakable), Ignar → Volcanic Crater (lava tích lũy), Vael → bất kỳ map (không có terrain gắn liền)</li>
+          <li>🔧 <b>movePool system</b>: Boss base class dùng <code>this.movePool</code> → subclass dễ dàng dùng move set riêng</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 12</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🗺️ <b>PVE Maps (Phase 1)</b>: thêm 4 bản đồ mới — Thunderstorm Peak, Ancient Ruins, Volcanic Crater, Goblin Warrens</li>
+          <li>🧱 <b>Terrain system</b>: terrain có 4 loại — SOLID (bounce), HAZARD (damage/giây), SLOW (giảm tốc), breakable walls (boss charge phá được)</li>
+          <li>⚡ <b>Rod sparks</b>: Thunderstorm Peak có hiệu ứng tia sét ngẫu nhiên giữa các cột lightning rod</li>
+          <li>🌋 <b>Lava hazard</b>: Volcanic Crater có lava pit trung tâm — đứng trong đó mất HP</li>
+          <li>🕳️ <b>Mud slow zone</b>: Goblin Warrens có mud pit giữa sân giảm tốc độ di chuyển</li>
+          <li>👹 <b>Boss selector</b>: tab Battle có dropdown chọn boss và map riêng biệt (7 boss mới hiển thị "Soon")</li>
+          <li>🏷️ <b>Dynamic boss preview</b>: preview thay đổi theo boss được chọn — tên, độ khó, tags, mô tả</li>
+          <li>🔧 <b>Boss refactor</b>: Boss class dùng <code>this.partDefs</code> thay BOSS_PART_DEFS → dễ kế thừa cho boss mới</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 11</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⚔️ <b>Weapon scaling vs Boss</b>: fix bug — giờ melee & ranged đều gọi <code>onHit</code> đúng cách → weapon scale bình thường khi đánh boss</li>
+          <li>🎯 <b>Crit vs Boss</b>: crit roll được tính đúng cho cả melee và projectile, hiện damage màu vàng khi crit</li>
+          <li>⏱️ <b>Weapon cooldown vs Boss</b>: melee giờ dùng <code>weapon.attackCooldown</code> thay vì cooldown riêng → tốc độ đánh đúng với chỉ số SPD</li>
+          <li>🧱 <b>Boss collision</b>: fix Radoser xuyên qua boss — giờ các part của boss là vật thể solid, bật ball ra khi va chạm</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 10</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⚡ <b>Boss physics</b>: Thunderfang giờ di chuyển bằng velocity + acceleration — có quán tính, trượt, và bật tường</li>
+          <li>💥 <b>Part HP bars (on-part)</b>: mỗi part có thanh HP riêng + nhãn trực tiếp trên body (xanh → vàng → đỏ → BROKEN)</li>
+          <li>🎨 <b>Break arc color</b>: vòng arc đổi màu theo HP còn lại</li>
+          <li>📊 <b>HUD part bars</b>: 4 thanh HP (Head, L.Claw, R.Claw, Tail) trong bảng HUD trên canvas</li>
+          <li>🔴 <b>Enrage physics</b>: khi enrage maxSpeed và acceleration tăng theo</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">28 Mar 2026</span>
+          <span class="changelog-badge">Patch 9</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⚡ <b>PVE — Boss Raid mode</b>: mode chơi mới, 1–8 Radosers hợp tác đánh boss</li>
+          <li>🐉 <b>Thunderfang</b>: boss đầu tiên (phong cách Zinogre). Có 5 bộ phận với HP riêng: Đầu, Thân, 2 Vuốt, Đuôi</li>
+          <li>💥 <b>Break mechanic</b>: phá hủy bộ phận → vô hiệu hóa skill liên quan, +20% damage và crit đảm bảo khi đánh vào vùng đã bị phá</li>
+          <li>⚔️ <b>9 move set</b>: Cắn, Cắn liên tiếp, Đấm trái/phải, Vung 2 tay, Ủi thẳng, Tia điện, 8 cầu sét, Ủi tường → stun</li>
+          <li>🔴 <b>Enrage</b>: HP &lt;30% → boss tăng tốc, tỉ lệ attack tăng</li>
+          <li>🎯 <b>Telegraph visual</b>: hiển thị vùng tấn công trước khi boss ra đòn</li>
+          <li>🏅 <b>Break progress arc</b>: vòng cung vàng quanh mỗi part hiển thị % HP còn lại trước khi bị break</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">27 Mar 2026</span>
+          <span class="changelog-badge">Patch 8</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🩹 <b>Survivor</b>: thắng với HP &lt;20% → +10 max HP vĩnh viễn (tích lũy qua các round)</li>
+          <li>🏅 <b>Veteran</b>: thắng → +1 stat ngẫu nhiên (STR/SPD/IQ/BIQ/MA, không giới hạn)</li>
+          <li>🌙 <b>Mastery</b>: thắng HP &lt;50% → MA×3% chance +1 base damage (melee) hoặc +1 shuriken đầu trận (ranged)</li>
+          <li>💎 <b>Perfectionist</b>: thắng &gt;80% HP → round sau +15% damage; thắng ≤80% HP → round sau -10% damage</li>
+          <li>🩸 <b>Blood Mark</b>: thua → gắn debuff lên đối thủ — trận tiếp theo họ ra sân với 80% HP</li>
+          <li>🎭 <b>Copycat</b>: thắng → BIQ×3.5% chance học 1 skill ngẫu nhiên từ đối thủ (weight ×3 cho regular skills)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">27 Mar 2026</span>
           <span class="changelog-badge">Patch 7</span>
           <span class="changelog-chevron">▼</span>
         </div>
         <div class="changelog-body"><div class="changelog-body-inner">
         <ul class="changelog-list">
+          <li>🦅 <b>Predator fix</b>: giờ check HP <b>1 lần duy nhất lúc đầu round</b> (pre-combat đúng nghĩa) — nếu target ít HP hơn → +15% damage cả trận, ngược lại không trigger</li>
           <li>⭐ <b>Shuriken scale</b>: giờ chỉ cần 1 hit là +1 shuriken (trước cần 2 hits)</li>
           <li>🥊 <b>Fists damage</b>: <code>(2 + MA×0.2) × STR</code> — MA=5,STR=5 → 15 dmg; MA=10,STR=10 → 40 dmg</li>
           <li>🗡️ <b>Dagger damage</b>: <code>(1 + MA×0.15) × STR</code> — MA=5,STR=5 → 8.75 dmg; MA=10,STR=10 → 25 dmg</li>
@@ -546,6 +793,16 @@
   </div>
 </div>
 
+<!-- PVE Result Overlay -->
+<div id="pve-result-overlay" style="display:none">
+  <div id="pve-result-box">
+    <div id="pve-result-title">VICTORY!</div>
+    <div id="pve-result-sub">Thunderfang has been slain!</div>
+    <div id="pve-result-stats"></div>
+    <button class="r-btn primary" id="pveResultCloseBtn">← Back to Menu</button>
+  </div>
+</div>
+
 <script src="audio.js"></script>
 <script src="constants.js"></script>
 <script src="weapons.js"></script>
@@ -566,6 +823,24 @@
 <script src="chargen.js"></script>
 <script src="roster.js"></script>
 <script src="asset-editor.js"></script>
+<script src="maps.js"></script>
+<script src="boss.js"></script>
+<script src="boss-moves.js"></script>
+<script src="boss-krag-moves.js"></script>
+<script src="boss-krag.js"></script>
+<script src="boss-vael-moves.js"></script>
+<script src="boss-vael.js"></script>
+<script src="boss-ignar-moves.js"></script>
+<script src="boss-ignar.js"></script>
+<script src="boss-molthrex-moves.js"></script>
+<script src="boss-molthrex.js"></script>
+<script src="boss-syvara-moves.js"></script>
+<script src="boss-syvara.js"></script>
+<script src="boss-grakk-moves.js"></script>
+<script src="boss-grakk.js"></script>
+<script src="boss-maddox-moves.js"></script>
+<script src="boss-maddox.js"></script>
+<script src="pve.js"></script>
 
 
 </body>

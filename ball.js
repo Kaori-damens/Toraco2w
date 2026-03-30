@@ -33,6 +33,7 @@ class Ball {
     this.mass = this.radius * this.radius * 0.05;
 
     this.immunityFrames = 0;
+    this.projImmunityFrames = 0;  // separate counter for projectile hits
     this.hitFlash = 0;
     this.squashX = 1; this.squashY = 1;
     this.scale = 1;
@@ -203,12 +204,25 @@ class Ball {
 
     // Weapon rotation
     this.weapon.angle += this.getSpeed();
+
+    // Bow soft aim: gently nudge weapon angle toward opponent (MA scales tracking speed)
+    // MA 1 → barely noticeable pull; MA 10 → clear but not snap-aim
+    if (this.weaponDef.id === 'bow' && opponent && opponent.alive) {
+      const dx = opponent.x - this.x, dy = opponent.y - this.y;
+      let diff = Math.atan2(dy, dx) - this.weapon.angle;
+      while (diff >  Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      const trackSpeed = (this.charMA ?? 1) * 0.003; // MA1→0.003, MA10→0.03 rad/frame
+      this.weapon.angle += Math.sign(diff) * Math.min(Math.abs(diff), trackSpeed);
+    }
+
     if (this.weapon.spinDebuffTimer > 0) this.weapon.spinDebuffTimer--;
     if (this.weapon.spinSlowTimer   > 0) this.weapon.spinSlowTimer--;
     if (this.weapon.spinBoostTimer  > 0) this.weapon.spinBoostTimer--;
     if (this.weapon.cooldown > 0) this.weapon.cooldown--;
     if (this.weapon.parryCooldown > 0) this.weapon.parryCooldown--;
-    if (this.immunityFrames > 0) this.immunityFrames--;
+    if (this.immunityFrames     > 0) this.immunityFrames--;
+    if (this.projImmunityFrames > 0) this.projImmunityFrames--;
     if (this.hitFlash > 0) this.hitFlash--;
     if (this.evadeFrames > 0) this.evadeFrames--;
 
@@ -238,20 +252,35 @@ class Ball {
           this.weapon.fireTimer++;
           const interval = this.weapon.fireInterval ?? def.fireInterval ?? 120;
           if (this.weapon.fireTimer >= interval) {
-            const count = def.id === 'bow'
-              ? (this.weapon.arrowCount || 1)
-              : (this.weapon.shurikenCount || 1);
-            if (def.id === 'bow') {
-              // Multi-stream: MA>=5 → 2 streams, MA>=10 → 3 streams
-              const ma = this.charMA ?? 0;
-              const streams = ma >= 10 ? 3 : ma >= 5 ? 2 : 1;
-              this.weapon._bowStreams = streams;
-              this.weapon._arrowsLeft = count;
-              this.weapon.burstQueue = Math.ceil(count / streams);
-            } else {
-              this.weapon.burstQueue = count;
+            // Bow aim cone: only fire when opponent is within ±coneHalf of weapon angle
+            // Cone width scales with IQ — IQ1→±24°, IQ5→±40°, IQ10→±60°
+            let inCone = true;
+            if (def.id === 'bow' && opponent && opponent.alive) {
+              const dx = opponent.x - this.x, dy = opponent.y - this.y;
+              let diff = Math.atan2(dy, dx) - this.weapon.angle;
+              while (diff >  Math.PI) diff -= Math.PI * 2;
+              while (diff < -Math.PI) diff += Math.PI * 2;
+              const coneHalf = (20 + (this.charIQ ?? 1) * 4) * Math.PI / 180;
+              inCone = Math.abs(diff) <= coneHalf;
             }
-            this.weapon.burstTimer = 0; // fire first shot immediately
+
+            if (inCone) {
+              const count = def.id === 'bow'
+                ? (this.weapon.arrowCount || 1)
+                : (this.weapon.shurikenCount || 1);
+              if (def.id === 'bow') {
+                // Multi-stream: MA>=5 → 2 streams, MA>=10 → 3 streams
+                const ma = this.charMA ?? 0;
+                const streams = ma >= 10 ? 3 : ma >= 5 ? 2 : 1;
+                this.weapon._bowStreams = streams;
+                this.weapon._arrowsLeft = count;
+                this.weapon.burstQueue = Math.ceil(count / streams);
+              } else {
+                this.weapon.burstQueue = count;
+              }
+              this.weapon.burstTimer = 0; // fire first shot immediately
+            }
+            // If NOT inCone: timer stays charged (≥interval), retries next frame
           }
         }
       }
@@ -308,8 +337,9 @@ class Ball {
     }
   }
 
-  takeDamage(dmg, fromX, fromY, isCrit = false, attacker = null, isReactCounter = false) {
-    if (this.immunityFrames > 0) return false;
+  takeDamage(dmg, fromX, fromY, isCrit = false, attacker = null, isReactCounter = false, isProjectile = false) {
+    // Projectile and melee use separate immunity counters
+    if (isProjectile ? this.projImmunityFrames > 0 : this.immunityFrames > 0) return false;
 
     // Evade roll
     if (Math.random() < this.evadeChance) {
@@ -350,8 +380,13 @@ class Ball {
       this.skillState.flowStateStacks = 0;
     }
 
-    // Skill: Extended Immunity — 30 frames instead of 18
-    this.immunityFrames = this.skills.includes('extended_immunity') ? 30 : 18;
+    // Immunity after hit — melee: 4 frames, projectile: 0 frames (no immunity between arrows)
+    const hasExtImmune = this.skills.includes('extended_immunity');
+    if (isProjectile) {
+      this.projImmunityFrames = 0;
+    } else {
+      this.immunityFrames = hasExtImmune ? 30 : 4;
+    }
     this.hitFlash = 8;
     const angle = Math.atan2(this.y - fromY, this.x - fromX);
     spawnBlood(this.x, this.y, isCrit ? 12 : 6, angle + Math.PI);
@@ -433,9 +468,10 @@ class Ball {
     ctx.ellipse(0, this.radius*0.9, this.radius*0.8, this.radius*0.25, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // Immunity shimmer
-    if (this.immunityFrames > 0) {
-      ctx.strokeStyle = `rgba(255,255,255,${this.immunityFrames/18 * 0.5})`;
+    // Immunity shimmer — show when either immunity counter is active
+    const shimmerF = Math.max(this.immunityFrames, this.projImmunityFrames);
+    if (shimmerF > 0) {
+      ctx.strokeStyle = `rgba(255,255,255,${shimmerF / 18 * 0.5})`;
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(0, 0, this.radius + 4, 0, Math.PI*2);
