@@ -372,25 +372,25 @@ document.getElementById('bracketMenuBtn').addEventListener('click', () => {
 // Parameter definitions for each arena type
 const AB_PARAMS = {
   square: [
-    { id:'size',   label:'Size',        min:200, max:740, step:10, def:600, unit:'px',
+    { id:'size',   label:'Size',        min:200, max:1000, step:10, def:600, unit:'px',
       note:'Width = Height — equal sides' }
   ],
   circle: [
-    { id:'radius', label:'Radius',      min:80,  max:360, step:5,  def:220, unit:'px',
+    { id:'radius', label:'Radius',      min:80,  max:600,  step:5,  def:220, unit:'px',
       note:'Diameter = radius × 2' }
   ],
   rect: [
-    { id:'width',  label:'Width',       min:250, max:760, step:10, def:600, unit:'px' },
-    { id:'height', label:'Height',      min:150, max:700, step:10, def:400, unit:'px' }
+    { id:'width',  label:'Width',       min:250, max:1000, step:10, def:600, unit:'px' },
+    { id:'height', label:'Height',      min:150, max:1000, step:10, def:400, unit:'px' }
   ],
   cross: [
-    { id:'arm',   label:'Arm Length',   min:120, max:380, step:10, def:240, unit:'px',
+    { id:'arm',   label:'Arm Length',   min:120, max:500,  step:10, def:240, unit:'px',
       note:'Total span = arm × 2' },
-    { id:'thick', label:'Arm Width',    min:80,  max:320, step:10, def:300, unit:'px' }
+    { id:'thick', label:'Arm Width',    min:80,  max:500,  step:10, def:300, unit:'px' }
   ],
   hole: [
-    { id:'size',  label:'Arena Size',   min:300, max:780, step:10, def:800, unit:'px' },
-    { id:'holeR', label:'Hole Radius',  min:30,  max:180, step:5,  def:70,  unit:'px',
+    { id:'size',  label:'Arena Size',   min:300, max:1000, step:10, def:800, unit:'px' },
+    { id:'holeR', label:'Hole Radius',  min:30,  max:600,  step:5,  def:70,  unit:'px',
       note:'Void in the center — bounce outward' }
   ],
 };
