@@ -2,7 +2,7 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
-const CW = 800, CH = 800;
+const CW = 1000, CH = 1000;
 const BALL_R = 24;
 const BASE_HP = 100;
 
@@ -58,11 +58,11 @@ function getRandomGameName() {
 
 // Arena configs
 const ARENAS = {
-  square: { type: 'square', x: 100, y: 100, w: 600, h: 600 },
-  circle: { type: 'circle', cx: 400, cy: 400, r: 220 },
-  rect:   { type: 'rect',   x: 100, y: 200, w: 600, h: 400 },
-  cross:  { type: 'cross',  cx: 400, cy: 400, arm: 240, thick: 300 },
-  hole:   { type: 'hole',   x: 0,   y: 0,   w: 800, h: 800, holeCx: 400, holeCy: 400, holeR: 70 },
+  square: { type: 'square', x: 200, y: 200, w: 600, h: 600 },
+  circle: { type: 'circle', cx: 500, cy: 500, r: 220 },
+  rect:   { type: 'rect',   x: 200, y: 300, w: 600, h: 400 },
+  cross:  { type: 'cross',  cx: 500, cy: 500, arm: 240, thick: 300 },
+  hole:   { type: 'hole',   x: 0,   y: 0,   w: 1000, h: 1000, holeCx: 500, holeCy: 500, holeR: 70 },
 };
 
 const BALL_COLORS = ['#4488ff', '#ff4455', '#44cc88', '#ffaa22', '#cc44ff', '#ff88aa'];

@@ -409,22 +409,22 @@ function abBuildConfig(type, params) {
   switch (type) {
     case 'square': {
       const s = params.size;
-      return { type:'square', x:(800-s)/2, y:(800-s)/2, w:s, h:s };
+      return { type:'square', x:(1000-s)/2, y:(1000-s)/2, w:s, h:s };
     }
     case 'circle': {
-      return { type:'circle', cx:400, cy:400, r:params.radius };
+      return { type:'circle', cx:500, cy:500, r:params.radius };
     }
     case 'rect': {
       const { width:w, height:h } = params;
-      return { type:'rect', x:(800-w)/2, y:(800-h)/2, w, h };
+      return { type:'rect', x:(1000-w)/2, y:(1000-h)/2, w, h };
     }
     case 'cross': {
-      return { type:'cross', cx:400, cy:400, arm:params.arm, thick:params.thick };
+      return { type:'cross', cx:500, cy:500, arm:params.arm, thick:params.thick };
     }
     case 'hole': {
       const s = params.size;
-      return { type:'hole', x:(800-s)/2, y:(800-s)/2, w:s, h:s,
-               holeCx:400, holeCy:400, holeR:params.holeR };
+      return { type:'hole', x:(1000-s)/2, y:(1000-s)/2, w:s, h:s,
+               holeCx:500, holeCy:500, holeR:params.holeR };
     }
   }
 }
@@ -435,7 +435,7 @@ function abRenderPreview() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const SCALE = W / 800;
+  const SCALE = W / 1000;
 
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = '#05050f';
