@@ -12,7 +12,7 @@ let state = {
   speed: 1,
   frame: 0,
   fighters: [],
-  arenaId: 'square',
+  arenaId: 'med_square',
   customArena: null,   // saved from Arena Builder
   winner: null,
   // Countdown + timer
@@ -38,4 +38,5 @@ let state = {
   mapDef:         null,         // reference to PVE_MAPS[mapId]
   terrainObjects: [],           // flat array; bosses can push dynamic objects (lava pools, etc.)
   healOrbs:       [],           // healing pickup orbs spawned during PVE
+  trapObjects:    [],           // PvP trap objects (pillars, scythes, lightning, bombs)
 };

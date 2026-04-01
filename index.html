@@ -87,6 +87,7 @@
     <button class="menu-tab active" data-tab="tab-showcase">Showcase</button>
     <button class="menu-tab"        data-tab="tab-radosers">Radosers</button>
     <button class="menu-tab"        data-tab="tab-battle">Battle</button>
+    <button class="menu-tab"        data-tab="tab-wiki">📖 Wiki</button>
     <button class="menu-tab"        data-tab="tab-changelog">Changelogs</button>
   </div>
 
@@ -102,14 +103,52 @@
 
   <!-- Tab: Radosers -->
   <div class="menu-tab-pane" id="tab-radosers">
-    <div class="roster-grid" id="rosterGrid">
-      <div class="roster-empty">No characters yet — create one below!</div>
-    </div>
     <div class="tab-footer-btns">
       <button class="quick-create-btn" id="quickCreateBtn">⚡ Quick Create</button>
       <button class="create-char-btn"  id="createCharBtn">⚗️ Create Character</button>
+      <button class="create-char-btn"  id="debugRadoserBtn" style="background:#1a0a2e;border-color:#9933ff;color:#cc88ff;">🐛 Debug Radoser</button>
       <button class="roster-io-btn export-btn" id="exportRosterBtn">📤 Export</button>
       <button class="roster-io-btn import-btn" id="importRosterBtn">📥 Import</button>
+      <button class="roster-io-btn bulk-create-btn" id="bulkCreateBtn">🏭 Bulk Create</button>
+    </div>
+    <!-- Search + Filter bar -->
+    <div class="roster-search-bar">
+      <div class="roster-search-wrap">
+        <span class="roster-search-icon">🔍</span>
+        <input id="rosterSearchInput" class="roster-search-input" type="text" placeholder="Name, or: race=orc, str>5, weapon=bow…" autocomplete="off" />
+        <button class="roster-search-clear" id="rosterSearchClear">✕</button>
+      </div>
+      <button class="roster-filter-btn" id="rosterFilterBtn">
+        <span>Filter</span>
+        <span class="rfb-badge" id="rosterFilterBadge" style="display:none">0</span>
+        <span class="rfb-chevron" id="rosterFilterChevron">▾</span>
+      </button>
+    </div>
+    <!-- Query syntax hint (shows on input focus) -->
+    <div class="roster-search-hint" id="rosterSearchHint">
+      <span class="rsh-title">Query syntax:</span>
+      <code class="rsh-ex">race=dragon</code>
+      <code class="rsh-ex">str>5</code>
+      <code class="rsh-ex">spd<=3</code>
+      <code class="rsh-ex">weapon=bow</code>
+      <code class="rsh-ex">total>=40</code>
+      <code class="rsh-ex">iq!=1</code>
+      <span class="rsh-sep">—</span>
+      <span class="rsh-fields">str · spd · dur · iq · biq · ma · total · race · weapon · subrace · skill</span>
+    </div>
+    <div class="roster-filter-panel" id="rosterFilterPanel">
+      <div class="rfp-row">
+        <span class="rfp-label">Race</span>
+        <div class="rfp-chips" id="rfpRaceChips"></div>
+      </div>
+      <div class="rfp-row">
+        <span class="rfp-label">Weapon</span>
+        <div class="rfp-chips" id="rfpWeaponChips"></div>
+      </div>
+    </div>
+
+    <div class="roster-grid" id="rosterGrid">
+      <div class="roster-empty">No characters yet — create one above!</div>
     </div>
   </div>
 
@@ -137,6 +176,27 @@
     </div>
   </div>
 
+  <!-- Bulk Create Modal -->
+  <div class="modal-backdrop" id="bulkCreateModal" style="display:none">
+    <div class="bulk-create-box">
+      <button class="bulk-close" id="bulkCloseBtn">✕</button>
+      <div class="bulk-title">🏭 Bulk Create Radosers</div>
+      <p class="bulk-desc">Tạo nhiều Radoser cùng lúc theo đúng chargen rules — race/stat/skill đều được roll có trọng số, subrace effects đầy đủ. Không có UI, không animation.</p>
+      <div class="bulk-field">
+        <label class="bulk-label" for="bulkCountInput">
+          Số lượng <span class="bulk-max">max 128</span>
+        </label>
+        <input type="number" id="bulkCountInput" class="bulk-input" min="1" max="128" value="10" />
+        <div class="bulk-hint" id="bulkCounterHint">10 Radosers sẽ được thêm vào roster</div>
+      </div>
+      <div class="bulk-actions">
+        <button class="bulk-btn bulk-cancel" id="bulkCancelBtn">Huỷ</button>
+        <button class="bulk-btn bulk-confirm" id="bulkConfirmBtn">⚡ Tạo ngay</button>
+      </div>
+      <div class="bulk-result" id="bulkResult"></div>
+    </div>
+  </div>
+
   <!-- Tab: Battle -->
   <div class="menu-tab-pane" id="tab-battle">
     <div class="battle-cards">
@@ -150,11 +210,47 @@
         <div id="fighters-panel"></div>
         <div class="arena-row">
           <label>Arena:</label>
-          <button class="a-btn sel" data-a="square">Square</button>
-          <button class="a-btn"     data-a="circle">Circle</button>
-          <button class="a-btn"     data-a="rect">Rectangle</button>
-          <button class="a-btn"     data-a="cross">Cross</button>
-          <button class="a-btn"     data-a="hole">Hole</button>
+          <span class="arena-size-label">Small</span>
+          <button class="a-btn"     data-a="small_square">Square</button>
+          <button class="a-btn"     data-a="small_circle">Circle</button>
+          <button class="a-btn"     data-a="small_rect">Rect</button>
+          <span class="arena-size-label">Medium</span>
+          <button class="a-btn sel" data-a="med_square">Square</button>
+          <button class="a-btn"     data-a="med_circle">Circle</button>
+          <button class="a-btn"     data-a="med_rect">Rect</button>
+          <span class="arena-size-label">Large</span>
+          <button class="a-btn"     data-a="large_square">Square</button>
+          <button class="a-btn"     data-a="large_circle">Circle</button>
+          <button class="a-btn"     data-a="large_rect">Rect</button>
+          <span class="arena-size-label arena-trap-label">⚠ Trap</span>
+          <button class="a-btn a-btn-trap" data-a="small_square_trap">S.Sq ⚠</button>
+          <button class="a-btn a-btn-trap" data-a="small_circle_trap">S.Ci ⚠</button>
+          <button class="a-btn a-btn-trap" data-a="small_rect_trap">S.Re ⚠</button>
+          <button class="a-btn a-btn-trap" data-a="med_square_trap">M.Sq ⚡</button>
+          <button class="a-btn a-btn-trap" data-a="med_circle_trap">M.Ci ⚡</button>
+          <button class="a-btn a-btn-trap" data-a="med_rect_trap">M.Re ⚡</button>
+          <button class="a-btn a-btn-trap" data-a="med_square_trap2">M.Sq ⚔</button>
+          <button class="a-btn a-btn-trap" data-a="med_circle_trap2">M.Ci ⚔</button>
+          <button class="a-btn a-btn-trap" data-a="med_rect_trap2">M.Re ⚔</button>
+          <button class="a-btn a-btn-trap" data-a="large_square_trap">L.Sq ⚠</button>
+          <button class="a-btn a-btn-trap" data-a="large_circle_trap">L.Ci ⚠</button>
+          <button class="a-btn a-btn-trap" data-a="large_rect_trap">L.Re ⚠</button>
+          <span class="arena-size-label arena-hole-label">⊘ Hole</span>
+          <button class="a-btn a-btn-hole" data-a="hole_sq_c_s">S.Sq●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_sq_sq_s">S.Sq■</button>
+          <button class="a-btn a-btn-hole" data-a="hole_ci_c_s">S.Ci●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_re_2c_s">S.Re●●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_re_3sq_s">S.Re■■■</button>
+          <button class="a-btn a-btn-hole" data-a="hole_sq_c_m">M.Sq●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_sq_sq_m">M.Sq■</button>
+          <button class="a-btn a-btn-hole" data-a="hole_ci_c_m">M.Ci●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_re_2c_m">M.Re●●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_re_3sq_m">M.Re■■■</button>
+          <button class="a-btn a-btn-hole" data-a="hole_sq_c_l">L.Sq●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_sq_sq_l">L.Sq■</button>
+          <button class="a-btn a-btn-hole" data-a="hole_ci_c_l">L.Ci●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_re_2c_l">L.Re●●</button>
+          <button class="a-btn a-btn-hole" data-a="hole_re_3sq_l">L.Re■■■</button>
           <button class="a-btn a-btn-custom" data-a="custom" id="arenaCustomBtn">⚙️ Custom</button>
         </div>
         <button class="start-btn" id="startBtn">⚔️ FIGHT!</button>
@@ -168,6 +264,10 @@
         </div>
         <div class="battle-card-desc">Single-elimination bracket. Compete with up to 64 Radosers across BO1, BO3, or BO5 matches.</div>
         <button class="t-btn" id="tournamentBtn">🏆 Enter Tournament</button>
+        <div id="tournament-resume-wrap" style="display:none;margin-top:8px">
+          <div id="tournament-resume-info" style="font-size:11px;color:#778;margin-bottom:6px;text-align:center"></div>
+          <button class="t-btn t-btn-resume" id="tournamentResumeBtn">▶ Resume Tournament</button>
+        </div>
       </div>
 
       <!-- Boss Raid (PVE) -->
@@ -220,11 +320,530 @@
     </div>
   </div>
 
+  <!-- Tab: Wiki -->
+  <div class="menu-tab-pane" id="tab-wiki">
+    <div class="wiki-wrap">
+      <div class="wiki-intro"><strong>TORACO</strong> — AutoRPNG Battle · in-game reference</div>
+
+      <!-- ── Stats ── -->
+      <div class="wiki-section">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>📊 Stats &amp; Formulas</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+          <table class="wiki-table">
+            <thead><tr><th>Stat</th><th>Short</th><th>Effect</th><th>Formula</th></tr></thead>
+            <tbody>
+              <tr><td class="wk">💪 Strength</td><td>STR</td><td>Weapon damage</td><td class="wv"><code>damage × STR</code></td></tr>
+              <tr><td class="wk">⚡ Speed</td><td>SPD</td><td>Max speed · attack rate · fire rate</td><td class="wv"><code>maxSpd = 10 + SPD×1.5</code></td></tr>
+              <tr><td class="wk">🛡️ Durability</td><td>DUR</td><td>Max HP</td><td class="wv"><code>HP = 50 + DUR×10</code></td></tr>
+              <tr><td class="wk">🧠 Intelligence</td><td>IQ</td><td>Critical hit chance · Exploit · Mind Break</td><td class="wv"><code>crit = IQ×5%</code></td></tr>
+              <tr><td class="wk">⚔️ Battle IQ</td><td>BIQ</td><td>Evade chance · Read &amp; React</td><td class="wv"><code>evade = BIQ×3%</code></td></tr>
+              <tr><td class="wk">🥋 Martial Arts</td><td>MA</td><td>Weapon spin · Deflection · Flow State</td><td class="wv"><code>spin = MA×0.003</code></td></tr>
+            </tbody>
+          </table>
+          <div class="wiki-note">Attack cooldown = <code>baseCooldown − SPD</code> (min 2f / 0.03s). Ranged fire interval = <code>base − SPD×2</code> (min 5f / 0.08s).</div>
+        </div>
+      </div>
+
+      <!-- ── Combat ── -->
+      <div class="wiki-section">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>⚔️ Combat Mechanics</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+          <div class="wiki-sub">Damage</div>
+          <div class="wiki-formula"><code>(baseDmg + bonusDmg) × STR × critMult × (1 − mindBreakDebuff)</code></div>
+          <div class="wiki-note"><strong>Crit:</strong> IQ×5% chance → ×1.5 dmg · <strong>Evade:</strong> BIQ×3% chance → 0 dmg + 60f (1.0s) immune window</div>
+
+          <div class="wiki-sub">Immunity Frames</div>
+          <table class="wiki-table">
+            <thead><tr><th>Hit type</th><th>Default</th><th>Extended Immunity skill</th></tr></thead>
+            <tbody>
+              <tr><td>Melee</td><td class="wg">4f (0.07s)</td><td class="wg">30f (0.5s)</td></tr>
+              <tr><td>Projectile</td><td class="wg">8f (0.13s)</td><td class="wg">16f (0.27s)</td></tr>
+            </tbody>
+          </table>
+          <div class="wiki-note"><strong>Separate counters</strong> — a projectile hit does NOT reset melee immunity and vice versa.</div>
+
+          <div class="wiki-sub">Parry</div>
+          <div class="wiki-note">Both weapons face each other (neither on 25f cooldown) → 5.5-unit recoil, 14 golden sparks, weapon deflects. <strong>Parry Master skill:</strong> no knockback + spin ×2 for 1.5s.</div>
+
+          <div class="wiki-sub">Match Phases</div>
+          <table class="wiki-table">
+            <thead><tr><th>Phase</th><th>Time</th><th>Effect</th></tr></thead>
+            <tbody>
+              <tr><td class="wk">Normal</td><td>0–60s</td><td>Standard</td></tr>
+              <tr><td class="wk wo">Speed Floor</td><td>60–80s</td><td>Minimum speed rises every 10s</td></tr>
+              <tr><td class="wk wr">Rage Mode</td><td>80s+</td><td>Damage ×1.5 · Knockback ×1.5 · Cooldowns −30%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Races ── -->
+      <div class="wiki-section collapsed">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>🏷️ Races</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+          <div class="wiki-race-grid">
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">👺 Goblin <span class="wiki-rarity common">Common</span></div>
+              <div class="wiki-race-trait">Horde size subrace: ×1 (−1 all) up to ×100,000 (+1 all, guaranteed weapon)</div>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">🧙 Gnome <span class="wiki-rarity common">Common</span></div>
+              <div class="wiki-race-trait">No special trait. Average stats.</div>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">👤 Human <span class="wiki-rarity common">Common</span></div>
+              <div class="wiki-race-trait">Skin subrace: Trắng (guaranteed weapon) · Vàng (IQ min 5) · Đen (DUR min 5)</div>
+              <span class="wiki-race-skill-tag">⚡ Race Skill: Limit Break</span>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">⛏️ Dwarf <span class="wiki-rarity common">Common</span></div>
+              <div class="wiki-race-trait">High DUR/STR bias. No special trait.</div>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">💀 Skeleton <span class="wiki-rarity uncommon">Uncommon</span></div>
+              <div class="wiki-race-trait">Equal stat weights. 2 PvP wins → Lich (IQ=8). 4 wins → Lich King (+1 all). Immune to AIDS.</div>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">🧌 Troll <span class="wiki-rarity uncommon">Uncommon</span></div>
+              <div class="wiki-race-trait">Subtypes: Regular · Ice (−2 SPD all enemies) · Mountain (+3 DUR) · Lich (steal skill 75%)</div>
+              <span class="wiki-race-skill-tag">🕸️ Race Skill: Net Throw</span>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">🗡️ Orc <span class="wiki-rarity uncommon">Uncommon</span></div>
+              <div class="wiki-race-trait">Win → +2 lowest stat. Lose → −3 highest stat. High STR/BIQ bias.</div>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">🏔️ Giant <span class="wiki-rarity rare">Rare</span></div>
+              <div class="wiki-race-trait">After stats: IQ&gt;STR → +5IQ/−5STR; STR&gt;IQ → +5STR/−5IQ; equal → +3 both.</div>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">🐉 Dragon <span class="wiki-rarity rare">Rare</span></div>
+              <div class="wiki-race-trait">5 types: Tideborn (+3 STR) · Flame (+1 skill) · Crimson (+2 IQ) · Stone (+2 DUR) · Amethyst (−1 all, +4 skills)</div>
+              <span class="wiki-race-skill-tag">🔥 Race Skill: Flame Breath</span>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">👼 Angel <span class="wiki-rarity epic">Epic</span></div>
+              <div class="wiki-race-trait">8 ranks from Angels to Cherubim. Higher ranks: bonus stats, skills, and archetypes. Golden halo visual.</div>
+              <span class="wiki-race-skill-tag">✨ Race Skill: Smite</span>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">🌌 Primordial <span class="wiki-rarity epic">Epic</span></div>
+              <div class="wiki-race-trait">Elements: Air/Water/Fire/Earth bonuses. Re-spin after each PvP win.</div>
+              <span class="wiki-race-skill-tag">🌌 Race Skill: Void Grip</span>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">😈 Demon <span class="wiki-rarity legendary">Legendary</span></div>
+              <div class="wiki-race-trait">7 Sins: Lucifer · Beelzebub · Leviathan · Behemoth · Mammon · Belphegor · Asmodeus. Each with a unique curse/blessing.</div>
+            </div>
+            <div class="wiki-race-card">
+              <div class="wiki-race-title">✨ God <span class="wiki-rarity legendary">Legendary</span></div>
+              <div class="wiki-race-trait">9 Norse gods (equal weight): Odin · Týr · Frigg · Baldur · Loki · Freyja · Eir · Bragi · Thor.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Weapons ── -->
+      <div class="wiki-section collapsed">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>🗡️ Weapons</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+          <table class="wiki-table">
+            <thead><tr><th>Weapon</th><th>Base Dmg</th><th>Cooldown</th><th>Scaling (per hit)</th></tr></thead>
+            <tbody>
+              <tr><td class="wk">🥊 Fists</td><td>2</td><td><code>max(2, 13−SPD)</code></td><td>−0.5f cooldown (min 8f / 0.13s)</td></tr>
+              <tr><td class="wk">⚔️ Sword</td><td>1</td><td><code>max(2, 28−SPD)</code></td><td>+1 bonus damage</td></tr>
+              <tr><td class="wk">🗡️ Dagger</td><td>1</td><td><code>max(2, 18−SPD)</code></td><td>+0.012 spin speed (max 0.55)</td></tr>
+              <tr><td class="wk">🔱 Spear</td><td>1</td><td><code>max(2, 38−SPD)</code></td><td>+4 px length, +0.5 damage</td></tr>
+              <tr><td class="wk">🌙 Scythe</td><td>1</td><td><code>max(2, 34−SPD)</code></td><td>Dual blade unlocks at 5 hits</td></tr>
+              <tr><td class="wk">🔨 Hammer</td><td>1</td><td><code>max(2, 48−SPD)</code></td><td>+0.8 knockback</td></tr>
+              <tr><td class="wk">🏹 Bow</td><td>1/arrow</td><td><code>max(5, 140−SPD×2)</code></td><td>+1 arrow · starting arrows = SPD · size = STR · soft auto-aim (MA track, IQ cone)</td></tr>
+              <tr><td class="wk">⭐ Shuriken</td><td>1/star</td><td><code>max(5, 250−SPD×2)</code></td><td>+1 star · bounces ×2</td></tr>
+            </tbody>
+          </table>
+          <div class="wiki-note">Projectile immunity: 8 frames. Melee immunity: 4 frames (independent counters).</div>
+        </div>
+      </div>
+
+      <!-- ── Race Skills ── -->
+      <div class="wiki-section collapsed">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>⚡ Race Skills</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">🔥</span>
+              <div><div class="wiki-skill-name">Flame Breath</div><div class="wiki-skill-race">🐉 Dragon</div></div>
+            </div>
+            <div class="wiki-skill-desc">Auto-activates when cooldown hits 0. Dragon breathes a sweeping fire cone that oscillates left and right around its mouth direction. Deals damage every 0.33s to enemies caught in the cone.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Dmg: STR×3 per tick</code></span>
+              <span class="wiki-skill-stat"><code>Duration: (120+MA×12)×1.12f (~2.5–4.5s)</code></span>
+              <span class="wiki-skill-stat"><code>CD: max(600, 1800−SPD×40)f (min 10s)</code></span>
+              <span class="wiki-skill-stat"><code>Sweep amp: ±(35+MA×1.5)°</code></span>
+              <span class="wiki-skill-stat"><code>Sweep speed: IQ scales (IQ10→1.4s/cycle)</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">🕸️</span>
+              <div><div class="wiki-skill-name">Net Throw</div><div class="wiki-skill-race">🧌 Troll</div></div>
+            </div>
+            <div class="wiki-skill-desc">Automatically throws a growing net at the nearest enemy. The net grows larger as it travels. On hit: target is immobilized. On miss: only 70% cooldown penalty.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Trap: max(60, 30+BIQ×18)f (1.0–3.5s)</code></span>
+              <span class="wiki-skill-stat"><code>CD: max(360, 840−SPD×48)f (6–14s)</code></span>
+              <span class="wiki-skill-stat"><code>Net grows: 10px → 30px+</code></span>
+              <span class="wiki-skill-stat"><code>Miss CD: ×0.7</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">🌌</span>
+              <div><div class="wiki-skill-name">Void Grip</div><div class="wiki-skill-race">🌌 Primordial Being</div></div>
+            </div>
+            <div class="wiki-skill-desc">Passive. When an enemy weapon strikes this Primordial, there is a chance the weapon gets stuck and is pulled toward the Primordial's center for the duration.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Stick chance: min(60%, BIQ×6%)</code></span>
+              <span class="wiki-skill-stat"><code>Stuck duration: 60+MA×15f (1.25–3.5s)</code></span>
+              <span class="wiki-skill-stat"><code>No cooldown (passive)</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">⚡</span>
+              <div><div class="wiki-skill-name">Limit Break</div><div class="wiki-skill-race">👤 Human</div></div>
+            </div>
+            <div class="wiki-skill-desc">Triggers <strong>once</strong> when HP drops below 20% — lasts until end of match, cannot expire. Each hit lands stacks +15% damage with no cap. Melee: charges at 1.5× speed straight at the nearest enemy. Ranged: kites at ~250px while keeping aim locked. No HP drain — a true last-breath comeback.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Trigger: HP &lt; 20% (one-time)</code></span>
+              <span class="wiki-skill-stat"><code>Duration: until end of match</code></span>
+              <span class="wiki-skill-stat"><code>Dmg stack: +15% per hit</code></span>
+              <span class="wiki-skill-stat"><code>Speed: ×1.5 (melee charge)</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">✨</span>
+              <div><div class="wiki-skill-name">Smite</div><div class="wiki-skill-race">👼 Angel</div></div>
+            </div>
+            <div class="wiki-skill-desc">Auto-fires at the nearest enemy. A 1-second windup shows a pulsing warning ring + crosshair on the target. The lightning bolt tracks the target's live position. If the target escapes the zone during windup → MISS.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Dmg: 8+IQ×2</code></span>
+              <span class="wiki-skill-stat"><code>Stun: 60+MA×12f (1.2–3.0s)</code></span>
+              <span class="wiki-skill-stat"><code>CD: max(600, 900−SPD×40)f (10–15s)</code></span>
+              <span class="wiki-skill-stat"><code>Windup: 60f (1.0s) · Miss if target moves &gt;radius×2.5</code></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Skills ── -->
+      <div class="wiki-section collapsed">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>🔮 Skills</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+
+          <div class="wiki-skill-group">
+            <div class="wiki-skill-group-label">Passive — always active</div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🛡️</span><div><div class="wiki-skill-row-name">Iron Body</div><div class="wiki-skill-row-desc">+20 max HP</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🦏</span><div><div class="wiki-skill-row-name">Thick Hide</div><div class="wiki-skill-row-desc">−10% damage received</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💨</span><div><div class="wiki-skill-row-name">Swift</div><div class="wiki-skill-row-desc">+15% movement speed cap</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">👁️</span><div><div class="wiki-skill-row-name">Sharp Eye</div><div class="wiki-skill-row-desc">+10% crit chance</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">✨</span><div><div class="wiki-skill-row-name">Extended Immunity</div><div class="wiki-skill-row-desc">Melee immunity 4→30f · Projectile immunity 8→16f</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚓</span><div><div class="wiki-skill-row-name">Heavy Mass</div><div class="wiki-skill-row-desc">+30% mass — less knockback</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🪞</span><div><div class="wiki-skill-row-name">Deflection</div><div class="wiki-skill-row-desc"><code>MA×2%</code> chance to completely negate a hit</div></div></div>
+          </div>
+
+          <div class="wiki-skill-group">
+            <div class="wiki-skill-group-label">Pre-Combat — triggers at round start</div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">📢</span><div><div class="wiki-skill-row-name">War Cry</div><div class="wiki-skill-row-desc">First hit deals ×2 damage</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🏰</span><div><div class="wiki-skill-row-name">Fortify</div><div class="wiki-skill-row-desc">Start with a 1-hit absorption shield</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚡</span><div><div class="wiki-skill-row-name">Adrenaline</div><div class="wiki-skill-row-desc">First 5s: +50% movement speed</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🦅</span><div><div class="wiki-skill-row-name">Predator</div><div class="wiki-skill-row-desc">+15% damage vs targets with less HP</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🩸</span><div><div class="wiki-skill-row-name">First Blood</div><div class="wiki-skill-row-desc">First hit stuns opponent 30 frames</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🧿</span><div><div class="wiki-skill-row-name">Mind Break</div><div class="wiki-skill-row-desc">If IQ &gt; target IQ: <code>−(gap×3%)</code> to their damage (max 60%)</div></div></div>
+          </div>
+
+          <div class="wiki-skill-group">
+            <div class="wiki-skill-group-label">In-Combat — reactive triggers</div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">😤</span><div><div class="wiki-skill-row-name">Berserker</div><div class="wiki-skill-row-desc">+50% damage while HP &lt; 30%</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🔥</span><div><div class="wiki-skill-row-name">Phoenix</div><div class="wiki-skill-row-desc">Survive one lethal hit with 1 HP (once/round)</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">↩️</span><div><div class="wiki-skill-row-name">Counter</div><div class="wiki-skill-row-desc">After being parried: next hit deals ×2 damage</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🧛</span><div><div class="wiki-skill-row-name">Vampiric</div><div class="wiki-skill-row-desc">On hit: heal 5% of damage dealt</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🗡️</span><div><div class="wiki-skill-row-name">Parry Master</div><div class="wiki-skill-row-desc">On parry: no knockback + weapon spin ×2 for 1.5s</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌀</span><div><div class="wiki-skill-row-name">Momentum</div><div class="wiki-skill-row-desc">On kill (FFA): +10% speed stack (max ×5)</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">👻</span><div><div class="wiki-skill-row-name">Shadow Step</div><div class="wiki-skill-row-desc">On evade: teleport to a random safe spot</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💉</span><div><div class="wiki-skill-row-name">Blood Frenzy</div><div class="wiki-skill-row-desc">On kill: heal 25 HP</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌊</span><div><div class="wiki-skill-row-name">Flow State</div><div class="wiki-skill-row-desc">On hit: <code>+MA×1%</code> speed/stack — resets when you take a hit</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚡</span><div><div class="wiki-skill-row-name">Read &amp; React</div><div class="wiki-skill-row-desc">On being hit: <code>BIQ×3%</code> chance to instantly counter-attack</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💡</span><div><div class="wiki-skill-row-name">Exploit</div><div class="wiki-skill-row-desc">On hit: <code>(IQ+BIQ)×1%</code> chance to deal ×2 damage</div></div></div>
+          </div>
+
+          <div class="wiki-skill-group">
+            <div class="wiki-skill-group-label">Post-Combat — triggers after round ends</div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">📚</span><div><div class="wiki-skill-row-name">Learning</div><div class="wiki-skill-row-desc">After losing: +5% damage next round</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🧬</span><div><div class="wiki-skill-row-name">Adaptation</div><div class="wiki-skill-row-desc">After losing: +20% resist to killer's weapon type</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🩹</span><div><div class="wiki-skill-row-name">Survivor</div><div class="wiki-skill-row-desc">Win with HP&lt;20%: permanently +10 max HP</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🏅</span><div><div class="wiki-skill-row-name">Veteran</div><div class="wiki-skill-row-desc">Win: +1 random stat permanently (no cap)</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌙</span><div><div class="wiki-skill-row-name">Mastery</div><div class="wiki-skill-row-desc">Win with HP&lt;50%: <code>MA×3%</code> chance to permanently +1 weapon dmg/proj</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💎</span><div><div class="wiki-skill-row-name">Perfectionist</div><div class="wiki-skill-row-desc">Win &gt;80% HP: +15% dmg next round. Win ≤80% HP: −10% dmg</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🩸</span><div><div class="wiki-skill-row-name">Blood Mark</div><div class="wiki-skill-row-desc">Lose: mark opponent — they start next round at <code>80% HP</code></div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🎭</span><div><div class="wiki-skill-row-name">Copycat</div><div class="wiki-skill-row-desc">Win: <code>BIQ×3.5%</code> chance to learn a random skill from opponent</div></div></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Tab: Changelogs -->
   <div class="menu-tab-pane" id="tab-changelog">
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 Apr 2026</span>
+          <span class="changelog-badge">Patch 34</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>💾 <b>Tournament Resume</b>: Tiến độ tournament tự động lưu vào localStorage sau mỗi trận — F5 không mất dữ liệu</li>
+          <li>▶ <b>Resume Button</b>: Nút "Resume Tournament" xuất hiện trong Battle tab khi có save — hiện số trận đã đánh, mode, thời gian lưu</li>
+          <li>🗑️ <b>Auto-clear</b>: Save tự xóa khi tournament kết thúc hoặc khi click "Main Menu" từ bracket (abandon)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 Apr 2026</span>
+          <span class="changelog-badge">Patch 33</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🔭 <b>Arena Auto-Fit</b>: Canvas tự động crop và fit theo kích thước arena — không còn khoảng đen thừa. Arena nhỏ → viewport nhỏ, arena lớn → viewport rộng. Có 55px padding quanh arena</li>
+          <li>📖 <b>Skill Description chính xác</b>: Description trong HUD lấy từ SKILL_DEFS và RACE_SKILL_DEFS — đảm bảo đúng với behavior thực tế. Race skill (Net Throw, Flame Breath,...) cũng được hiển thị đầy đủ</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 Apr 2026</span>
+          <span class="changelog-badge">Patch 32</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📊 <b>HUD Stats</b>: Panel của từng player trong trận giờ hiển thị 6 stats cơ bản (STR/SPD/DUR/IQ/BIQ/MA) dạng grid nhỏ gọn</li>
+          <li>📋 <b>HUD Skill Descriptions</b>: Mỗi skill nằm 1 dòng riêng, có mô tả nhỏ phía dưới để đọc trước trận</li>
+          <li>🎮 <b>Game Controls</b>: 5 nút Pause/Menu/Gravity/Zoom/Speed được chuyển lên trên, nằm dưới khung điểm số/thời gian</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 Apr 2026</span>
+          <span class="changelog-badge">Patch 31</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📊 <b>Fighter Card Stat Diff</b>: Trong tournament, nếu fighter nhận reward tăng/giảm stat thì Fighter Card hiển thị giá trị gốc + phần chênh lệch (xanh <b>+1</b> hoặc đỏ <b>-1</b>)</li>
+          <li>🎯 <b>Skill Diff</b>: Skill mới nhận được trong tournament hiển thị box xanh, skill bị mất hiển thị box đỏ với tag <b>lost</b></li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 30</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📋 <b>Phase-based Bracket</b>: Bracket tournament giờ hiển thị từng phase một (thay vì tất cả round cùng lúc) — layout grid gọn đẹp, phù hợp 64 người</li>
+          <li>◀▶ <b>Phase Navigation</b>: Nút Prev/Next Phase ở đầu trang để chuyển phase; Next xám khi chưa đánh xong — tự động chuyển sang phase mới sau khi hoàn thành round</li>
+          <li>🔢 <b>Phase Info</b>: Hiện "Phase X / Y · N matches (M fighters)" để biết đang ở đâu trong tournament</li>
+          <li>🏆 <b>Champion Screen</b>: Khi tournament kết thúc, hiện champion card nổi bật với border glow màu fighter</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 29</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🃏 <b>Fighter Card</b>: Click vào tên bất kỳ fighter trên bracket (cả 1v1 và 2v2) để xem stats chi tiết — STR/SPD/DUR/IQ/BIQ/MA, weapon, race, subrace và danh sách skills</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 28</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🕸️ <b>Troll Net tầm xa hơn</b>: Tốc độ lưới tăng 5→7 px/frame, thời gian sống 120→160 frame — tầm bắn tối đa 600→1120px, phù hợp với arena to hơn</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 27</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🎁 <b>PVP Reward Wheel</b>: Sau mỗi trận thắng trong Tournament, người chiến thắng xoay 1 vòng quay nhận thưởng ngẫu nhiên có trọng số</li>
+          <li>📊 <b>14 loại phần thưởng</b>: +1 stat riêng lẻ (×6), +2 stat thấp/cao nhất, 1–3 Powers, +2 rand×3/6, +1 all stats — tỉ lệ cân bằng từ thường đến siêu hiếm (0.36%)</li>
+          <li>💾 <b>Lưu vĩnh viễn</b>: Reward tự động sync về cgRoster — stat/skill tăng giữ nguyên sau khi tournament kết thúc</li>
+          <li>🎡 <b>Animation wheel</b>: Wheel xoay 6 vòng với easing, pointer đỏ chỉ segment trúng, hiện kết quả chi tiết (stat trước → sau, tên skill nhận được)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 26</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⊘ <b>Hole Arenas</b>: Thêm 15 đấu trường lỗ hổng mới — 3 kích thước × 5 biến thể: Vuông+lỗ tròn, Vuông+lỗ vuông, Tròn+lỗ tròn, Chữ nhật+2 lỗ tròn đối xứng, Chữ nhật+3 lỗ vuông dàn hàng ngang</li>
+          <li>🎮 <b>Physics</b>: Ball bật ra khỏi cạnh lỗ tròn và lỗ vuông. Lỗ vuông dùng min-penetration axis để push ball ra</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 25</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🏟️ <b>Arena Rework</b>: 5 đấu trường cũ → 18 đấu trường mới: 3 kích thước (Small 1v1 / Medium 4–6 / Large 7–12) × 3 hình dạng (Square, Circle, Rect) × 2 biến thể (Blank + Trap)</li>
+          <li>⚠️ <b>Trap Arenas</b>: 9 đấu trường có bẫy — Trụ cột (vật cản solid), Lưỡi hái quay (sát thương 8/hit), Sét đánh (cảnh báo 60f, sát thương 35 trong r=65), Thùng bom (nổ khi chạm, sát thương 75, knockback mạnh)</li>
+          <li>🏆 <b>Tournament random</b>: Tournament giờ random trong tất cả 18 arena (bao gồm cả trap)</li>
+          <li>🎨 <b>UI Arena buttons</b>: Flat list 18 nút + label nhóm Small/Medium/Large/Trap, trap buttons có màu cam phân biệt</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 24</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⚡ <b>Limit Break — Fix trigger threshold</b>: Sửa lỗi trigger sai ở ~50% HP. Giờ đúng như thiết kế: chỉ kích hoạt khi HP &lt;20% (last stand)</li>
+          <li>🥊 <b>Limit Break — Goku-style combat</b>: Thay đổi hành vi melee. Không còn "dính" vào đối thủ — giờ là burst-charge: lao vào đánh 1 phát ×2.5 speed → knockout mạnh (force=11) → backoff 30f ×1.8 → lao tiếp</li>
+          <li>🎯 <b>Limit Break — Soft-aim</b>: Melee weapon từ từ xoay về hướng kẻ thù trong khi Limit Break active (0.09 rad/frame), giúp weapon thường xuyên hướng đúng hơn</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 Apr 2026</span>
+          <span class="changelog-badge">Patch 23</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>💚 <b>Wiki — Code block styling</b>: Tất cả công thức trong tab Wiki giờ được bọc trong <code>&lt;code&gt;</code> với font monospace màu xanh <code>#77eebb</code>, cùng style với block Damage formula</li>
+          <li>⏱️ <b>Wiki — Frame → giây</b>: Tất cả giá trị tính theo frame được bổ sung quy đổi giây kế bên: immunity 4f (0.07s), Smite CD min 10s, Windup 60f (1.0s), v.v.</li>
+          <li>⚡ <b>Human — Limit Break</b>: Race skill mới thay thế Blood Frenzy của Orc. Trigger một lần khi HP &lt;20%, tồn tại đến hết trận. Mỗi đòn đánh trúng stack +15% damage không hồi. Melee: burst-charge ×2.5 speed + knockback mạnh. Visual: vòng sáng vàng nhấp nháy + counter ⚡×N</li>
+          <li>🗡️ <b>Orc — Blood Frenzy removed</b>: Orc không còn race skill (sẽ được thay thế trong tương lai)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">31 Mar 2026</span>
+          <span class="changelog-badge">Patch 22</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📖 <b>In-game Wiki tab</b>: Tab mới "📖 Wiki" với 6 section có thể thu gọn — Stats & Formulas, Combat Mechanics, Races (13 cards), Weapons, Race Skills (Dragon/Angel/Primordial/Orc/Demon), và Skills. Có thể click header để expand/collapse từng section</li>
+          <li>📄 <b>WIKI_PLAYER.md</b>: File wiki dành cho người chơi — hướng dẫn đầy đủ về stats, combat, races, weapons, race skills, smart search syntax, tips và tricks</li>
+          <li>🔍 <b>Wiki toggle JS</b>: Wired sự kiện click cho tất cả section headers trong wiki tab (pattern giống changelog collapse)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">31 Mar 2026</span>
+          <span class="changelog-badge">Patch 21</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>✨ <b>Angel — Smite overhaul</b>: Damage giảm từ <code>15+iq×3</code> xuống <code>8+iq×2</code> (IQ5: 30→18, IQ10: 45→28). Cooldown floor tăng từ 7s lên 10s</li>
+          <li>🎯 <b>Smite — Telegraph warning</b>: Pulsing dashed ring + crosshair xuất hiện trên mục tiêu trong toàn bộ windup (~0.65s) để báo trước đòn sét. Ring tăng độ sáng khi gần strike</li>
+          <li>🔧 <b>Smite — Bolt tracking</b>: Tia sét giờ theo dõi vị trí thực của target thay vì bay đến tọa độ cũ lúc cast</li>
+          <li>⚡ <b>Smite — Miss mechanic</b>: Nếu target di chuyển ra ngoài vùng an toàn (radius×2.5) trước khi sét đánh → tự động miss, hiện "✨ miss!" thay vì deal damage</li>
+          <li>🏭 <b>Bulk Create</b>: Nút mới trong tab Radosers — nhập số lượng (max 128), tạo hàng loạt Radoser ngay lập tức theo đúng chargen rules (weighted race, stat, skill, subrace effects đầy đủ). Hiển thị race breakdown sau khi tạo xong</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">30 Mar 2026</span>
+          <span class="changelog-badge">Patch 20</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🔍 <b>Roster Smart Search</b>: Hỗ trợ query syntax — <code>race=orc, str&gt;5, weapon=bow, total&gt;=40, iq!=1</code> — tự động parse, operators: <code>=  &gt;  &lt;  &gt;=  &lt;=  !=</code></li>
+          <li>💡 <b>Search Hint</b>: Panel gợi ý syntax xuất hiện khi focus vào thanh tìm kiếm, liệt kê đầy đủ fields và ví dụ</li>
+          <li>⚗️ <b>Roster Filter chips</b>: Nút Filter mở panel lọc nhanh theo Race và Weapon, badge hiển thị số filter đang bật — stack với query search</li>
+          <li>🗡️ <b>Dagger — Parry mở rộng</b>: Thêm 2 điểm parry hai bên đỉnh dao (r=6), giúp Dagger chặn được đòn tấn công từ góc ngang tốt hơn</li>
+          <li>⚔️ <b>Sword — Parry dày hơn</b>: Thêm điểm parry thứ 3 ở near-blade (35% độ dài), giúp kiếm có vùng parry liên tục từ gốc đến ngọn</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">30 Mar 2026</span>
           <span class="changelog-badge">Patch 19</span>
@@ -610,13 +1229,6 @@
             <span id="overtime-label" style="display:none">OVERTIME</span>
           </div>
         </div>
-        <canvas id="gameCanvas" width="800" height="800"></canvas>
-        <!-- Live Battle Log -->
-        <div id="live-log-wrap">
-          <div id="live-log-header">📋 Battle Log <span id="live-log-toggle">▲</span></div>
-          <div id="live-log-entries"></div>
-        </div>
-        <div id="scale-bars" class="scale-indicator"></div>
         <div class="game-ctrl">
           <button class="g-btn" id="pauseBtn">⏸ Pause</button>
           <button class="g-btn" id="menuBtn">← Menu</button>
@@ -624,6 +1236,15 @@
           <button class="g-btn" id="zoomBtn">🔍 100%</button>
           <button class="g-btn" id="speedBtn">⚡ Speed: 1x</button>
         </div>
+        <div id="canvas-clip-wrapper">
+          <canvas id="gameCanvas" width="1000" height="1000"></canvas>
+        </div>
+        <!-- Live Battle Log -->
+        <div id="live-log-wrap">
+          <div id="live-log-header">📋 Battle Log <span id="live-log-toggle">▲</span></div>
+          <div id="live-log-entries"></div>
+        </div>
+        <div id="scale-bars" class="scale-indicator"></div>
       </div>
       <div id="hud-right" class="hud-side"></div>
     </div>
@@ -698,12 +1319,26 @@
 
 <!-- BRACKET VIEW -->
 <div id="bracket" class="screen">
-  <div class="game-title" id="bracket-title">🏆 Tournament Bracket</div>
-  <div id="bracket-content" class="bracket-content"></div>
-  <div class="r-btns">
+
+  <!-- ── Phase navigation bar (top) ── -->
+  <div id="bracket-phase-nav">
+    <button class="phase-nav-btn" id="prevPhaseBtn" disabled>◀ Prev</button>
+    <div class="bracket-phase-title-wrap">
+      <div class="game-title" id="bracket-title">🏆 Tournament Bracket</div>
+      <div id="bracket-phase-info" class="bracket-phase-info"></div>
+    </div>
+    <button class="phase-nav-btn" id="nextPhaseBtn" disabled>Next ▶</button>
+  </div>
+
+  <!-- ── Action bar ── -->
+  <div class="bracket-action-bar">
     <button class="r-btn primary" id="nextMatchBtn">⚔️ Fight Next Match</button>
     <button class="r-btn gold"    id="bracketMenuBtn">← Main Menu</button>
   </div>
+
+  <!-- ── Match grid ── -->
+  <div id="bracket-content" class="bracket-content"></div>
+
 </div>
 
 <!-- RACE ASSET EDITOR SCREEN -->
@@ -771,6 +1406,24 @@
 </div>
 
 <!-- ASSET EDITOR EXPORT MODAL -->
+<!-- PVP Reward Wheel Modal -->
+<div id="pvp-reward-modal" style="display:none">
+  <div id="pvp-reward-box">
+    <div class="pvp-rw-title">🎁 Victory Reward</div>
+    <div class="pvp-rw-winner" id="pvp-reward-winner">— Champion —</div>
+    <canvas id="pvp-reward-wheel" width="320" height="320"></canvas>
+    <div class="pvp-rw-spin-row">
+      <button id="pvp-spin-btn" class="pvp-spin-btn">🎰 SPIN!</button>
+    </div>
+    <div id="pvp-reward-result" style="display:none">
+      <div class="pvp-rw-res-icon"    id="pvp-reward-res-icon"></div>
+      <div class="pvp-rw-res-label"   id="pvp-reward-res-label"></div>
+      <div class="pvp-rw-res-outcome" id="pvp-reward-res-outcome"></div>
+      <button class="pvp-rw-cont-btn" id="pvp-reward-continue">✓ Accept &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
 <div id="ae-export-modal">
   <div id="ae-export-box">
     <h3>📤 Export Code</h3>
@@ -809,6 +1462,7 @@
 <script src="projectile.js"></script>
 <script src="particles.js"></script>
 <script src="arena.js"></script>
+<script src="traps.js"></script>
 <script src="skills.js"></script>
 <script src="ball.js"></script>
 <script src="collision.js"></script>
@@ -841,7 +1495,76 @@
 <script src="boss-maddox-moves.js"></script>
 <script src="boss-maddox.js"></script>
 <script src="pve.js"></script>
+<script src="pvp-reward.js"></script>
 
+<!-- ── Debug Radoser Modal ─────────────────────────── -->
+<div id="debug-radoser-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;overflow-y:auto;padding:24px 16px;" onclick="if(event.target===this)closeDebugRadoser()">
+  <div style="background:#0d0a1a;border:1px solid #9933ff;border-radius:14px;max-width:520px;margin:0 auto;padding:24px;color:#ddd;font-family:inherit;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <span style="font-size:18px;font-weight:700;color:#cc88ff;">🐛 Debug Radoser</span>
+      <button onclick="closeDebugRadoser()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+
+    <!-- Name -->
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">NAME</label>
+      <div style="display:flex;gap:6px;">
+        <input id="dbg-name" type="text" placeholder="Radoser name…"
+          style="flex:1;background:#1a1030;border:1px solid #444;border-radius:6px;color:#fff;padding:6px 10px;font-size:14px;">
+        <button onclick="document.getElementById('dbg-name').value=getRandomGameName()"
+          style="background:#1a1030;border:1px solid #555;border-radius:6px;color:#aaa;padding:6px 10px;cursor:pointer;">🎲</button>
+      </div>
+    </div>
+
+    <!-- Race + Subrace -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">RACE</label>
+        <select id="dbg-race" onchange="dbgUpdateSubrace()"
+          style="width:100%;background:#1a1030;border:1px solid #444;border-radius:6px;color:#fff;padding:6px 8px;font-size:13px;">
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">SUBRACE</label>
+        <select id="dbg-subrace"
+          style="width:100%;background:#1a1030;border:1px solid #444;border-radius:6px;color:#fff;padding:6px 8px;font-size:13px;">
+          <option value="">— None —</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <label style="font-size:12px;color:#888;display:block;margin-bottom:6px;">STATS (1–10)</label>
+    <div id="dbg-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;"></div>
+
+    <!-- Weapon -->
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">WEAPON</label>
+      <select id="dbg-weapon"
+        style="width:100%;background:#1a1030;border:1px solid #444;border-radius:6px;color:#fff;padding:6px 8px;font-size:13px;">
+      </select>
+    </div>
+
+    <!-- Skills -->
+    <div style="margin-bottom:18px;">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:6px;">SKILLS <span style="color:#555">(chọn tối đa 2)</span></label>
+      <div id="dbg-skills" style="display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow-y:auto;"></div>
+    </div>
+
+    <button onclick="debugSaveRadoser()"
+      style="width:100%;background:linear-gradient(135deg,#6611cc,#9933ff);border:none;border-radius:8px;color:#fff;padding:12px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;">
+      ⚡ CREATE
+    </button>
+  </div>
+</div>
+
+<!-- Fighter Card Modal -->
+<div id="fighter-card-modal" onclick="if(event.target===this)closeFighterCard()" style="display:none">
+  <div id="fighter-card-box">
+    <button class="fcard-close-btn" onclick="closeFighterCard()">✕</button>
+    <div id="fighter-card-content"></div>
+  </div>
+</div>
 
 </body>
 </html>

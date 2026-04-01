@@ -56,13 +56,51 @@ function getRandomGameName() {
   return RANDOM_NAME_POOL[Math.floor(Math.random() * RANDOM_NAME_POOL.length)];
 }
 
-// Arena configs
+// Arena configs — 18 arenas: 3 sizes × 3 shapes × (blank + trap)
+// Size guide: Small = 1v1, Medium = 4–6, Large = 7–12
 const ARENAS = {
-  square: { type: 'square', x: 200, y: 200, w: 600, h: 600 },
-  circle: { type: 'circle', cx: 500, cy: 500, r: 220 },
-  rect:   { type: 'rect',   x: 200, y: 300, w: 600, h: 400 },
-  cross:  { type: 'cross',  cx: 500, cy: 500, arm: 240, thick: 300 },
-  hole:   { type: 'hole',   x: 0,   y: 0,   w: 1000, h: 1000, holeCx: 500, holeCy: 500, holeR: 70 },
+  // ── Small (1v1) ───────────────────────────────────────────────────
+  small_square: { type:'square', x:300, y:300, w:400, h:400, size:'small', label:'S. Square' },
+  small_circle: { type:'circle', cx:500, cy:500, r:200, size:'small', label:'S. Circle' },
+  small_rect:   { type:'rect',   x:175, y:325, w:650, h:350, size:'small', label:'S. Rect' },
+  small_square_trap: { type:'square', x:300, y:300, w:400, h:400, size:'small', label:'S. Square ⚠', traps:{ pillars:1 } },
+  small_circle_trap: { type:'circle', cx:500, cy:500, r:200, size:'small', label:'S. Circle ⚠', traps:{ pillars:1 } },
+  small_rect_trap:   { type:'rect',   x:175, y:325, w:650, h:350, size:'small', label:'S. Rect ⚠',   traps:{ pillars:1 } },
+  // ── Medium (4–6) ──────────────────────────────────────────────────
+  med_square: { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square' },
+  med_circle: { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle' },
+  med_rect:   { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect' },
+  med_square_trap:  { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square ⚡', traps:{ pillars:3, lightning:1 } },
+  med_circle_trap:  { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle ⚡', traps:{ pillars:3, lightning:1 } },
+  med_rect_trap:    { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect ⚡',   traps:{ pillars:3, lightning:1 } },
+  med_square_trap2: { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square ⚔', traps:{ pillars:3, scythe:true } },
+  med_circle_trap2: { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle ⚔', traps:{ pillars:3, scythe:true } },
+  med_rect_trap2:   { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect ⚔',   traps:{ pillars:3, scythe:true } },
+  // ── Large (7–12) ──────────────────────────────────────────────────
+  large_square: { type:'square', x:90, y:90, w:820, h:820, size:'large', label:'L. Square' },
+  large_circle: { type:'circle', cx:500, cy:500, r:370, size:'large', label:'L. Circle' },
+  large_rect:   { type:'rect',   x:50, y:175, w:900, h:650, size:'large', label:'L. Rect' },
+  large_square_trap: { type:'square', x:90, y:90, w:820, h:820, size:'large', label:'L. Square ⚠', traps:{ pillars:5, scythe:true } },
+  large_circle_trap: { type:'circle', cx:500, cy:500, r:370, size:'large', label:'L. Circle ⚠', traps:{ pillars:5, scythe:true } },
+  large_rect_trap:   { type:'rect',   x:50, y:175, w:900, h:650, size:'large', label:'L. Rect ⚠',   traps:{ pillars:5, scythe:true } },
+  // ── Hole arenas — Small ───────────────────────────────────────────
+  hole_sq_c_s:    { type:'hole_sq', x:300, y:300, w:400, h:400, size:'small',  label:'S.Sq ●',   holes:[{shape:'circle',cx:500,cy:500,r:65}] },
+  hole_sq_sq_s:   { type:'hole_sq', x:300, y:300, w:400, h:400, size:'small',  label:'S.Sq ■',   holes:[{shape:'square',x:440,y:440,w:120,h:120}] },
+  hole_ci_c_s:    { type:'hole_ci', cx:500,cy:500, r:200,         size:'small',  label:'S.Ci ●',   holes:[{shape:'circle',cx:500,cy:500,r:55}] },
+  hole_re_2c_s:   { type:'hole_re', x:175, y:325, w:650, h:350, size:'small',  label:'S.Re ●●',  holes:[{shape:'circle',cx:338,cy:500,r:48},{shape:'circle',cx:663,cy:500,r:48}] },
+  hole_re_3sq_s:  { type:'hole_re', x:175, y:325, w:650, h:350, size:'small',  label:'S.Re ■■■', holes:[{shape:'square',x:298,y:460,w:80,h:80},{shape:'square',x:460,y:460,w:80,h:80},{shape:'square',x:623,y:460,w:80,h:80}] },
+  // ── Hole arenas — Medium ──────────────────────────────────────────
+  hole_sq_c_m:    { type:'hole_sq', x:190, y:190, w:620, h:620, size:'medium', label:'M.Sq ●',   holes:[{shape:'circle',cx:500,cy:500,r:85}] },
+  hole_sq_sq_m:   { type:'hole_sq', x:190, y:190, w:620, h:620, size:'medium', label:'M.Sq ■',   holes:[{shape:'square',x:425,y:425,w:150,h:150}] },
+  hole_ci_c_m:    { type:'hole_ci', cx:500,cy:500, r:290,         size:'medium', label:'M.Ci ●',   holes:[{shape:'circle',cx:500,cy:500,r:72}] },
+  hole_re_2c_m:   { type:'hole_re', x:125, y:250, w:750, h:500, size:'medium', label:'M.Re ●●',  holes:[{shape:'circle',cx:313,cy:500,r:60},{shape:'circle',cx:688,cy:500,r:60}] },
+  hole_re_3sq_m:  { type:'hole_re', x:125, y:250, w:750, h:500, size:'medium', label:'M.Re ■■■', holes:[{shape:'square',x:266,y:453,w:95,h:95},{shape:'square',x:453,y:453,w:95,h:95},{shape:'square',x:641,y:453,w:95,h:95}] },
+  // ── Hole arenas — Large ───────────────────────────────────────────
+  hole_sq_c_l:    { type:'hole_sq', x:90,  y:90,  w:820, h:820, size:'large',  label:'L.Sq ●',   holes:[{shape:'circle',cx:500,cy:500,r:105}] },
+  hole_sq_sq_l:   { type:'hole_sq', x:90,  y:90,  w:820, h:820, size:'large',  label:'L.Sq ■',   holes:[{shape:'square',x:410,y:410,w:180,h:180}] },
+  hole_ci_c_l:    { type:'hole_ci', cx:500,cy:500, r:370,         size:'large',  label:'L.Ci ●',   holes:[{shape:'circle',cx:500,cy:500,r:92}] },
+  hole_re_2c_l:   { type:'hole_re', x:50,  y:175, w:900, h:650, size:'large',  label:'L.Re ●●',  holes:[{shape:'circle',cx:275,cy:500,r:75},{shape:'circle',cx:725,cy:500,r:75}] },
+  hole_re_3sq_l:  { type:'hole_re', x:50,  y:175, w:900, h:650, size:'large',  label:'L.Re ■■■', holes:[{shape:'square',x:220,y:445,w:110,h:110},{shape:'square',x:445,y:445,w:110,h:110},{shape:'square',x:670,y:445,w:110,h:110}] },
 };
 
 const BALL_COLORS = ['#4488ff', '#ff4455', '#44cc88', '#ffaa22', '#cc44ff', '#ff88aa'];

@@ -95,6 +95,10 @@ function showResult() {
           bracketB.textContent = '🏆 Final Results';
         }
       }
+      // ── PVP Reward Wheel (tournament matches only) ──
+      if (typeof showPVPRewardWheel === 'function' && (state.tournament || state.tournament2v2)) {
+        setTimeout(() => showPVPRewardWheel(mw), 500);
+      }
     } else {
       const gameNum = bo3.gameNum;
       const totalGames = (winsNeeded * 2) - 1;

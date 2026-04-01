@@ -133,6 +133,11 @@ function step() {
     resolveAnchorHits(state.boss, state.projectiles);
   }
 
+  // PvP traps (pillars, scythes, lightning, bombs)
+  if (!state.pveMode && state.trapObjects?.length) {
+    updateTraps(state.trapObjects, players, state.frame);
+  }
+
   updateParticles();
 
   // ── Per-second stats snapshot ──
@@ -213,6 +218,11 @@ function render() {
   ctx.fillRect(0, 0, CW, CH);
 
   drawArena(ctx, state.arena);
+
+  // PvP traps — drawn below balls
+  if (!state.pveMode && state.trapObjects?.length) {
+    drawTraps(ctx, state.trapObjects, state.frame);
+  }
 
   // PVE terrain — solid objects below balls (pillars, walls, crates)
   if (state.pveMode && state.terrainObjects?.length) {
@@ -421,21 +431,56 @@ function buildHUD() {
       <span class="hud-scale-tag" id="hud-scale-${i}">${ball.getScaleLabel()}</span>
     `;
 
-    // Skill badges — dim by default, glow on trigger via flashSkillHUD()
+    // ── Base stats row ──
+    if (ball.charSTR !== null || ball.charSPD !== null) {
+      const statsEl = document.createElement('div');
+      statsEl.className = 'hud-stats-row';
+      const statPairs = [
+        ['STR', ball.charSTR], ['SPD', ball.charSPD], ['DUR', ball.charDUR],
+        ['IQ',  ball.charIQ],  ['BIQ', ball.charBIQ], ['MA',  ball.charMA],
+      ];
+      statPairs.forEach(([k, v]) => {
+        const cell = document.createElement('div');
+        cell.className = 'hud-stat-cell';
+        cell.innerHTML = `<span class="hud-sk">${k}</span><span class="hud-sv">${v ?? '—'}</span>`;
+        statsEl.appendChild(cell);
+      });
+      card.appendChild(statsEl);
+    }
+
+    // ── Skill list — each skill on its own row with description ──
     const skillsEl = document.createElement('div');
     skillsEl.className = 'hud-skills';
     skillsEl.id = `hud-skills-${i}`;
-    if (ball.skills?.length && typeof SKILL_DEFS !== 'undefined') {
-      ball.skills.forEach(sid => {
-        const def = SKILL_DEFS.find(s => s.id === sid);
+    // Race skill first, then regular skills
+    const raceSkillId = ball.raceSkillDef?.id ?? null;
+    const regularIds  = (ball.skills ?? []).filter(sid => sid !== raceSkillId);
+    const orderedIds  = raceSkillId ? [raceSkillId, ...regularIds] : regularIds;
+
+    if (orderedIds.length && typeof SKILL_DEFS !== 'undefined') {
+      orderedIds.forEach(sid => {
+        const isRace = sid === raceSkillId;
+        // Look up in SKILL_DEFS first, then RACE_SKILL_DEFS
+        const def = SKILL_DEFS.find(s => s.id === sid)
+          ?? (typeof RACE_SKILL_DEFS !== 'undefined'
+              ? Object.values(RACE_SKILL_DEFS).find(s => s.id === sid)
+              : null);
         if (!def) return;
+        const item = document.createElement('div');
+        item.className = 'hud-skill-item' + (isRace ? ' hud-skill-item-race' : '');
         const badge = document.createElement('span');
-        badge.className = 'hud-skill-badge' + (def.type === 'passive' ? ' always-active' : '');
+        badge.className = 'hud-skill-badge' + (isRace ? ' hud-skill-race' : (def.type === 'passive' ? ' always-active' : ''));
         badge.dataset.skillId = sid;
-        badge.style.setProperty('--skill-color', _skillTriggerColor(def.type));
-        badge.title = def.desc || '';
+        if (!isRace) badge.style.setProperty('--skill-color', _skillTriggerColor(def.type));
         badge.textContent = `${def.icon ?? '✦'} ${def.name}`;
-        skillsEl.appendChild(badge);
+        item.appendChild(badge);
+        if (def.desc) {
+          const desc = document.createElement('div');
+          desc.className = 'hud-skill-desc' + (isRace ? ' hud-skill-desc-race' : '');
+          desc.textContent = def.desc;
+          item.appendChild(desc);
+        }
+        skillsEl.appendChild(item);
       });
     }
     card.appendChild(skillsEl);

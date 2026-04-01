@@ -19,6 +19,7 @@ class Ball {
     const ma  = cs.ma         ?? null;
     this.charSTR     = cs.strength ?? null;  // used in getDamage()
     this.charSPD     = spd;                  // used in initGame launchSpeed
+    this.charDUR     = dur;                  // stored for HUD display
     this.charMA      = ma;                   // used in _initWeapon spinBonus + Flow State/Deflection
     this.charIQ      = iq  !== null ? iq  : 5;  // used in crit, Exploit, Mind Break
     this.charBIQ     = biq !== null ? biq : 5;  // used in evade, Read & React
@@ -134,8 +135,8 @@ class Ball {
     if (this.skillLearningMult > 1)    dmg *= this.skillLearningMult;
     // Mind Break debuff: opponent reduced this ball's outgoing damage at round start
     if (this.mindBreakDebuff > 0)      dmg *= (1 - this.mindBreakDebuff);
-    // Orc Blood Frenzy: each stack = +10% damage
-    if (this.charRace === 'orc' && this.rs_active) dmg *= (1 + (this.rs_stacks || 0) * 0.10);
+    // Human Limit Break: each hit stacks +15% damage (no expiry)
+    if (this.charRace === 'human' && this.rs_active) dmg *= (1 + (this.rs_stacks || 0) * 0.15);
     return dmg;
   }
 
@@ -169,6 +170,8 @@ class Ball {
     if (this.skills.includes('flow_state') && this.skillState?.flowStateStacks > 0) {
       effectiveMaxSpd *= (1 + this.skillState.flowStateStacks * (this.charMA || 0) * 0.01);
     }
+    // Human Limit Break: +50% speed cap while active
+    if (this.charRace === 'human' && this.rs_active) effectiveMaxSpd *= 1.5;
     const spd = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
     if (spd > effectiveMaxSpd) { this.vx = this.vx/spd*effectiveMaxSpd; this.vy = this.vy/spd*effectiveMaxSpd; }
 
@@ -373,11 +376,26 @@ class Ball {
     // Skill: Adaptation — -20% from the specific weapon type that killed you before
     if (this.adaptResist && attacker?.weaponDef?.id === this.adaptResist) dmg *= 0.8;
 
+    const hpBefore = this.hp;
     this.hp -= dmg;
 
     // Flow State: reset stacks when hit
     if (this.skillState?.flowStateStacks > 0) {
       this.skillState.flowStateStacks = 0;
+    }
+
+    // Race: Human Limit Break — triggers when HP crosses below 20% (last stand)
+    if (this.charRace === 'human' && this.raceSkillDef &&
+        !this.rs_triggered && hpBefore >= this.maxHp * 0.20 && this.hp < this.maxHp * 0.20 && this.hp > 0) {
+      this.rs_active    = true;
+      this.rs_triggered = true;
+      this.rs_stacks    = 0;
+      spawnDamageNumber(this.x, this.y - this.radius - 26, '⚡ LIMIT BREAK!', '#ffdd00');
+      if (typeof spawnSparks === 'function') spawnSparks(this.x, this.y, 16);
+      if (typeof addBattleLog === 'function') addBattleLog('race_skill', {
+        attacker: typeof getBallLabel === 'function' ? getBallLabel(this) : (this.charName || '?'),
+        aColor: this.color, text: '⚡ Limit Break — no turning back!'
+      });
     }
 
     // Immunity after hit — melee: 4 frames, projectile: 0 frames (no immunity between arrows)

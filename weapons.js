@@ -112,10 +112,12 @@ const WEAPON_DEFS = [
     },
     getHitPoints(ball) {
       const w = ball.weapon, len = ball.radius + this.baseLength;
-      const mid = ball.radius + this.baseLength * 0.65;
+      const mid  = ball.radius + this.baseLength * 0.65;
+      const near = ball.radius + this.baseLength * 0.35;
       return [
         { x: ball.x + Math.cos(w.angle)*len,  y: ball.y + Math.sin(w.angle)*len,  r: 8 },
-        { x: ball.x + Math.cos(w.angle)*mid, y: ball.y + Math.sin(w.angle)*mid, r: 6 }
+        { x: ball.x + Math.cos(w.angle)*mid,  y: ball.y + Math.sin(w.angle)*mid,  r: 6 },
+        { x: ball.x + Math.cos(w.angle)*near, y: ball.y + Math.sin(w.angle)*near, r: 6 },
       ];
     },
     onHit(w) { w.hits++; w.bonusDamage = (w.bonusDamage||0) + this.scaling.amount; sfxScale(); }
@@ -162,7 +164,14 @@ const WEAPON_DEFS = [
     },
     getHitPoints(ball) {
       const w = ball.weapon, len = ball.radius + this.baseLength;
-      return [{ x: ball.x + Math.cos(w.angle)*len, y: ball.y + Math.sin(w.angle)*len, r: 8 }];
+      const tipX = ball.x + Math.cos(w.angle) * len;
+      const tipY = ball.y + Math.sin(w.angle) * len;
+      const perpAngle = w.angle + Math.PI / 2;
+      return [
+        { x: tipX, y: tipY, r: 8 },
+        { x: tipX + Math.cos(perpAngle)*8, y: tipY + Math.sin(perpAngle)*8, r: 6 },
+        { x: tipX - Math.cos(perpAngle)*8, y: tipY - Math.sin(perpAngle)*8, r: 6 },
+      ];
     },
     onHit(w) {
       w.hits++;

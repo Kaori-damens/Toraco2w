@@ -70,22 +70,24 @@ class Projectile {
       ctx.fill();
       ctx.globalAlpha = 1;
     } else {
-      // Shuriken — owner color stroke + glow
-      ctx.shadowColor = ownerCol;
-      ctx.shadowBlur  = 10;
-      ctx.strokeStyle = ownerCol;
-      ctx.fillStyle   = 'rgba(0,0,0,0.6)';
-      ctx.lineWidth   = 2;
+      // Shuriken — all 4 blades as ONE combined path (1 fill + 1 stroke = 1 shadow pass)
       const spin = Date.now() * 0.015;
+      ctx.beginPath();
       for (let i = 0; i < 4; i++) {
         const a = i * Math.PI / 2 + spin;
-        ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(Math.cos(a)*8, Math.sin(a)*8);
         ctx.lineTo(Math.cos(a + Math.PI*0.25)*4, Math.sin(a + Math.PI*0.25)*4);
         ctx.closePath();
-        ctx.fill(); ctx.stroke();
       }
+      ctx.fillStyle   = 'rgba(0,0,0,0.6)';
+      ctx.shadowColor = ownerCol;
+      ctx.shadowBlur  = 10;
+      ctx.fill();          // 1 shadow blur pass (was 4)
+      ctx.shadowBlur  = 0; // turn off shadow before stroke
+      ctx.strokeStyle = ownerCol;
+      ctx.lineWidth   = 2;
+      ctx.stroke();        // no shadow on outline (was 4 more passes)
     }
     ctx.restore();
   }

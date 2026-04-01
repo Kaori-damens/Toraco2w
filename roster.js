@@ -48,6 +48,103 @@ function getRadoserTitle(stats) {
   return               { title: 'Rookie',      icon: '🌱',  color: '#44aa66' };
 }
 
+// ── Roster filter state ──────────────────────────────────────
+window._rosterFilter = window._rosterFilter || { q: '', race: '', weapon: '' };
+
+// ── Smart query parser ───────────────────────────────────────
+const _ROSTER_FIELD_MAP = {
+  str: 'strength', strength: 'strength',
+  spd: 'speed',    speed: 'speed',
+  dur: 'durability', durability: 'durability',
+  iq:  'iq',
+  biq: 'battleiq', battleiq: 'battleiq',
+  ma:  'ma',
+  total: '__total__',
+  race: '__race__',    r:   '__race__',
+  weapon: '__weapon__', w:  '__weapon__', wep: '__weapon__',
+  name: '__name__',    n:   '__name__',
+  subrace: '__subrace__',
+  skill:   '__skill__',
+};
+const _TOKEN_RE = /^(\w+)\s*(>=|<=|!=|>|<|=)\s*(.+)$/;
+
+function parseRosterQuery(raw) {
+  if (!raw.trim()) return { terms: [], nameQ: '' };
+  const terms = [], nameParts = [];
+  for (const part of raw.split(',').map(s => s.trim()).filter(Boolean)) {
+    const m = part.match(_TOKEN_RE);
+    if (m && _ROSTER_FIELD_MAP[m[1].toLowerCase()]) {
+      terms.push({ field: _ROSTER_FIELD_MAP[m[1].toLowerCase()], op: m[2], val: m[3].trim().toLowerCase() });
+    } else {
+      nameParts.push(part.toLowerCase());
+    }
+  }
+  return { terms, nameQ: nameParts.join(' ').trim() };
+}
+
+function matchesRosterQuery(ch, { terms, nameQ }) {
+  // Plain text → search name + raceName
+  if (nameQ) {
+    const inName = ch.name.toLowerCase().includes(nameQ);
+    const inRace = (ch.raceName || '').toLowerCase().includes(nameQ);
+    if (!inName && !inRace) return false;
+  }
+  if (!terms.length) return true;
+
+  const statTotal = Object.values(ch.stats).reduce((s, v) => s + (v ?? 0), 0);
+
+  for (const { field, op, val } of terms) {
+    // ── String fields ──
+    if (field === '__race__') {
+      const hay = (ch.race || '').toLowerCase() + ' ' + (ch.raceName || '').toLowerCase();
+      const hit = hay.includes(val);
+      if (op === '=' && !hit) return false;
+      if (op === '!=' && hit) return false;
+      continue;
+    }
+    if (field === '__weapon__') {
+      const wLabel = (CG_WEAPONS.find(w => w.id === ch.weapon)?.label || '').toLowerCase();
+      const hay = (ch.weapon || '').toLowerCase() + ' ' + wLabel;
+      const hit = hay.includes(val);
+      if (op === '=' && !hit) return false;
+      if (op === '!=' && hit) return false;
+      continue;
+    }
+    if (field === '__name__') {
+      const hit = ch.name.toLowerCase().includes(val);
+      if (op === '=' && !hit) return false;
+      if (op === '!=' && hit) return false;
+      continue;
+    }
+    if (field === '__subrace__') {
+      const sr = (ch.subrace?.label || ch.subrace?.id || '').toLowerCase();
+      const hit = sr.includes(val);
+      if (op === '=' && !hit) return false;
+      if (op === '!=' && hit) return false;
+      continue;
+    }
+    if (field === '__skill__') {
+      const skills = (ch.skills || []).map(s => s.toLowerCase());
+      const hit = skills.some(s => s.includes(val));
+      if (op === '=' && !hit) return false;
+      if (op === '!=' && hit) return false;
+      continue;
+    }
+
+    // ── Numeric fields ──
+    const numVal = parseFloat(val);
+    if (isNaN(numVal)) continue;
+    const actual = field === '__total__' ? statTotal : (ch.stats[field] ?? 0);
+    if (op === '='  && !(actual === numVal)) return false;
+    if (op === '>'  && !(actual >  numVal))  return false;
+    if (op === '<'  && !(actual <  numVal))  return false;
+    if (op === '>=' && !(actual >= numVal))  return false;
+    if (op === '<=' && !(actual <= numVal))  return false;
+    if (op === '!=' && !(actual !== numVal)) return false;
+  }
+  return true;
+}
+
 // ============================================================
 function renderRoster() {
   const grid = document.getElementById('rosterGrid');
@@ -55,8 +152,25 @@ function renderRoster() {
   if (cgRoster.length === 0) {
     grid.innerHTML = '<div class="roster-empty">No characters yet — create one above!</div>'; return;
   }
+
+  // Apply smart filter
+  const f = window._rosterFilter;
+  const parsed = parseRosterQuery(f.q || '');
+  const filtered = cgRoster
+    .map((ch, origIdx) => ({ ch, origIdx }))
+    .filter(({ ch }) => {
+      if (!matchesRosterQuery(ch, parsed)) return false;
+      if (f.race   && ch.race   !== f.race)   return false;
+      if (f.weapon && ch.weapon !== f.weapon) return false;
+      return true;
+    });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="roster-empty">No Radosers match this filter.</div>'; return;
+  }
+
   const wepLabel = id => CG_WEAPONS.find(w => w.id === id)?.label ?? id;
-  grid.innerHTML = cgRoster.map((ch, idx) => {
+  grid.innerHTML = filtered.map(({ ch, origIdx: idx }) => {
     const iq  = ch.stats.iq       ?? null;
     const biq = ch.stats.battleiq ?? null;
     const ma  = ch.stats.ma       ?? null;
@@ -648,4 +762,341 @@ document.querySelectorAll('[data-changelog-toggle]').forEach(header => {
   header.addEventListener('click', () => {
     header.closest('.changelog-patch').classList.toggle('collapsed');
   });
+});
+
+// ── Wiki section collapse ──
+document.querySelectorAll('[data-wiki-toggle]').forEach(header => {
+  header.addEventListener('click', () => {
+    header.closest('.wiki-section').classList.toggle('collapsed');
+  });
+});
+
+// ── Roster Search + Filter init ─────────────────────────────
+function initRosterFilter() {
+  const searchInput  = document.getElementById('rosterSearchInput');
+  const searchClear  = document.getElementById('rosterSearchClear');
+  const filterBtn    = document.getElementById('rosterFilterBtn');
+  const filterPanel  = document.getElementById('rosterFilterPanel');
+  const filterBadge  = document.getElementById('rosterFilterBadge');
+  const raceChips    = document.getElementById('rfpRaceChips');
+  const weaponChips  = document.getElementById('rfpWeaponChips');
+  const searchHint   = document.getElementById('rosterSearchHint');
+  if (!searchInput || !filterBtn || !filterPanel) return;
+
+  // Build race chips
+  const allRaceChip = document.createElement('button');
+  allRaceChip.className = 'rfp-chip active';
+  allRaceChip.dataset.race = '';
+  allRaceChip.textContent = 'All';
+  raceChips.appendChild(allRaceChip);
+
+  CG_RACES.forEach(r => {
+    const btn = document.createElement('button');
+    btn.className = 'rfp-chip';
+    btn.dataset.race = r.id;
+    btn.textContent = r.emoji + ' ' + r.name;
+    raceChips.appendChild(btn);
+  });
+
+  // Build weapon chips
+  const allWepChip = document.createElement('button');
+  allWepChip.className = 'rfp-chip active';
+  allWepChip.dataset.weapon = '';
+  allWepChip.textContent = 'All';
+  weaponChips.appendChild(allWepChip);
+
+  CG_WEAPONS.forEach(w => {
+    const btn = document.createElement('button');
+    btn.className = 'rfp-chip';
+    btn.dataset.weapon = w.id;
+    btn.textContent = w.label;
+    weaponChips.appendChild(btn);
+  });
+
+  // Helper: update badge
+  function updateBadge() {
+    const active = (window._rosterFilter.race ? 1 : 0) + (window._rosterFilter.weapon ? 1 : 0);
+    filterBadge.textContent = active;
+    filterBadge.style.display = active > 0 ? '' : 'none';
+    filterBtn.classList.toggle('active', active > 0);
+  }
+
+  // Helper: update clear button
+  function updateClear() {
+    searchClear.style.display = searchInput.value ? '' : 'none';
+  }
+
+  // Helper: show/hide syntax hint
+  function showHint(on) {
+    searchHint?.classList.toggle('visible', on);
+  }
+
+  // Search input
+  searchInput.addEventListener('input', () => {
+    window._rosterFilter.q = searchInput.value;
+    updateClear();
+    renderRoster();
+  });
+  searchInput.addEventListener('focus', () => showHint(true));
+  searchInput.addEventListener('blur',  () => { if (!searchInput.value) showHint(false); });
+
+  // Clear search
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    window._rosterFilter.q = '';
+    updateClear();
+    showHint(false);
+    renderRoster();
+    searchInput.focus();
+  });
+
+  // Toggle filter panel
+  filterBtn.addEventListener('click', () => {
+    const isOpen = filterPanel.classList.toggle('open');
+    filterBtn.classList.toggle('open', isOpen);
+  });
+
+  // Race chip clicks (single-select)
+  raceChips.addEventListener('click', e => {
+    const chip = e.target.closest('.rfp-chip');
+    if (!chip) return;
+    raceChips.querySelectorAll('.rfp-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    window._rosterFilter.race = chip.dataset.race;
+    updateBadge();
+    renderRoster();
+  });
+
+  // Weapon chip clicks (single-select)
+  weaponChips.addEventListener('click', e => {
+    const chip = e.target.closest('.rfp-chip');
+    if (!chip) return;
+    weaponChips.querySelectorAll('.rfp-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    window._rosterFilter.weapon = chip.dataset.weapon;
+    updateBadge();
+    renderRoster();
+  });
+
+  updateClear();
+  updateBadge();
+}
+
+initRosterFilter();
+
+// ============================================================
+// BULK CREATE — headless multi-radoser generator
+// ============================================================
+
+function _wcRandIdx(weights) {
+  let total = 0;
+  for (const w of weights) total += w;
+  let r = Math.random() * total;
+  for (let i = 0; i < weights.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return i;
+  }
+  return weights.length - 1;
+}
+
+function bulkCreateOne() {
+  const statKeys = ['strength', 'speed', 'durability', 'iq', 'battleiq', 'ma'];
+
+  // 1. Name
+  const name = getRandomGameName();
+
+  // 2. Race (weighted)
+  const raceIdx = _wcRandIdx(CG_RACES.map(r => r.weight));
+  const race = CG_RACES[raceIdx];
+
+  // 3. Subrace (weighted, or null)
+  let subrace = null;
+  if (race.subKey && CG_SUBRACES[race.subKey]) {
+    const sr = CG_SUBRACES[race.subKey];
+    subrace = { ...sr[_wcRandIdx(sr.map(s => s.weight))] };
+  }
+
+  const raceId  = race.id;
+  const srLabel = subrace?.label || '';
+
+  // 4. Flat stat deltas — mirrors getSubraceStatDeltas()
+  const deltas  = {};
+  const allD    = v => statKeys.forEach(k => { deltas[k] = (deltas[k] || 0) + v; });
+  if (raceId === 'goblin') {
+    if      (srLabel === '×1' || srLabel === '×50')  allD(-1);
+    else if (srLabel === '×1,000')   { deltas.strength = (deltas.strength || 0) + 1; }
+    else if (srLabel === '×5,000')   { deltas.strength = (deltas.strength || 0) + 1; deltas.speed = (deltas.speed || 0) + 1; }
+    else if (srLabel === '×10,000')  { deltas.strength = (deltas.strength || 0) + 2; deltas.speed = (deltas.speed || 0) + 2; }
+    else if (srLabel === '×100,000') allD(1);
+  }
+  if (raceId === 'troll' && srLabel === 'Mountain Troll')
+    deltas.durability = (deltas.durability || 0) + 3;
+  if (raceId === 'dragon') {
+    if      (srLabel === 'Crimson')  { deltas.iq = (deltas.iq || 0) + 2; deltas.durability = (deltas.durability || 0) + 1; }
+    else if (srLabel === 'Stone')    deltas.durability = (deltas.durability || 0) + 2;
+    else if (srLabel === 'Tideborn') deltas.strength   = (deltas.strength   || 0) + 3;
+    else if (srLabel === 'Amethyst') allD(-1);
+  }
+  if (raceId === 'primordial' && srLabel === 'Earth') {
+    deltas.durability = (deltas.durability || 0) + 1;
+    deltas.strength   = (deltas.strength   || 0) + 1;
+  }
+  if (raceId === 'angel') {
+    if      (srLabel === 'Archangels') { deltas.speed = (deltas.speed || 0) + 2; deltas.ma = (deltas.ma || 0) + 1; }
+    else if (srLabel === 'Ophanim')    allD(1);
+    else if (srLabel === 'Cherubim')   allD(2);
+  }
+
+  // 5. Roll each stat
+  const statRaceId = (raceId === 'skeleton' && subrace?.raceId) ? subrace.raceId : raceId;
+  const stats = {};
+  for (const sk of statKeys) {
+    // Skeleton: IQ always 1
+    if (raceId === 'skeleton' && sk === 'iq') { stats[sk] = 1; continue; }
+    let w = [...(CG_STAT_WEIGHTS[sk][statRaceId] || Array(10).fill(10))];
+    // Constraints
+    if (raceId === 'human' && srLabel === 'Vàng' && sk === 'iq')
+      for (let i = 0; i < 4; i++) w[i] = 0;
+    if (raceId === 'human' && srLabel === 'Đen'  && sk === 'durability')
+      for (let i = 0; i < 4; i++) w[i] = 0;
+    const raw = _wcRandIdx(w) + 1;
+    stats[sk] = Math.max(1, raw + (deltas[sk] || 0));
+  }
+
+  // Giant: IQ vs STR swap (applied after IQ roll, mirrors chargen)
+  if (raceId === 'giant') {
+    const iiq = stats.iq, istr = stats.strength;
+    if      (iiq  > istr) { stats.iq = iiq + 5; stats.strength = Math.max(1, istr - 5); }
+    else if (istr > iiq)  { stats.strength = istr + 5; stats.iq = Math.max(1, iiq - 5); }
+    else                  { stats.iq += 3; stats.strength += 3; }
+  }
+  // Dragon Flame: +2 lowest stat (applied after MA roll)
+  if (raceId === 'dragon' && srLabel === 'Flame') {
+    const lo = statKeys.reduce((a, b) => stats[a] <= stats[b] ? a : b);
+    stats[lo] += 2;
+  }
+  // Primordial Air: +1 lowest
+  if (raceId === 'primordial' && srLabel === 'Air') {
+    const lo = statKeys.reduce((a, b) => stats[a] <= stats[b] ? a : b);
+    stats[lo] += 1;
+  }
+  // Primordial Water: +1 highest
+  if (raceId === 'primordial' && srLabel === 'Water') {
+    const hi = statKeys.reduce((a, b) => stats[a] >= stats[b] ? a : b);
+    stats[hi] += 1;
+  }
+
+  // 6. Has weapon (80/20, certain subraces guaranteed)
+  const guaranteedArmed = (raceId === 'human' && srLabel === 'Trắng') ||
+                          (raceId === 'goblin' && srLabel === '×100,000');
+  const hasWeapon = guaranteedArmed || (Math.random() < 0.8);
+
+  // 7. Weapon (equal weight across armed types)
+  const weapon = hasWeapon
+    ? CG_WEAPONS_ARMED[Math.floor(Math.random() * CG_WEAPONS_ARMED.length)].id
+    : 'fists';
+
+  // 8. Skill count (weighted per race)
+  const scWeights = CG_SKILL_COUNT_WEIGHTS[raceId] || Array(5).fill(20);
+  let skillCount = _wcRandIdx(scWeights);
+  // Subrace skill bonus — mirrors getSubraceSkillBonus()
+  if (raceId === 'dragon'     && srLabel === 'Flame')    skillCount += 1;
+  if (raceId === 'dragon'     && srLabel === 'Amethyst') skillCount += 4;
+  if (raceId === 'primordial' && srLabel === 'Fire')     skillCount += 1;
+
+  // 9. Pick skills (Fisher-Yates shuffle, no replacement)
+  const skills = [];
+  if (skillCount > 0 && typeof SKILL_DEFS !== 'undefined') {
+    const pool = SKILL_DEFS.map(s => s.id);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    for (let i = 0; i < Math.min(skillCount, pool.length); i++) skills.push(pool[i]);
+  }
+
+  return {
+    id: Date.now() + Math.random(),
+    name, race: race.id, raceName: race.name, raceEmoji: race.emoji,
+    subrace, stats, weapon,
+    color: generateRadoserColor(cgRoster.length),
+    skills,
+  };
+}
+
+// ── Modal helpers ────────────────────────────────────────────
+function _bulkUpdateHint() {
+  const n = Math.min(128, Math.max(1, parseInt(document.getElementById('bulkCountInput')?.value) || 0));
+  const el = document.getElementById('bulkCounterHint');
+  if (!el) return;
+  el.textContent = `${n} Radoser sẽ được thêm (roster: ${cgRoster.length} → ${cgRoster.length + n})`;
+  el.className = 'bulk-hint' + (n > 0 ? ' ready' : '');
+}
+
+function openBulkCreate() {
+  const modal = document.getElementById('bulkCreateModal');
+  const input = document.getElementById('bulkCountInput');
+  document.getElementById('bulkResult').innerHTML = '';
+  input.value = 10;
+  _bulkUpdateHint();
+  modal.style.display = 'flex';
+  setTimeout(() => input.select(), 80);
+}
+
+function closeBulkCreate() {
+  document.getElementById('bulkCreateModal').style.display = 'none';
+}
+
+function confirmBulkCreate() {
+  const count = Math.min(128, Math.max(1, parseInt(document.getElementById('bulkCountInput').value) || 0));
+  if (count < 1) return;
+
+  const btn = document.getElementById('bulkConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Creating…';
+
+  // Synchronous — fast enough for 128 entries
+  const created = [];
+  for (let i = 0; i < count; i++) {
+    const char = bulkCreateOne();
+    cgRoster.push(char);
+    created.push(char);
+  }
+  localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
+  renderRoster();
+  renderHeroShowcase();
+  buildFightersPanel();
+
+  // Race breakdown summary
+  const raceCounts = {};
+  for (const c of created) {
+    const key = c.raceEmoji + ' ' + c.raceName;
+    raceCounts[key] = (raceCounts[key] || 0) + 1;
+  }
+  const raceStr = Object.entries(raceCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([r, n]) => `${r} ×${n}`)
+    .join('  ·  ');
+
+  document.getElementById('bulkResult').innerHTML =
+    `<div class="bulk-done">✅ Đã tạo <b>${count}</b> Radosers<br>
+     <span class="bulk-race-summary">${raceStr}</span></div>`;
+
+  btn.disabled = false;
+  btn.textContent = '⚡ Tạo thêm';
+  _bulkUpdateHint();
+}
+
+// ── Wire events ──────────────────────────────────────────────
+document.getElementById('bulkCreateBtn').addEventListener('click', openBulkCreate);
+document.getElementById('bulkCloseBtn').addEventListener('click', closeBulkCreate);
+document.getElementById('bulkCancelBtn').addEventListener('click', closeBulkCreate);
+document.getElementById('bulkConfirmBtn').addEventListener('click', confirmBulkCreate);
+document.getElementById('bulkCreateModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('bulkCreateModal')) closeBulkCreate();
+});
+document.getElementById('bulkCountInput').addEventListener('input', _bulkUpdateHint);
+document.getElementById('bulkCountInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmBulkCreate();
+  if (e.key === 'Escape') closeBulkCreate();
 });

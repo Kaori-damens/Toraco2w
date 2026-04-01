@@ -1,6 +1,6 @@
-# AutoRPNG Battle — Game Design Document (English)
+# AutoRPNG Battle (TORACO) — Game Design Document (English)
 
-> **Version**: 3.0 | **Engine**: Vanilla HTML5 Canvas + Web Audio API | **Files**: `index.html` · `style.css` · 19 JS modules
+> **Version**: 4.0 | **Engine**: Vanilla HTML5 Canvas + Web Audio API | **Files**: `index.html` · `style.css` · 30+ JS modules
 
 ---
 
@@ -20,26 +20,27 @@
 12. [Weapons](#12-weapons)
 13. [Combat Mechanics](#13-combat-mechanics)
 14. [Special Mechanics](#14-special-mechanics)
-15. [Projectile System](#15-projectile-system)
-16. [Scaling System (Power Growth)](#16-scaling-system-power-growth)
-17. [Match Phases](#17-match-phases)
-18. [Visual & Audio Feedback](#18-visual--audio-feedback)
-19. [UI & Screens](#19-ui--screens)
-20. [Technical Reference](#20-technical-reference)
+15. [Race Skills](#15-race-skills)
+16. [Projectile System](#16-projectile-system)
+17. [Scaling System (Power Growth)](#17-scaling-system-power-growth)
+18. [Match Phases](#18-match-phases)
+19. [Visual & Audio Feedback](#19-visual--audio-feedback)
+20. [UI & Screens](#20-ui--screens)
+21. [Technical Reference](#21-technical-reference)
 
 ---
 
 ## 1. Overview
 
-**AutoRPNG Battle** is a local browser game where 2–6 physics-driven fighters called **Radosers** battle inside a closed arena. Each Radoser is a unique character generated through a full RPG chargen system — with race, subrace, six combat stats, a weapon, and up to 8 skills — then launched into a physics simulation. No direct player control during battle.
+**AutoRPNG Battle (TORACO)** is a local browser game where 2–12 physics-driven fighters called **Radosers** battle inside a closed arena. Each Radoser is a unique character generated through a full RPG chargen system — with race, subrace, six combat stats, a weapon, and up to 8 skills — then launched into a physics simulation. No direct player control during battle.
 
 | Property | Value |
 |----------|-------|
 | Platform | Web Browser (static HTML — open `index.html` directly) |
 | Players | 0 (spectator) |
 | Match Type | Free-for-all (last Radoser standing) |
-| Fighters per match | 2–6 |
-| Canvas Size | 800 × 800 px |
+| Fighters per match | 2–12 |
+| Canvas Size | 1000 × 1000 px |
 
 ---
 
@@ -59,17 +60,22 @@
 
 ```
 [MENU]
-  → Roster: view / create Radosers
-  → Quick Match: pick fighters + arena → ⚔️ FIGHT!
+  → Showcase: rotating preview of your Radosers
+  → Radosers: view / create / search / filter Radosers
+  → Battle: Quick Match, Tournament, PvE Boss Raid
+  → Wiki: in-game reference
 
 [CHARGEN] (optional — create a new Radoser)
   → Name → Race → Subrace → Roll 6 stats → Weapon → Skill Count → Skills → Confirm
   → Saved to local roster (localStorage)
+  Quick Create: name prompt → auto-advances all steps
+  Debug Radoser: manually set all values
+  Bulk Create: generate 1–128 Radosers at once
 
 [BATTLE]
   → 3-second countdown
   → Radosers launch from spread angles toward center
-  → Physics simulation: wall bounces, collisions, weapon attacks, skill triggers
+  → Physics simulation: wall bounces, collisions, weapon attacks, skill triggers, race skills
   → Match ends when 1 Radoser remains
 
 [RESULT]
@@ -77,28 +83,27 @@
   → Options: Rematch | Back to Menu
 ```
 
-**Launch behavior:**
-- Each Radoser launches from a spread angle ±0.4 rad toward the arena center
-- Launch speed is based on the **Speed** stat
-
 ---
 
 ## 4. Radoser (Fighter Unit)
 
 Every Radoser is a circle fighter. Core values scale with character stats (see §5).
 
-| Stat | Formula | Notes |
-|------|---------|-------|
+| Property | Formula | Notes |
+|----------|---------|-------|
 | Max HP | `50 + DUR × 10` | Range: 60–150 |
 | Radius | 24 px | Fixed (`BALL_R`) |
 | Mass | `radius² × 0.05` | Affects momentum transfer |
 | Max Speed | `10 + SPD × 1.5` | Range: 11.5–25 |
 | Evade Chance | `BIQ × 0.03` | Range: 3%–30% |
-| Evade Duration | 60 frames | Immunity + cyan glow |
+| Evade Duration | 60 frames | Full immunity + cyan glow |
 | Crit Chance | `IQ × 0.05` | Range: 5%–50% |
 | Crit Multiplier | ×1.5 | Fixed |
-| Immunity Frames | 18 | Invincibility after being hit |
+| Melee Immunity | 4 frames | After taking a melee hit |
+| Projectile Immunity | 8 frames | After taking a projectile hit (separate counter) |
 | Spin Bonus | `MA × 0.003` | Weapon rotation speed bonus |
+
+> **Note:** Melee and projectile immunity counters are completely independent — a projectile hit does not reset melee immunity and vice versa.
 
 ---
 
@@ -108,76 +113,82 @@ Six stats on a **1–10 scale**, rolled during chargen via race-weighted probabi
 
 | Stat | Short | Combat Effect |
 |------|-------|--------------|
-| Strength | STR | Base damage multiplier |
-| Speed | SPD | Max speed, attack cooldown reduction, launch speed, projectile fire rate |
+| Strength | STR | Weapon damage multiplier (`baseDmg × STR`) |
+| Speed | SPD | Max speed · attack cooldown reduction (−1 per point) · fire rate |
 | Durability | DUR | Max HP |
-| Intelligence | IQ | Crit chance · scales Exploit and Mind Break skills |
-| Battle IQ | BIQ | Evade chance · scales Read & React skill |
-| Martial Arts | MA | Weapon spin speed · scales Deflection and Flow State skills |
+| Intelligence | IQ | Crit chance (IQ×5%) · Exploit · Mind Break · Smite damage |
+| Battle IQ | BIQ | Evade chance (BIQ×3%) · Read & React · Troll net trap duration |
+| Martial Arts | MA | Weapon spin speed · Deflection · Flow State · Smite stun |
 
-Each race has its own stat weight table — higher weights make certain stat values more likely when rolling. Subrace bonuses are applied **inline** during chargen (shown immediately after each stat spin).
+Subrace bonuses are applied **inline** during chargen (shown immediately after each stat spin).
 
 ---
 
 ## 6. Races & Subraces
 
-13 playable races, each with a unique visual decoration, stat distribution, and optional subrace table.
+13 playable races, each with a unique visual decoration, stat distribution, optional subrace table, and (for 5 races) a **Race Skill** (see §15).
 
 ### Race List
 
-| Race | Emoji | Weight | Key Trait |
-|------|-------|--------|-----------|
-| Goblin | 👺 | 6.5 | Horde size multiplier (×1 to ×100,000) modifies stats |
-| Gnome | 🧙 | 6.5 | — |
-| Human | 👤 | 6.5 | Skin color subrace (Trắng/Vàng/Đen) |
-| Dwarf | ⛏️ | 6.5 | — |
-| Skeleton | 💀 | 5.25 | 2 wins → Lich (IQ fixed 8); 4 wins → Lich King (+1 all stats); Immune to AIDS |
-| Troll | 🧌 | 5.25 | Sub-types: Regular / Ice / Mountain / Lich |
-| Orc | 🗡️ | 5.25 | Win → +2 lowest stat; Lose → −3 highest stat |
-| Giant | 🏔️ | 4.0 | After stat roll: IQ>STR → +5IQ/−5STR; STR>IQ → +5STR/−5IQ; equal → +3 both |
-| Dragon | 🐉 | 4.0 | 5 elemental/type subraces |
-| Angel | 👼 | 3.5 | Starts with "Pacifist" Archetype; higher ranks grant bonus stats/skills |
-| Primordial Being | 🌌 | 3.5 | Each Combat win → spin Elemental Wheel again |
-| Demon | 😈 | 2.5 | 7 Sin variants, each with a unique curse/blessing |
-| God | ✨ | 2.5 | 9 Norse gods, equal weight |
+| Race | Emoji | Weight | Rarity | Race Skill |
+|------|-------|--------|--------|-----------|
+| Goblin | 👺 | 6.5 | Common | — |
+| Gnome | 🧙 | 6.5 | Common | — |
+| Human | 👤 | 6.5 | Common | ⚡ Limit Break |
+| Dwarf | ⛏️ | 6.5 | Common | — |
+| Skeleton | 💀 | 5.25 | Uncommon | — |
+| Troll | 🧌 | 5.25 | Uncommon | 🕸️ Net Throw |
+| Orc | 🗡️ | 5.25 | Uncommon | — |
+| Giant | 🏔️ | 4.0 | Rare | — |
+| Dragon | 🐉 | 4.0 | Rare | 🔥 Flame Breath |
+| Angel | 👼 | 3.5 | Epic | ✨ Smite |
+| Primordial Being | 🌌 | 3.5 | Epic | 🌌 Void Grip |
+| Demon | 😈 | 2.5 | Legendary | — |
+| God | ✨ | 2.5 | Legendary | — |
 
 > Weight controls how often a race appears during random chargen. Higher = more common.
 
+### Race Traits
+
+| Race | Trait |
+|------|-------|
+| Skeleton | 2 PvP wins → Lich (IQ fixed 8). 4 wins → Lich King (+1 all stats). Immune to AIDS. |
+| Orc | Win → +2 lowest stat. Lose → −3 highest stat. |
+| Giant | After stat roll: IQ>STR → +5IQ/−5STR; STR>IQ → +5STR/−5IQ; equal → +3 both. |
+| Angel | Starts with "Pacifist" Archetype; higher ranks grant bonus stats/skills. |
+| Primordial | Each Combat win → re-spin Elemental Wheel. |
+
 ### Subraces (detail)
 
-**Goblin Horde** (×1/×50/×100/×1,000/×5,000/×10,000/×100,000)
-- ×1 → −1 all stats; [Tournament] +1 all stats per PvP win
-- ×50 → −1 all stats
-- ×100 → no effect
-- ×1,000 → +1 STR
-- ×5,000 → +1 STR, +1 SPD
-- ×10,000 → +2 STR, +2 SPD
+**Goblin Horde** (×1 to ×100,000, 7 tiers)
+- ×1 → −1 all stats · ×50 → −1 all stats · ×100 → no effect
+- ×1,000 → +1 STR · ×5,000 → +1 STR +1 SPD · ×10,000 → +2 STR +2 SPD
 - ×100,000 → +1 all stats, guaranteed weapon
 
 **Human Skin** — Trắng (guaranteed weapon) · Vàng (IQ min 5) · Đen (DUR min 5)
 
-**Troll Type** — Regular (no effect) · Ice (combat: −2 SPD to all opponents) · Mountain (+3 DUR) · Lich (75% chance to steal 1 skill from opponent)
+**Troll Type** — Regular (no effect) · Ice (combat: −2 SPD to all opponents at round start) · Mountain (+3 DUR) · Lich (75% chance to steal 1 skill from opponent)
 
-**Dragon Type** (5 types) — Tideborn (+3 STR) · Flame (+1 skill, +2 lowest stat) · Crimson (+2 IQ, +1 DUR) · Stone (+2 DUR) · Amethyst (−1 all stats, +4 skills)
+**Dragon Type** — Tideborn (+3 STR) · Flame (+1 skill, +2 lowest stat) · Crimson (+2 IQ, +1 DUR) · Stone (+2 DUR) · Amethyst (−1 all stats, +4 skills)
 
-**Angel Ranks** (8 tiers) — Angels (no bonus) → Archangels (+2 SPD, +1 MA) → Principalities (post-combat +2 lowest) → Powers (Paladin archetype, +2 MA) → Virtues (cannot be debuffed) → Dominions (+2 skills) → Ophanim (+1 all stats) → Cherubim (+2 all stats)
+**Angel Ranks** (8 tiers) — Angels (none) → Archangels (+2 SPD, +1 MA) → Principalities (post-combat +2 lowest) → Powers (Paladin archetype, +2 MA) → Virtues (cannot be debuffed) → Dominions (+2 skills) → Ophanim (+1 all stats) → Cherubim (+2 all stats)
 
-**Primordial Elements** — Air (+1 lowest stat) · Water (+1 highest stat) · Fire (+1 skill) · Earth (+1 DUR, +1 STR). All equal weight. Re-spun after each Combat win.
+**Primordial Elements** — Air (+1 lowest) · Water (+1 highest) · Fire (+1 skill) · Earth (+1 DUR, +1 STR). All equal weight.
 
-**Demon Sins** (7) — Lucifer (Egoist archetype, skill cap 4) · Beelzebub (Slow Metabolism, 1 stat maxes 10) · Leviathan (Leviathan's Mark gear) · Behemoth (lose: 1 stat→0; win: 1 stat+2) · Mammon (−2 all, double PvP rewards) · Belphegor (+1 starting point, 66% no point first 2 rounds) · Asmodeus (AIDS skill)
+**Demon Sins** (7) — Lucifer (Egoist, skill cap 4) · Beelzebub (1 stat maxes 10) · Leviathan (Leviathan's Mark gear) · Behemoth (lose: 1 stat→0; win: +2) · Mammon (−2 all, double rewards) · Belphegor (+1 starting point) · Asmodeus (AIDS skill)
 
-**God Gifts** — 9 Norse gods, equal weight (11.1% each): Odin · Týr · Frigg · Baldur · Loki · Freyja · Eir · Bragi · Thor
+**God Gifts** — 9 Norse gods equal weight: Odin · Týr · Frigg · Baldur · Loki · Freyja · Eir · Bragi · Thor
 
-**Skeleton Bone Lineage** — reveals the skeleton's past race (weights match original race weights). Affects stat roll distributions.
+**Skeleton Bone Lineage** — reveals past race (matching original race weights), affects stat rolls.
 
-### Visual Decorations (cosmetic, no hitbox change)
+### Visual Decorations (cosmetic only)
 
 | Race | Visual |
 |------|--------|
 | Skeleton | Hollow eye sockets, bone crack, nose hole, teeth |
 | Orc | Tusks, war-paint marks |
 | Dragon | Scales, tail |
-| Angel | Golden glowing halo |
+| Angel | Golden glowing halo (no wings) |
 | Primordial | Animated orbiting energy dots |
 | God | Animated pulsing golden rays |
 | Demon | Curved horns, sinister markings |
@@ -189,31 +200,31 @@ All Radosers (except Skeleton) have anime-style gradient oval eyes with a color 
 
 ## 7. Character Creation (Chargen)
 
-14 sequential steps. Subrace bonuses are applied inline — the adjusted value is shown immediately after each spin.
+14 sequential steps. Subrace bonuses applied inline after each spin.
 
 | Step | Screen | Description |
 |------|--------|-------------|
 | 1 | name | Enter character name (or pick from 200+ hero name pool) |
 | 2 | race | Spin race (13 races, weighted) |
 | 3 | subrace | Spin subrace (skipped if race has none) |
-| 4–9 | str / spd / dur / iq / biq / ma | Spin each stat via race-weighted table. Subrace stat modifiers applied inline. |
+| 4–9 | str / spd / dur / iq / biq / ma | Spin each stat via race-weighted table |
 | 10 | hasweapon | Armed or Unarmed (some subraces auto-skip to Armed) |
 | 11 | weapon | Pick one of 7 weapons (skipped if unarmed) |
 | 12 | skillcount | Spin skill count 0–4 (race-weighted). Subrace bonuses add on top. |
 | 13 | skillpick | Spin and pick each skill individually |
 | 14 | done | Summary screen → Confirm to add to roster |
 
-**UX note:** The Spin button morphs into the Next button after the wheel stops — no mouse movement required between steps.
+**Quick Create:** name prompt → auto-advances all steps using random rolls.
 
-**Quick Create mode:** auto-advances through all steps for fast generation.
+**Debug Radoser:** modal to manually set race, subrace, all 6 stats, weapon, and skills.
 
-**Giant trait** is evaluated after MA (last stat) is spun, comparing final STR vs IQ to determine which gets the bonus.
+**Bulk Create:** enter count (1–128) → instantly generates all Radosers following full chargen rules (weighted race, stats, subraces, skills). Shows race breakdown after creation.
 
 ---
 
 ## 8. Skills
 
-Skills are acquired during chargen via spin wheels. Count is determined first (0–4 base, modified by subraces), then each skill is picked individually.
+Skills acquired during chargen via spin wheels. Count determined first (0–4 base, modified by subraces), then each skill picked individually.
 
 ### Skill Types
 
@@ -233,40 +244,46 @@ Skills are acquired during chargen via spin wheels. Count is determined first (0
 | 🦏 Thick Hide | −10% damage received |
 | 💨 Swift | +15% movement speed cap |
 | 👁️ Sharp Eye | +10% crit chance |
-| ✨ Extended Immunity | Hit immunity window 18 → 30 frames |
+| ✨ Extended Immunity | Melee immunity 4 → 30 frames; Projectile immunity 8 → 16 frames |
 | ⚓ Heavy Mass | +30% mass (less knockback) |
-| 🪞 Deflection | MA×2% chance to negate a hit |
+| 🪞 Deflection | MA×2% chance to completely negate a hit |
 
 #### Pre-Combat
 | Skill | Effect |
 |-------|--------|
-| 📢 War Cry | First hit deals 2× damage |
-| 🏰 Fortify | Start with 1-hit absorption shield |
+| 📢 War Cry | First hit this round deals 2× damage |
+| 🏰 Fortify | Start with a 1-hit absorption shield |
 | ⚡ Adrenaline | First 5s: +50% movement speed |
-| 🦅 Predator | +15% damage vs target with less HP |
-| 🩸 First Blood | First hit stuns opponent 30 frames |
-| 🧿 Mind Break | If IQ > target: −(IQ gap × 3%) to their final damage |
+| 🦅 Predator | +15% damage when target has less HP |
+| 🩸 First Blood | First hit of round stuns opponent 30 frames |
+| 🧿 Mind Break | If IQ > target IQ: −(gap × 3%) to their final damage (max 60%) |
 
 #### In-Combat
 | Skill | Effect |
 |-------|--------|
 | 😤 Berserker | +50% damage while HP < 30% |
 | 🔥 Phoenix | Survive one lethal hit with 1 HP (once/round) |
-| ↩️ Counter | After parried: next hit deals 2× damage |
+| ↩️ Counter | After being parried: next hit deals 2× damage |
 | 🧛 Vampiric | On hit: heal 5% of damage dealt |
 | 🗡️ Parry Master | On parry: no knockback + weapon spin ×2 for 1.5s |
 | 🌀 Momentum | On kill (FFA): +10% speed stack (max 5×) |
-| 👻 Shadow Step | On evade: teleport to random safe spot |
+| 👻 Shadow Step | On evade: teleport to a random safe spot |
 | 💉 Blood Frenzy | On kill: heal 25 HP |
-| 🌊 Flow State | On hit: +MA×1% speed/stack (resets on taking a hit) |
-| ⚡ Read & React | On being hit: BIQ×3% chance to instantly counter |
-| 💡 Exploit | On hit: (IQ+BIQ)×1% chance double damage |
+| 🌊 Flow State | On hit: +MA×1% speed per stack (resets when you take a hit) |
+| ⚡ Read & React | On being hit: BIQ×3% chance to instantly counter-attack |
+| 💡 Exploit | On hit: (IQ+BIQ)×1% chance to deal double damage |
 
 #### Post-Combat
 | Skill | Effect |
 |-------|--------|
 | 📚 Learning | After losing: +5% damage next round |
 | 🧬 Adaptation | After losing: +20% resist to killer's weapon type |
+| 🩹 Survivor | Win with HP<20%: +10 max HP permanently |
+| 🏅 Veteran | Win: +1 random stat (cumulative, no cap) |
+| 🌙 Mastery | Win with HP<50%: MA×3% chance +1 dmg/proj to weapon permanently |
+| 💎 Perfectionist | Win >80% HP: +15% dmg. Win ≤80% HP: −10% dmg |
+| 🩸 Blood Mark | Lose: mark opponent — they start next round with 80% HP |
+| 🎭 Copycat | Win: BIQ×3.5% chance to learn 1 random skill from opponent |
 
 ### Stat-Scaling Skills
 
@@ -296,47 +313,33 @@ Skills are acquired during chargen via spin wheels. Count is determined first (0
 | Demon | 20% | 5% | 15% | 35% | 25% |
 | God | 20% | 5% | 15% | 35% | 25% |
 
-> Subrace bonuses (Amethyst +4, Flame +1, Primordial Fire +1, Angel Dominions +2) stack on top.
+> Subrace bonuses (Amethyst +4, Flame +1, Primordial Fire +1, Angel Dominions +2) stack on top of this count.
 
 ---
 
 ## 9. Roster System
 
-- All created Radosers are saved to **`localStorage['cgRoster']`** as a JSON array
+- All created Radosers saved to **`localStorage['cgRoster']`** as a JSON array
 - Persists between sessions — refresh does not delete roster
-- Each Radoser record contains:
-
-```json
-{
-  "charName": "...",
-  "color": "#rrggbb",
-  "race": { "id": "...", "name": "...", "emoji": "..." },
-  "subrace": { "label": "...", "desc": "..." },
-  "charStats": { "strength": 5, "speed": 4, "durability": 6, "iq": 3, "battleiq": 5, "ma": 4 },
-  "weapon": "sword",
-  "skills": [{ "id": "berserker", "name": "Berserker", "icon": "😤", "type": "in_combat", "desc": "..." }],
-  "skillCount": 2,
-  "charRace": "...",
-  "charSubrace": { "label": "..." }
-}
-```
-
-- In **Quick Match**, press `+` to open the Fighter Picker modal and select from roster
-- Bot fighters (random stats) can also be added
+- **Search bar:** smart query syntax — `race=orc`, `str>5`, `weapon=bow`, `total>=40`, `iq!=1`, plain text searches name/race
+- **Filter panel:** filter chips by Race and Weapon (single-select each, stacks with search)
+- Each Radoser record contains: name · color · race · subrace · 6 stats · weapon · skills
 
 ---
 
 ## 10. Arena (Playing Field)
 
-Five arena shapes, each changes ricochet geometry and corner traps.
+Five preset arena shapes plus a custom arena builder.
 
-| Arena | Shape | Dimensions | Notes |
-|-------|-------|-----------|-------|
-| Square | Rectangle | 600 × 600 (inset 100px) | Many corners |
-| Circle | Circle | radius = 220 px | No corners, constant bounce angles |
-| Rectangle | Rectangle | 600 × 400 | Horizontal momentum dominant |
-| Cross | Cross (+) | arm = 240, thick = 300 | 4 pockets, complex geometry |
-| Hole | Square + inner obstacle | 800 × 800, hole r = 70 | Central pit ball bounces off |
+| Arena | Shape | Default Dimensions |
+|-------|-------|-------------------|
+| Square | Rectangle | 600 × 600 px (inset 200 px) |
+| Circle | Circle | radius = 220 px |
+| Rectangle | Rectangle | 600 × 400 px |
+| Cross | Cross (+) | arm = 240, thick = 300 |
+| Hole | Square + inner obstacle | 1000 × 1000, hole radius = 70 |
+
+**Custom Arena Builder** — max dimensions: square/rect 1000 px, circle/hole radius 600 px, cross arm 500 px.
 
 **Wall bounce:** perfectly elastic (`WALL_BOUNCE = 1.0`).
 
@@ -377,43 +380,47 @@ Eight weapons — 6 melee, 2 ranged.
 
 ### 12.1 Melee Weapons
 
-| Weapon | Base Dmg | Base KB | Length | Hit Radius | Cooldown | Scaling |
-|--------|----------|---------|--------|-----------|---------|---------|
-| 🥊 Fists | 2 | 2 | 22 px | 11 px | 16 fr | Attack speed |
-| ⚔️ Sword | 1 | 4 | 50 px | 8 px | 28 fr | Damage |
-| 🗡️ Dagger | 1 | 2 | 28 px | 8 px | 18 fr | Spin speed |
-| 🔱 Spear | 1 | 5 | 65 px | 8 px | 38 fr | Length + damage |
-| 🌙 Scythe | 1 | 5 | 48 px | 18 px | 34 fr | Dual blade |
-| 🔨 Hammer | 1 | 12 | 38 px | 14 px | 48 fr | Knockback |
-
-All cooldowns are reduced by SPD stat: `max(2, baseCooldown − SPD)`.
+| Weapon | Base Dmg | Base KB | Length | Hit Radius | CD Formula | Scaling |
+|--------|----------|---------|--------|-----------|-----------|---------|
+| 🥊 Fists | 2 | 2 | 22 px | 11 px | max(2, 13−SPD) | −0.5f CD/hit (min 8f) |
+| ⚔️ Sword | 1 | 4 | 50 px | 8 px | max(2, 28−SPD) | +1 dmg/hit |
+| 🗡️ Dagger | 1 | 2 | 28 px | 8 px | max(2, 18−SPD) | +0.012 spin/hit (max 0.55) |
+| 🔱 Spear | 1 | 5 | 65 px | 8 px | max(2, 38−SPD) | +4 px length / +0.5 dmg/hit |
+| 🌙 Scythe | 1 | 5 | 48 px | 18 px | max(2, 34−SPD) | Dual blade at 5 hits |
+| 🔨 Hammer | 1 | 12 | 38 px | 14 px | max(2, 48−SPD) | +0.8 KB/hit |
 
 ### 12.2 Ranged Weapons
 
-| Weapon | Melee Dmg | Fire Interval | Projectile Speed | Projectile Radius | Scaling |
-|--------|-----------|--------------|-----------------|------------------|---------|
-| 🏹 Bow | 0 | 130 fr | 7.5 units/fr | 5 px | Arrow count + speed |
-| ⭐ Shuriken | 0 | 120 fr | 3 units/fr | 8 px | Star count |
+| Weapon | Melee Dmg | Proj Dmg | Fire Interval | Proj Speed | Scaling |
+|--------|-----------|----------|--------------|------------|---------|
+| 🏹 Bow | 0 | 1/arrow | max(5, 140−SPD×2) | 7.5 px/fr | +1 arrow/hit |
+| ⭐ Shuriken | 0 | 1/star | max(5, 250−SPD×2) | 3 px/fr | +1 star/hit |
 
-Fire interval scales with SPD: Bow `max(5, 140 − SPD×2)`, Shuriken `max(5, 250 − SPD×2)`.
+**Bow specifics:**
+- **Starting arrows** = SPD stat (higher SPD → more arrows from the start)
+- **Arrow visual size** scales with STR stat (higher STR → larger arrows)
+- **Soft auto-aim:** weapon angle tracks nearest enemy at `MA × 0.003 rad/frame`
+- **Aim cone:** only fires when enemy is within `(20 + IQ × 4)°` of current aim angle
+- Arrow burst: `arrowCount` arrows per cycle, 4-frame delay between shots
 
-### 12.3 Weapon Descriptions
+**Shuriken specifics:**
+- Bounces off walls up to 2 times before disappearing
+- Can be deflected by weapon contact (ownership transfers)
 
-**🥊 Fists** — Fastest attack rate. Short range. Scales attack speed — snowballs with hit count. Can partially parry incoming projectiles (50% damage reflect).
+### 12.3 Parry Hit Points
 
-**⚔️ Sword** — Balanced melee, scales raw damage permanently. Reliable and simple.
+Parry detection uses multiple hit points per weapon:
 
-**🗡️ Dagger** — Short blade, fast spin. Scales rotation speed — harder to dodge at high stacks.
-
-**🔱 Spear** — Longest reach. Slow attack, high knockback. Scales length AND damage — near untouchable late-game. When parried: spin reverses + −10% spin for 60 frames.
-
-**🌙 Scythe** — Wide arc (18 px hit radius). Unlocks dual-blade mode at 5 hits — attacks both directions simultaneously.
-
-**🔨 Hammer** — Slowest weapon, massive knockback (12 base). Scales knockback — can launch opponents across the entire arena. On hit: enemy weapon −30% spin for 1.5 s.
-
-**🏹 Bow** — Fires arrow volleys every ~130 frames. Scales arrow count (unlimited). Multiple arrows fire in burst with 4-frame delay between shots.
-
-**⭐ Shuriken** — Fires shuriken bursts every ~120 frames. Wall bounces: up to 2 times. Scales star count (every 2 hits). Can be deflected by weapon contact.
+| Weapon | Hit Points |
+|--------|-----------|
+| Fists | 6 points along full blade (ball.radius → tip) |
+| Sword | tip (r=8) + mid 65% (r=6) + near 35% (r=6) — 3 points, one side |
+| Dagger | tip center (r=8) + 2 perpendicular side points at ±8px (r=6 each) |
+| Spear | Dynamic N points along full shaft (grows with bonusLength) |
+| Scythe | 5-point arc sweep (dual blade adds 5 more) |
+| Hammer | Single tip point (r=14) |
+| Bow | Single center point (r=16) |
+| Shuriken | Single center point (r=14) |
 
 ---
 
@@ -422,13 +429,14 @@ Fire interval scales with SPD: Bow `max(5, 140 − SPD×2)`, Shuriken `max(5, 25
 ### 13.1 Damage Formula
 
 ```
-finalDamage = (baseDamage + bonusDamage) × STR_multiplier × critMultiplier × evadeCheck
+finalDamage = (baseDamage + bonusDamage) × STR × critMultiplier
             × (1 − mindBreakDebuff)
 ```
 
+- **STR multiplier:** `baseDamage × charSTR` (STR 1→×1, STR 10→×10)
 - **critMultiplier** = 1.5 if `random < critChance (IQ × 0.05)`, else 1.0
-- **evadeCheck** = 0 if `random < evadeChance (BIQ × 0.03)` → full dodge, else 1
-- **mindBreakDebuff** = accumulated from Mind Break skill (max 60%)
+- **evadeCheck** = 0 if `random < evadeChance (BIQ × 0.03)` → full dodge + 60f immunity window
+- **mindBreakDebuff** = accumulated from opponent's Mind Break skill (max 60%)
 
 ### 13.2 Knockback
 
@@ -436,14 +444,23 @@ finalDamage = (baseDamage + bonusDamage) × STR_multiplier × critMultiplier × 
 knockbackForce = (baseKnockback + bonusKnockback) × 1.4
 ```
 
-Applied from attacker → defender direction.
+Applied in attacker → defender direction.
 
-### 13.3 Parry System
+### 13.3 Immunity Frames
+
+| Hit Type | Default | With Extended Immunity |
+|----------|---------|----------------------|
+| Melee | 4 frames | 30 frames |
+| Projectile | 8 frames | 16 frames |
+
+Both counters are **separate** — a projectile hit only resets `projImmunityFrames`, not `immunityFrames`.
+
+### 13.4 Parry System
 
 **Trigger conditions:**
 1. Both fighters' `parryCooldown == 0`
-2. Weapon tip distance < `(r1 + r2 + 6)` px
-3. Dot product of weapon directions > 0.2 (weapons aimed at each other)
+2. Any hit point distance < `(r1 + r2 + 6)` px
+3. Both weapon directions facing each other: `dot(dir1, dir2) < −0.2` (facing opposite) **AND** `dot(dir, toEnemy) > 0.2` for each
 
 **Parry effects:**
 
@@ -452,7 +469,7 @@ Applied from attacker → defender direction.
 | Recoil impulse | 5.5 units outward |
 | Parry cooldown | 25 frames (both) |
 | Bounce cooldown | 22 frames (both) |
-| Weapon angle deflection | +π × 0.15 rad |
+| Weapon angle deflect | +π × 0.15 rad |
 | Particles | 14 golden sparks |
 | Sound | Square 880 Hz + 660 Hz chord |
 
@@ -473,7 +490,7 @@ Applied from attacker → defender direction.
 
 | Property | Value |
 |----------|-------|
-| Chance | `IQ × 0.05` (5–50%) |
+| Chance | `IQ × 0.05` (5%–50%) |
 | Multiplier | ×1.5 |
 | Visual | ⚡CRIT! gold label |
 | Blood particles | ×2 (12 vs normal 6) |
@@ -489,37 +506,110 @@ Applied from attacker → defender direction.
 
 ### 14.4 Ice Troll Debuff (Subrace)
 
-At round start, all opponents permanently lose −2 SPD for that round. Displayed as `🧊 -2 SPD` floating text.
+At round start, all opponents permanently lose −2 SPD (−3 maxSpd) for that round. Displayed as `🧊 -2 SPD` floating text.
 
 ---
 
-## 15. Projectile System
+## 15. Race Skills
+
+Five races have unique active abilities that trigger automatically during battle.
+
+### 15.1 🔥 Dragon — Flame Breath
+
+| Property | Value |
+|----------|-------|
+| Activation | Auto-activates when cooldown reaches 0 |
+| Duration | `round((120 + MA × 12) × 1.12)` frames (~2.2s – 4.5s) |
+| Cooldown | `max(600, 1800 − SPD × 40)` frames (~10s – 30s) |
+| Damage | STR × 3 per tick (every 20 frames = 0.33s) |
+| Cone angle | `π/6 + MA × 0.012` rad halfCone (widens with MA) |
+| Sweep | Oscillates ±(35 + MA×1.5)° around locked mouth direction |
+| Sweep freq | `0.045 + IQ × 0.003` rad/frame (IQ1 → ~2.2s/cycle, IQ10 → ~1.4s/cycle) |
+| Flame immunity | Per-enemy 18f cooldown (independent of weapon immunity) |
+
+Visual: 3-layer fire cone (outer haze + main body with jagged tip + bright hot core). No straight edge lines — organic look.
+
+### 15.2 🕸️ Troll — Net Throw
+
+| Property | Value |
+|----------|-------|
+| Activation | Auto-fires at nearest enemy when cooldown = 0 |
+| Cooldown (hit) | `max(360, 840 − SPD × 48)` frames (~6s – 14s) |
+| Cooldown (miss) | 70% of full cooldown |
+| Net speed | 5 px/frame |
+| Net radius | Starts at 10 px, grows by +0.032 per px traveled (~10px→30px+ at max range) |
+| Trap duration | `max(60, 30 + BIQ × 18)` frames (~1s – 3.5s) |
+
+### 15.3 🌌 Primordial Being — Void Grip
+
+| Property | Value |
+|----------|-------|
+| Activation | Passive — triggers when an enemy weapon hits this Primordial |
+| Stick chance | `min(0.60, BIQ × 0.06)` (6%–60%) |
+| Stuck duration | `60 + MA × 15` frames (~1s – 3.5s) |
+| Cooldown | None (passive) |
+
+Effect: The attacker's weapon gets "stuck in the void" — pulled toward the Primordial's center for the duration.
+
+### 15.4 ⚡ Human — Limit Break
+
+| Property | Value |
+|----------|-------|
+| Activation | **One-time trigger** when HP drops below 20% of max HP |
+| Duration | **Permanent until end of match** — cannot expire or reset |
+| Cooldown | None (HP-threshold based) |
+| Melee AI | Charges directly at nearest enemy at speed × 1.5, no retreat |
+| Ranged AI | Kites at ideal 250px distance (±60px dead zone), lerp factor 0.07 |
+| Damage stack | Each hit landed adds +15% damage (no cap, stacks persist through match end) |
+| HP drain | None — this is a last-stand skill, not a berserk |
+| Visual | Pulsing gold double-ring glow + `⚡×N` stack counter above ball |
+
+> **Design intent:** Human is the "underdog" race. Limit Break is their last-gasp trump card — only when truly on the brink (HP < 20%) do they flip the script. The longer they survive at death's door, the more dangerous they become.
+
+### 15.5 ✨ Angel — Smite
+
+| Property | Value |
+|----------|-------|
+| Activation | Auto-fires at nearest enemy when cooldown = 0 |
+| Cooldown | `max(600, 900 − SPD × 40)` frames (~6s – 10s) |
+| Windup | 60 frames before strike |
+| Damage | `8 + IQ × 2` (IQ1 → 10, IQ10 → 28) |
+| Stun | `60 + MA × 12` frames (~1s – 3s) |
+| Miss condition | If target moves > `(radius × 2.5 + 30)` px from cast point during windup → miss |
+| Telegraph | Pulsing dashed ring + crosshair on target throughout windup (grows brighter near strike) |
+
+---
+
+## 16. Projectile System
 
 ### Arrows (🏹 Bow)
 
 | Property | Value |
 |----------|-------|
-| Speed | 7.5 + weapon speed bonus |
-| Radius | 5 px |
+| Speed | 7.5 + weapon speed bonus px/frame |
+| Visual radius | Scales with STR (higher STR = larger arrows) |
 | Wall behavior | Disappears on wall contact |
 | Deflectable | Yes — weapon tip contact redirects + transfers ownership |
+| Starting count | = SPD stat (not fixed 1) |
 | Burst | `arrowCount` arrows per cycle, 4-frame delay between |
+| Immunity | 8 frames projectile immunity on hit |
 
 ### Shurikens (⭐)
 
 | Property | Value |
 |----------|-------|
-| Speed | 3 units/frame |
+| Speed | 3 px/frame |
 | Radius | 8 px |
 | Wall bounces | Up to 2 |
 | Deflectable | Yes |
 | Burst | `shurikenCount` per cycle, 4-frame delay between |
+| Immunity | 8 frames projectile immunity on hit |
 
-**Projectile deflection:** Weapon tip within range → deflected, ownership transfers to deflecting Radoser. 5 spark particles spawned.
+**Projectile deflection:** Weapon tip within range → deflected, ownership transfers. 5 spark particles spawned.
 
 ---
 
-## 16. Scaling System (Power Growth)
+## 17. Scaling System (Power Growth)
 
 Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers scaling.
 
@@ -536,19 +626,19 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 
 ---
 
-## 17. Match Phases
+## 18. Match Phases
 
 | Phase | Time | Effect |
 |-------|------|--------|
 | Normal | 0 – 60 s | Standard play |
-| Speed Floor | 60 – 80 s | Every 10 s: minimum speed increases (fighters can't slow down) |
+| Speed Floor | 60 – 80 s | Every 10 s: minimum speed increases |
 | Rage Mode | 80 s+ | Damage ×1.5, knockback ×1.5, attack cooldowns −30% |
 
 ---
 
-## 18. Visual & Audio Feedback
+## 19. Visual & Audio Feedback
 
-### 18.1 Particle Effects
+### 19.1 Particle Effects
 
 | Event | Count | Color | Lifetime |
 |-------|-------|-------|----------|
@@ -559,16 +649,24 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 | Projectile deflect | 5 | Cyan/white | 20 fr |
 | Death explosion | 30 | Mixed | 35–60 fr |
 
-### 18.2 Floating Text
+### 19.2 Floating Text
 
-- Normal hit: `-[damage]` white
-- Critical hit: `⚡CRIT!` gold + `-[damage]` gold
-- Evade: `EVADE` cyan
-- Skill trigger: skill icon + name
-- Ice Troll: `🧊 -2 SPD` blue
-- Mind Break: `🧿 MIND BREAK -X%` purple
+| Event | Color |
+|-------|-------|
+| Normal hit | `-[damage]` white |
+| Critical hit | `⚡CRIT!` gold + `-[damage]` gold |
+| Evade | `EVADE` cyan |
+| Smite windup | "✨ SMITE!" yellow |
+| Smite hit | `⚡ -[damage]` yellow |
+| Smite miss | `✨ miss!` grey |
+| Limit Break | `⚡ LIMIT BREAK!` gold |
+| Limit Break stack | `⚡ ×N` gold |
+| Flame Breath | `🔥 FLAME BREATH!` orange |
+| Net trap | `🕸️ TRAPPED!` gold |
+| Ice Troll | `🧊 -2 SPD` blue |
+| Mind Break | `🧿 MIND BREAK -X%` purple |
 
-### 18.3 Sound Effects
+### 19.3 Sound Effects
 
 | Event | Description |
 |-------|-------------|
@@ -581,15 +679,17 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 
 ---
 
-## 19. UI & Screens
+## 20. UI & Screens
 
 ### Main Tabs
 
 | Tab / Screen | Content |
 |---|---|
-| **Radosers** | Full roster list; create / delete Radosers |
-| **Battle** | Quick Match setup (select fighters + arena → fight) |
-| **Showcase** | Rotating preview of roster Radosers (random start, 7s interval) |
+| **Showcase** | Rotating preview of roster Radosers (7s interval, canvas animation) |
+| **Radosers** | Full roster list; search (smart query syntax); filter by race/weapon; create / delete / export / import Radosers |
+| **Battle** | Quick Match · Tournament bracket · PvE Boss Raid |
+| **Wiki** | In-game reference: Stats · Combat · Races · Weapons · Race Skills · Skills |
+| **Changelogs** | Patch history (collapsible) |
 
 ### In-Match Controls
 
@@ -605,24 +705,24 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 
 - Live panel shows last 8 entries during battle
 - Full history accessible via modal
-- Logs: hits, crits, evades, parries, projectile hits, skill triggers, deaths
+- Logs: hits, crits, evades, parries, projectile hits, skill triggers, deaths, race skills
 - Format: `MM:SS AttackerName → DefenderName [event] [HP left: X]`
 
 ---
 
-## 20. Technical Reference
+## 21. Technical Reference
 
 ### Core Constants
 
 | Constant | Value |
 |----------|-------|
-| `CW / CH` | 800 / 800 px |
+| `CW / CH` | 1000 / 1000 px |
 | `BALL_R` | 24 px |
 | `BASE_HP` | 100 |
 | `WALL_BOUNCE` | 1.0 |
 | Friction | 0.99985 / frame |
 | Elastic Coeff (e) | 1.85 |
-| Gravity | 0.15 vy/frame |
+| Gravity | 0.15 vy/frame (optional) |
 | Wall Boost | ×1.1, decay 0.9747/frame |
 | Frame Rate | 60 fps (requestAnimationFrame) |
 
@@ -630,53 +730,61 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 
 ```
 AutoRPNG battle/
-├── index.html         — DOM structure, tabs, modals, HUD
-├── style.css          — All styling
-├── audio.js           — Web Audio API tone helpers
-├── constants.js       — BALL_R, WALL_BOUNCE, etc.
-├── weapons.js         — WEAPON_DEFS array, weapon hit logic
-├── projectile.js      — Arrow & shuriken classes
-├── particles.js       — Particle system
-├── arena.js           — Arena configs & rendering
-├── skills.js          — SKILL_DEFS, skill hooks (pre/in/post combat)
-├── ball.js            — Ball class: stats, physics, rendering, race decoration
-├── collision.js       — Ball-to-ball & wall collision
-├── state.js           — Global match state object
-├── game-loop.js       — step() main loop, phase management
-├── setup.js           — initGame(), match setup
-├── result.js          — Result screen rendering
-├── tournament.js      — Tournament bracket logic
-├── ui.js              — HUD, battle log, in-match UI
-├── chargen-data.js    — CG_RACES, CG_SUBRACES, CG_STAT_WEIGHTS, CG_WEAPONS, SKILL_DEFS data
-├── spin-wheel.js      — SpinWheel class (canvas wheel animation)
-├── chargen.js         — Chargen flow: renderCgStep, cgRenderSpin, applySubraceEffects
-├── roster.js          — Roster display, localStorage, hero showcase
-└── asset-editor.js    — Race shape asset overrides
+├── index.html           — DOM: tabs, modals, HUD, wiki, changelog
+├── style.css            — All styling (dark theme + Mirage variant)
+├── audio.js             — Web Audio API tone helpers
+├── constants.js         — CW/CH, BALL_R, ARENAS, BALL_COLORS, generateRadoserColor()
+├── weapons.js           — WEAPON_DEFS array, getHitPoints(), _checkWeaponHit()
+├── projectile.js        — Arrow & Shuriken classes, resolveProjectiles()
+├── particles.js         — Particle system (spawnParticle, spawnSparks, spawnDamageNumber)
+├── arena.js             — Arena rendering, clampToBall() wall bounce
+├── skills.js            — SKILL_DEFS, RACE_SKILL_DEFS, all skill hooks, race skill logic
+├── ball.js              — Ball class: constructor, update(), draw(), takeDamage()
+├── collision.js         — Ball-to-ball elastic collision, projectile collision
+├── state.js             — Global match state object (players, projectiles, rstate, etc.)
+├── game-loop.js         — step() main loop: physics, combat, particles, phase management
+├── setup.js             — initGame(), match setup, fighter construction
+├── result.js            — Result screen rendering, match stats
+├── tournament.js        — Tournament bracket logic, BO1/BO3/BO5
+├── ui.js                — HUD, battle log, in-match controls, arena builder (AB_PARAMS)
+├── chargen-data.js      — CG_RACES, CG_SUBRACES, CG_STAT_WEIGHTS, CG_WEAPONS, SKILL_DEFS
+├── spin-wheel.js        — SpinWheel class (canvas wheel animation)
+├── chargen.js           — Chargen flow, Quick Create, Debug Radoser
+├── roster.js            — renderRoster(), search/filter, localStorage, hero showcase
+├── pve.js               — PvE boss raid mode
+├── boss.js              — Boss base class and shared logic
+├── boss-krag.js / boss-vael.js / boss-ignar.js  — Individual boss implementations
+├── boss-molthrex.js / boss-syvara.js / boss-grakk.js / boss-maddox.js
+├── boss-moves.js / boss-*-moves.js — Boss move sets
+├── maps.js              — PvE map definitions
+├── asset-editor.js      — Race shape asset editor (_raceAssetOverrides)
+└── game.js              — Legacy backup (not loaded)
 ```
 
 ### Key Code Sections
 
 | Section | File | Description |
 |---------|------|-------------|
-| `WEAPON_DEFS` | `weapons.js` | Array of 8 weapon config objects |
-| `ARENAS` | `arena.js` | Object map of 5 arena configs |
-| `CG_RACES` | `chargen-data.js` | 13-race chargen config |
+| `WEAPON_DEFS` | `weapons.js` | 8 weapon config objects (draw, getHitPoints, onHit) |
+| `ARENAS` | `constants.js` | 5 preset arena configs |
+| `CG_RACES` | `chargen-data.js` | 13-race chargen config with weights |
 | `CG_SUBRACES` | `chargen-data.js` | Subrace tables per race |
-| `CG_STAT_WEIGHTS` | `chargen-data.js` | Per-race probability weights for each stat |
-| `SKILL_DEFS` | `skills.js` | All 25 skill definitions |
-| `skillOnPreCombat()` | `skills.js` | Pre-combat skill triggers (incl. Ice Troll, Mind Break) |
-| `skillOnHit()` | `skills.js` | On-hit skill triggers |
+| `CG_STAT_WEIGHTS` | `chargen-data.js` | Per-race probability weights for each stat (1–10) |
+| `SKILL_DEFS` | `chargen-data.js` + `skills.js` | All 25 skill definitions |
+| `RACE_SKILL_DEFS` | `skills.js` | 5 race skill definitions |
+| `initRaceSkillState()` | `skills.js` | Initializes rs_* properties per race on ball construction |
+| `updateRaceSkills()` | `skills.js` | Per-frame race skill logic (Dragon, Human, Primordial, Angel) |
+| `updateRaceSkillProjectiles()` | `skills.js` | Troll net + Smite bolt tick updates |
 | `class Ball` | `ball.js` | Radoser unit: stats, physics, weapon, rendering |
-| `drawRaceDecoration()` | `ball.js` | Race-specific visual (cosmetic only) |
-| `clampToBall()` | `collision.js` | Wall collision & bounce per arena |
+| `takeDamage()` | `ball.js` | Damage application with separate melee/proj immunity |
+| `clampToBall()` | `collision.js` | Wall collision per arena shape |
 | `collide()` | `collision.js` | Ball-to-ball elastic collision |
-| `_checkWeaponHit()` | `weapons.js` | Melee weapon hit detection & damage |
-| `step()` | `game-loop.js` | Main game loop: physics, combat, particles |
-| `cgRenderSpin()` | `chargen.js` | Spin wheel UI (Spin→Next button morph) |
-| `applySubraceEffects()` | `chargen.js` | Inline subrace stat application during chargen |
-| `renderRoster()` | `roster.js` | Roster tab UI builder |
-| `buildHUD()` | `ui.js` | In-battle HP bar generator |
+| `_checkWeaponHit()` | `weapons.js` | Melee weapon hit detection using getHitPoints() |
+| `step()` | `game-loop.js` | Main game loop |
+| `generateRadoserColor()` | `constants.js` | Golden ratio hue distribution for unique colors |
+| `renderRoster()` | `roster.js` | Roster grid with smart search + filter |
+| `parseRosterQuery()` | `roster.js` | Smart search parser (race=, str>, weapon=, etc.) |
 
 ---
 
-*AutoRPNG Battle — GDD v3.0*
+*AutoRPNG Battle (TORACO) — GDD v4.0*

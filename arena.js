@@ -53,6 +53,33 @@ function checkArenaWall(x, y, r, arena) {
     if (hdist < arena.holeR + r && hdist > 0) {
       return { nx: hdx/hdist, ny: hdy/hdist };
     }
+  } else if (arena.type === 'hole_sq' || arena.type === 'hole_re') {
+    if (x - r < arena.x) return { nx: -1, ny: 0 };
+    if (x + r > arena.x + arena.w) return { nx: 1, ny: 0 };
+    if (y - r < arena.y) return { nx: 0, ny: -1 };
+    if (y + r > arena.y + arena.h) return { nx: 0, ny: 1 };
+    for (const h of (arena.holes || [])) {
+      if (h.shape === 'circle') {
+        const hdx = x - h.cx, hdy = y - h.cy, hd = Math.sqrt(hdx*hdx + hdy*hdy);
+        if (hd < h.r + r && hd > 0) return { nx: hdx/hd, ny: hdy/hd };
+      } else if (h.shape === 'square') {
+        const hx1 = h.x - r, hy1 = h.y - r, hx2 = h.x + h.w + r, hy2 = h.y + h.h + r;
+        if (x > hx1 && x < hx2 && y > hy1 && y < hy2) {
+          const dL = x-hx1, dR = hx2-x, dT = y-hy1, dB = hy2-y, m = Math.min(dL,dR,dT,dB);
+          if (m===dL) return {nx:-1,ny:0}; if (m===dR) return {nx:1,ny:0};
+          if (m===dT) return {nx:0,ny:-1}; return {nx:0,ny:1};
+        }
+      }
+    }
+  } else if (arena.type === 'hole_ci') {
+    const dx = x - arena.cx, dy = y - arena.cy, dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist + r > arena.r && dist > 0) { const n = 1/dist; return { nx: dx*n, ny: dy*n }; }
+    for (const h of (arena.holes || [])) {
+      if (h.shape === 'circle') {
+        const hdx = x - h.cx, hdy = y - h.cy, hd = Math.sqrt(hdx*hdx + hdy*hdy);
+        if (hd < h.r + r && hd > 0) return { nx: hdx/hd, ny: hdy/hd };
+      }
+    }
   }
   return null;
 }
@@ -115,6 +142,54 @@ function clampToBall(ball, arena) {
       if (dot < 0) {
         ball.vx -= dot * hnx * (1 + WALL_BOUNCE);
         ball.vy -= dot * hny * (1 + WALL_BOUNCE);
+      }
+    }
+  } else if (arena.type === 'hole_sq' || arena.type === 'hole_re') {
+    if (ball.x - r < arena.x)           { ball.x = arena.x + r;           ball.vx =  Math.abs(ball.vx) * WALL_BOUNCE; }
+    if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; }
+    if (ball.y - r < arena.y)           { ball.y = arena.y + r;           ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; }
+    if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; }
+    for (const h of (arena.holes || [])) {
+      if (h.shape === 'circle') {
+        const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
+        const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + r;
+        if (hd < minD && hd > 0) {
+          const hn = 1/hd;
+          ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
+          const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
+          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); }
+        }
+      } else if (h.shape === 'square') {
+        const hx1 = h.x - r, hy1 = h.y - r, hx2 = h.x + h.w + r, hy2 = h.y + h.h + r;
+        if (ball.x > hx1 && ball.x < hx2 && ball.y > hy1 && ball.y < hy2) {
+          const dL = ball.x-hx1, dR = hx2-ball.x, dT = ball.y-hy1, dB = hy2-ball.y;
+          const m = Math.min(dL, dR, dT, dB);
+          if (m===dL) { ball.x=hx1; ball.vx=-Math.abs(ball.vx)*WALL_BOUNCE; }
+          else if (m===dR) { ball.x=hx2; ball.vx= Math.abs(ball.vx)*WALL_BOUNCE; }
+          else if (m===dT) { ball.y=hy1; ball.vy=-Math.abs(ball.vy)*WALL_BOUNCE; }
+          else             { ball.y=hy2; ball.vy= Math.abs(ball.vy)*WALL_BOUNCE; }
+        }
+      }
+    }
+  } else if (arena.type === 'hole_ci') {
+    const dx = ball.x - arena.cx, dy = ball.y - arena.cy;
+    const dist = Math.sqrt(dx*dx + dy*dy), maxDist = arena.r - r;
+    if (dist > maxDist && dist > 0) {
+      const nx = dx/dist, ny = dy/dist;
+      ball.x = arena.cx + nx*maxDist; ball.y = arena.cy + ny*maxDist;
+      const dot = ball.vx*nx + ball.vy*ny;
+      if (dot > 0) { ball.vx -= dot*nx*(1+WALL_BOUNCE); ball.vy -= dot*ny*(1+WALL_BOUNCE); }
+    }
+    for (const h of (arena.holes || [])) {
+      if (h.shape === 'circle') {
+        const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
+        const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + r;
+        if (hd < minD && hd > 0) {
+          const hn = 1/hd;
+          ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
+          const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
+          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); }
+        }
       }
     }
   }
@@ -647,6 +722,90 @@ function drawArena(ctx, arena) {
       ctx.beginPath(); ctx.moveTo(arena.x, gy); ctx.lineTo(arena.x+arena.w, gy); ctx.stroke();
     }
     ctx.restore();
+  } else if (arena.type === 'hole_sq' || arena.type === 'hole_re' || arena.type === 'hole_ci') {
+    _drawHoleArena(ctx, arena);
+  }
+  ctx.restore();
+}
+
+function _drawHoleArena(ctx, arena) {
+  const isCircOuter = arena.type === 'hole_ci';
+  const isRect      = arena.type === 'hole_re';
+
+  // Fill outer-shape minus holes (even-odd rule)
+  ctx.fillStyle = '#0e0e22';
+  ctx.beginPath();
+  if (isCircOuter) {
+    ctx.arc(arena.cx, arena.cy, arena.r, 0, Math.PI * 2);
+  } else {
+    ctx.rect(arena.x, arena.y, arena.w, arena.h);
+  }
+  for (const h of (arena.holes || [])) {
+    if (h.shape === 'circle') {
+      ctx.arc(h.cx, h.cy, h.r, 0, Math.PI * 2, true);
+    } else if (h.shape === 'square') {
+      ctx.rect(h.x, h.y, h.w, h.h);
+    }
+  }
+  ctx.fill('evenodd');
+
+  // Outer border
+  ctx.strokeStyle = '#2a2a4a';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  if (isCircOuter) {
+    ctx.arc(arena.cx, arena.cy, arena.r, 0, Math.PI * 2);
+  } else {
+    ctx.roundRect(arena.x, arena.y, arena.w, arena.h, isRect ? 4 : 8);
+  }
+  ctx.stroke();
+
+  // Hole borders — purple glow
+  ctx.shadowColor = '#8844ff';
+  ctx.shadowBlur  = 12;
+  ctx.strokeStyle = '#5a2a7a';
+  ctx.lineWidth   = 3;
+  for (const h of (arena.holes || [])) {
+    ctx.beginPath();
+    if (h.shape === 'circle')      ctx.arc(h.cx, h.cy, h.r, 0, Math.PI * 2);
+    else if (h.shape === 'square') ctx.rect(h.x, h.y, h.w, h.h);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+
+  // Grid lines, clipped to arena-minus-holes
+  ctx.save();
+  ctx.beginPath();
+  if (isCircOuter) {
+    ctx.arc(arena.cx, arena.cy, arena.r, 0, Math.PI * 2);
+  } else {
+    ctx.rect(arena.x, arena.y, arena.w, arena.h);
+  }
+  for (const h of (arena.holes || [])) {
+    if (h.shape === 'circle')      ctx.arc(h.cx, h.cy, h.r, 0, Math.PI * 2, true);
+    else if (h.shape === 'square') ctx.rect(h.x, h.y, h.w, h.h);
+  }
+  ctx.clip('evenodd');
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth   = 1;
+  if (isCircOuter) {
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6;
+      for (let d = 50; d < arena.r; d += 50) {
+        ctx.beginPath();
+        ctx.arc(arena.cx + Math.cos(a)*d, arena.cy + Math.sin(a)*d, 2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  } else {
+    for (let gx = arena.x + 50; gx < arena.x + arena.w; gx += 50) {
+      ctx.beginPath(); ctx.moveTo(gx, arena.y); ctx.lineTo(gx, arena.y + arena.h); ctx.stroke();
+    }
+    for (let gy = arena.y + 50; gy < arena.y + arena.h; gy += 50) {
+      ctx.beginPath(); ctx.moveTo(arena.x, gy); ctx.lineTo(arena.x + arena.w, gy); ctx.stroke();
+    }
   }
   ctx.restore();
 }

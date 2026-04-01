@@ -293,6 +293,7 @@ document.querySelectorAll('[data-bo]').forEach(btn => {
 
 // Tournament start
 document.getElementById('tStartBtn').addEventListener('click', () => {
+  clearTournamentSave(); // clear any previous save before starting fresh
   const roster   = JSON.parse(localStorage.getItem('cgRoster') ?? '[]');
   const t        = state.tournament ?? {};
   const size     = t.size ?? 16;
@@ -363,7 +364,76 @@ document.getElementById('bracketMenuBtn').addEventListener('click', () => {
   state.bo3 = null;
   showScreen('menu');
   buildFightersPanel();
+  _updateTournamentResumeUI(); // show resume button if save exists
 });
+
+// Bracket phase navigation
+document.getElementById('prevPhaseBtn').addEventListener('click', () => {
+  if (state.tournament2v2 && state.matchMode === '2v2') {
+    const t = state.tournament2v2;
+    if (t && t.viewRound > 0) { t.viewRound--; renderBracket2v2(); }
+  } else {
+    const t = state.tournament;
+    if (t && t.viewRound > 0) { t.viewRound--; renderBracket(); }
+  }
+});
+document.getElementById('nextPhaseBtn').addEventListener('click', () => {
+  if (state.tournament2v2 && state.matchMode === '2v2') {
+    const t = state.tournament2v2;
+    if (!t) return;
+    const round = t.rounds[t.viewRound ?? 0];
+    if (round && round.every(m => m.winner !== null) && t.viewRound < t.rounds.length - 1) {
+      t.viewRound = (t.viewRound ?? 0) + 1;
+      renderBracket2v2();
+    }
+  } else {
+    const t = state.tournament;
+    if (!t) return;
+    const round = t.rounds[t.viewRound ?? 0];
+    if (round && round.every(m => m.winner !== null) && t.viewRound < t.rounds.length - 1) {
+      t.viewRound = (t.viewRound ?? 0) + 1;
+      renderBracket();
+    }
+  }
+});
+
+// ── Tournament Resume UI ──────────────────────────────────────────
+function _updateTournamentResumeUI() {
+  const wrap = document.getElementById('tournament-resume-wrap');
+  const info = document.getElementById('tournament-resume-info');
+  if (!wrap || !info) return;
+
+  const save = (typeof getTournamentSaveInfo === 'function') ? getTournamentSaveInfo() : null;
+  if (!save || save.completed) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const date = new Date(save.savedAt);
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const boLabel = `BO${save.bo}`;
+  const modeLabel = save.mode === '2v2' ? '2v2' : '1v1';
+  info.textContent = `${save.size}-player ${modeLabel} ${boLabel} · ${save.doneMatches}/${save.totalMatches} matches done · saved ${dateStr} ${timeStr}`;
+  wrap.style.display = 'block';
+}
+
+document.getElementById('tournamentResumeBtn').addEventListener('click', () => {
+  if (typeof resumeTournament !== 'function') return;
+  const ok = resumeTournament();
+  if (!ok) { alert('No saved tournament found.'); return; }
+
+  _updateTournamentResumeUI();
+  if (state.tournament2v2 && state.matchMode === '2v2') {
+    renderBracket2v2();
+  } else {
+    renderBracket();
+  }
+  showScreen('bracket');
+});
+
+// Show resume button on page load if save exists
+_updateTournamentResumeUI();
 
 // ============================================================
 // ARENA BUILDER

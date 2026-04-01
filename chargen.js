@@ -492,3 +492,115 @@ function cgRenderDone(box) {
   if (quickCreateMode) setTimeout(saveChar, 800);
 }
 
+
+// ============================================================
+// DEBUG RADOSER — instant creation without spin wheels
+// ============================================================
+const DBG_STATS = [
+  { key:'strength',    label:'STR' },
+  { key:'speed',       label:'SPD' },
+  { key:'durability',  label:'DUR' },
+  { key:'iq',          label:'IQ'  },
+  { key:'battleiq',    label:'BIQ' },
+  { key:'ma',          label:'MA'  },
+];
+
+function openDebugRadoser() {
+  const modal = document.getElementById('debug-radoser-modal');
+  if (!modal) return;
+
+  // Populate race dropdown
+  const raceEl = document.getElementById('dbg-race');
+  raceEl.innerHTML = CG_RACES.map(r => `<option value="${r.id}">${r.emoji} ${r.name}</option>`).join('');
+  dbgUpdateSubrace();
+
+  // Populate stat inputs
+  const statsEl = document.getElementById('dbg-stats');
+  statsEl.innerHTML = DBG_STATS.map(s => `
+    <div style="display:flex;flex-direction:column;gap:3px;">
+      <label style="font-size:11px;color:#888;text-align:center;">${s.label}</label>
+      <input id="dbg-stat-${s.key}" type="number" min="1" max="10" value="5"
+        style="background:#1a1030;border:1px solid #444;border-radius:6px;color:#fff;
+               padding:5px;font-size:14px;text-align:center;width:100%;">
+    </div>`).join('');
+
+  // Populate weapon dropdown
+  const weaponEl = document.getElementById('dbg-weapon');
+  const allWeapons = [...CG_WEAPONS_ARMED, { id:'fists', label:'✊ Fists (Unarmed)' }];
+  weaponEl.innerHTML = allWeapons.map(w => `<option value="${w.id}">${w.label}</option>`).join('');
+
+  // Populate skills checkboxes
+  const skillsEl = document.getElementById('dbg-skills');
+  skillsEl.innerHTML = SKILL_DEFS.map(s => `
+    <label style="display:flex;align-items:center;gap:5px;background:#1a1030;border:1px solid #333;
+                  border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;user-select:none;">
+      <input type="checkbox" value="${s.id}" style="accent-color:#9933ff;" onchange="dbgLimitSkills()">
+      ${s.icon} ${s.name}
+    </label>`).join('');
+
+  document.getElementById('dbg-name').value = getRandomGameName();
+  modal.style.display = 'block';
+}
+
+function closeDebugRadoser() {
+  document.getElementById('debug-radoser-modal').style.display = 'none';
+}
+
+function dbgUpdateSubrace() {
+  const raceId   = document.getElementById('dbg-race').value;
+  const race     = CG_RACES.find(r => r.id === raceId);
+  const subEl    = document.getElementById('dbg-subrace');
+  const subraces = race?.subKey ? (CG_SUBRACES[race.subKey] || []) : [];
+  subEl.innerHTML = subraces.length === 0
+    ? '<option value="">— None —</option>'
+    : '<option value="">— Random —</option>' + subraces.map(sr => `<option value="${sr.id}">${sr.label}</option>`).join('');
+}
+
+function dbgLimitSkills() {
+  const checkboxes = [...document.querySelectorAll('#dbg-skills input[type=checkbox]')];
+  const checked = checkboxes.filter(c => c.checked);
+  if (checked.length > 2) checked[checked.length - 1].checked = false;
+}
+
+function debugSaveRadoser() {
+  const name   = document.getElementById('dbg-name').value.trim() || getRandomGameName();
+  const raceId = document.getElementById('dbg-race').value;
+  const race   = CG_RACES.find(r => r.id === raceId);
+  if (!race) return;
+
+  // Subrace
+  const subVal   = document.getElementById('dbg-subrace').value;
+  const subraces = race.subKey ? (CG_SUBRACES[race.subKey] || []) : [];
+  let subrace    = null;
+  if (subVal) {
+    subrace = subraces.find(sr => sr.id === subVal) || null;
+  } else if (subraces.length > 0) {
+    subrace = subraces[Math.floor(Math.random() * subraces.length)];
+  }
+
+  // Stats
+  const stats = {};
+  DBG_STATS.forEach(s => {
+    const val = parseInt(document.getElementById(`dbg-stat-${s.key}`)?.value) || 5;
+    stats[s.key] = Math.min(10, Math.max(1, val));
+  });
+
+  // Weapon + Skills
+  const weapon = document.getElementById('dbg-weapon').value || 'fists';
+  const skills = [...document.querySelectorAll('#dbg-skills input[type=checkbox]:checked')]
+    .map(c => c.value).slice(0, 2);
+
+  const char = {
+    id: Date.now() + Math.random(),
+    name, race: race.id, raceName: race.name, raceEmoji: race.emoji,
+    subrace, stats, weapon,
+    color: generateRadoserColor(cgRoster.length),
+    skills,
+  };
+  cgRoster.push(char);
+  localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
+  renderRoster(); renderHeroShowcase(); buildFightersPanel();
+  closeDebugRadoser();
+}
+
+document.getElementById('debugRadoserBtn')?.addEventListener('click', openDebugRadoser);

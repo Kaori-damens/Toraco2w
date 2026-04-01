@@ -221,13 +221,24 @@ function skillOnHit(attacker, defender, dmg) {
     flashSkillHUD(attacker, SKILL_MAP['vampiric']);
   }
 
-  // ── Race: Orc Blood Frenzy stack ──────────────────────────────
-  if (attacker.charRace === 'orc' && attacker.rs_active) {
+  // ── Race: Human Limit Break stack + burst knockback ─────────────
+  if (attacker.charRace === 'human' && attacker.rs_active) {
     attacker.rs_stacks = (attacker.rs_stacks || 0) + 1;
-    if (attacker.rs_stacks % 3 === 0 || attacker.rs_stacks === 1) {
+    // Show counter on first hit, then every 2 hits after
+    if (attacker.rs_stacks <= 2 || attacker.rs_stacks % 2 === 0) {
       spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 14,
-        `🗡️ ×${attacker.rs_stacks}`, '#ff4444');
+        `⚡ ×${attacker.rs_stacks}`, '#ffdd00');
     }
+    // Burst knockback: launch enemy hard, then attacker backs off
+    if (defender && defender.alive) {
+      const dx = defender.x - attacker.x, dy = defender.y - attacker.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const force = 11;   // strong punch-through knockback
+      defender.vx += (dx / dist) * force;
+      defender.vy += (dy / dist) * force;
+      spawnSparks(defender.x, defender.y, 10);
+    }
+    attacker.rs_lbBackoffTimer = 30;  // ~0.5s backoff before next charge
   }
 
   // ── Race: Primordial Void Grip ────────────────────────────────
@@ -427,8 +438,8 @@ const RACE_SKILL_DEFS = {
                 desc:'Hurls a net at the nearest foe. Cooldown 6–10s by SPD (miss = 70% cooldown). Trap duration 2–3.5s scales with BIQ.' },
   primordial: { id:'race_void_grip',    name:'Void Grip',    icon:'🌌',
                 desc:'Melee weapons that strike this Primordial may get stuck in the void. Chance scales with BIQ, duration with MA.' },
-  orc:        { id:'race_blood_frenzy', name:'Blood Frenzy', icon:'🗡️',
-                desc:'Activates every 10s. Each hit during frenzy stacks +10% damage. Resets on expiry.' },
+  human:      { id:'race_limit_break',  name:'Limit Break',  icon:'⚡',
+                desc:'Triggers once when HP drops below 80%. Lasts until end of match. Each hit stacks +15% damage. Charge mode — no retreat.' },
   angel:      { id:'race_smite',        name:'Smite',        icon:'✨',
                 desc:'Calls divine lightning on the nearest foe every 15s. Deals damage + stuns. Scales with IQ & MA.' },
 };
@@ -448,12 +459,16 @@ function initRaceSkillState(ball) {
 
   if (race === 'dragon') {
     ball.rs_maxCooldown = Math.max(600, 1800 - spd * 40);
-    ball.rs_cooldown    = 0;                        // start ready
+    ball.rs_cooldown    = 0;                              // start ready
     ball.rs_active      = false;
     ball.rs_timer       = 0;
-    ball.rs_duration    = 120 + ma * 12;            // ~3s at MA5
+    ball.rs_duration    = Math.round((120 + ma * 12) * 1.12); // +12% duration
     ball.rs_dmgPerFrame = 0.05 + str * 0.02;
-    ball.rs_halfCone    = Math.PI / 6 + ma * 0.012; // wider with MA
+    ball.rs_halfCone    = Math.PI / 6 + ma * 0.012;      // wider with MA
+    // Sweep: amplitude ±35°(MA1) → ±50°(MA10), freq scales with IQ
+    ball.rs_sweepAmp    = (35 + ma * 1.5) * (Math.PI / 180);
+    ball.rs_sweepFreq   = 0.045 + iq * 0.003;            // IQ1→~2.2s/cycle, IQ10→~1.4s/cycle
+    ball.rs_sweepBase   = 0;                              // locked at activation
   }
   if (race === 'troll') {
     // Cooldown: SPD=5→600f(10s), SPD=10→360f(6s) — floor 360f
@@ -467,18 +482,18 @@ function initRaceSkillState(ball) {
     ball.rs_stuckDur    = 60 + ma * 15;
     ball.rs_maxCooldown = 0; // passive — no cooldown bar
   }
-  if (race === 'orc') {
-    ball.rs_maxCooldown = Math.max(300, 600 - spd * 15);
-    ball.rs_cooldown    = 0;
-    ball.rs_active      = false;
-    ball.rs_timer       = 0;
-    ball.rs_frenzyDur   = 180 + str * 18;           // ~5s at STR5
-    ball.rs_stacks      = 0;
+  if (race === 'human') {
+    // Threshold trigger: fires once when HP < 20%, lasts until match end
+    ball.rs_active         = false;
+    ball.rs_triggered      = false;  // one-time flag — can never re-trigger
+    ball.rs_stacks         = 0;
+    ball.rs_maxCooldown    = 0;      // no cooldown bar; HP-threshold based
+    ball.rs_lbBackoffTimer = 0;      // frames remaining in post-hit backoff phase
   }
   if (race === 'angel') {
-    ball.rs_maxCooldown = Math.max(420, 900 - spd * 40);
+    ball.rs_maxCooldown = Math.max(600, 900 - spd * 40);
     ball.rs_cooldown    = 0;
-    ball.rs_smiteDmg    = 15 + iq * 3;
+    ball.rs_smiteDmg    = 8 + iq * 2;
     ball.rs_smiteStun   = 60 + ma * 12;
   }
 }
@@ -557,14 +572,7 @@ function updateRaceSkills(ball, players, rstate) {
   // Tick race-specific cooldown
   if (ball.rs_cooldown > 0) ball.rs_cooldown--;
 
-  // Orc frenzy timer
-  if (race === 'orc' && ball.rs_active) {
-    ball.rs_timer--;
-    if (ball.rs_timer <= 0) {
-      ball.rs_active = false; ball.rs_stacks = 0;
-      ball.rs_cooldown = ball.rs_maxCooldown;
-    }
-  }
+  // Human Limit Break trigger is in takeDamage() (ball.js) — fires mid-frame when HP crosses 80%
 
   const enemies = players.filter(p => p !== ball && p.alive);
   if (!enemies.length) return;
@@ -576,7 +584,9 @@ function updateRaceSkills(ball, players, rstate) {
     if (ball.rs_active) {
       ball.rs_timer--;
       ball.rs_flameTick = (ball.rs_flameTick || 0) + 1;
-      const coneAng = ball.weapon.angle;
+      // Sweep free: oscillate around locked mouth direction
+      const coneAng = ball.rs_sweepBase
+        + Math.sin(ball.rs_flameTick * ball.rs_sweepFreq) * ball.rs_sweepAmp;
       const coneLen = 80 + ball.rs_duration * 0.25;
 
       // Deal damage every 20 frames (≈0.33s per tick), using separate flameImmunity
@@ -619,18 +629,51 @@ function updateRaceSkills(ball, players, rstate) {
       ball.rs_active    = true;
       ball.rs_timer     = ball.rs_duration;
       ball.rs_flameTick = 0;
+      ball.rs_sweepBase = ball.weapon.angle; // lock facing direction at activation
       spawnDamageNumber(ball.x, ball.y - ball.radius - 22, '🔥 FLAME BREATH!', '#ff6600');
       addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🔥 Flame Breath!' });
     }
   }
 
-  // ── ORC: Blood Frenzy (auto-activate) ──────────────────────
-  if (race === 'orc' && !ball.rs_active && ball.rs_cooldown === 0) {
-    ball.rs_active = true;
-    ball.rs_timer  = ball.rs_frenzyDur;
-    ball.rs_stacks = 0;
-    spawnDamageNumber(ball.x, ball.y - ball.radius - 22, '🗡️ BLOOD FRENZY!', '#ff2222');
-    addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🗡️ Blood Frenzy activated!' });
+  // ── HUMAN: Limit Break AI movement (runs every frame while active) ──
+  if (race === 'human' && ball.rs_active && nearest) {
+    const dx   = nearest.x - ball.x;
+    const dy   = nearest.y - ball.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx   = dx / dist;
+    const ny   = dy / dist;
+    const isRanged = ball.weaponDef?.id === 'bow' || ball.weaponDef?.id === 'shuriken';
+
+    if (!isRanged) {
+      // Decrement backoff timer
+      if (ball.rs_lbBackoffTimer > 0) ball.rs_lbBackoffTimer--;
+
+      if (ball.rs_lbBackoffTimer > 0) {
+        // Backoff phase: dash AWAY from enemy after landing a hit
+        ball.vx = -nx * ball.maxSpd * 1.8;
+        ball.vy = -ny * ball.maxSpd * 1.8;
+      } else {
+        // Charge phase: full-speed lunge at enemy
+        ball.vx = nx * ball.maxSpd * 2.5;
+        ball.vy = ny * ball.maxSpd * 2.5;
+      }
+      // Soft-aim: nudge weapon toward enemy in both phases
+      const targetAngle = Math.atan2(dy, dx);
+      let aimDiff = targetAngle - ball.weapon.angle;
+      while (aimDiff >  Math.PI) aimDiff -= Math.PI * 2;
+      while (aimDiff < -Math.PI) aimDiff += Math.PI * 2;
+      ball.weapon.angle += Math.sign(aimDiff) * Math.min(Math.abs(aimDiff), 0.09);
+    } else {
+      // Ranged: kite at ideal 250px, snap aim on target
+      const idealDist = 250, deadZone = 60;
+      const kiteSpd   = ball.maxSpd * 1.2;
+      let targetVx = 0, targetVy = 0;
+      if (dist > idealDist + deadZone)       { targetVx =  nx * kiteSpd; targetVy =  ny * kiteSpd; }
+      else if (dist < idealDist - deadZone)  { targetVx = -nx * kiteSpd; targetVy = -ny * kiteSpd; }
+      ball.vx += (targetVx - ball.vx) * 0.07;
+      ball.vy += (targetVy - ball.vy) * 0.07;
+      ball.weapon.angle = Math.atan2(dy, dx);
+    }
   }
 
   // ── ANGEL: Smite ─────────────────────────────────────────────
@@ -638,7 +681,8 @@ function updateRaceSkills(ball, players, rstate) {
     ball.rs_cooldown = ball.rs_maxCooldown;
     rstate.smiteEffects = rstate.smiteEffects || [];
     rstate.smiteEffects.push({
-      x: nearest.x, y: nearest.y, target: nearest,
+      castX: nearest.x, castY: nearest.y,   // locked cast-time coords (visual origin reference)
+      target: nearest,
       timer: 60, maxTimer: 60,
       dmg: ball.rs_smiteDmg, stunDur: ball.rs_smiteStun,
       caster: ball, hit: false,
@@ -669,9 +713,9 @@ function updateRaceSkillProjectiles(rstate) {
     rstate.trollNets.push({
       x: ball.x, y: ball.y,
       startX: ball.x, startY: ball.y,
-      vx: (dx/dist)*5, vy: (dy/dist)*5,
+      vx: (dx/dist)*7, vy: (dy/dist)*7,
       caster: ball, trapDur: ball.rs_trapDur,
-      life: 120, r: 10, angle: 0,
+      life: 160, r: 10, angle: 0,
     });
     ball.rs_cooldown = ball.rs_maxCooldown;
     addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🕸️ Net thrown!' });
@@ -717,17 +761,30 @@ function updateRaceSkillProjectiles(rstate) {
     if (!s.hit && s.timer <= Math.floor(s.maxTimer * 0.45)) {
       s.hit = true;
       if (s.target.alive) {
-        s.target.hp = Math.max(0, s.target.hp - s.dmg);
-        s.target.stunTimer = s.stunDur;
-        s.target.hitFlash  = 20;
-        s.caster.stats.damageDone += s.dmg;
-        spawnDamageNumber(s.target.x, s.target.y - s.target.radius - 16,
-          `⚡ -${s.dmg.toFixed(0)}`, '#ffffaa');
-        spawnSparks(s.target.x, s.target.y, 14);
-        addBattleLog('race_skill', { attacker: getBallLabel(s.caster), aColor: s.caster.color,
-          text: `✨ Smite hit ${getBallLabel(s.target)} for ${s.dmg.toFixed(0)}!` });
-        if (s.target.hp <= 0 && s.target.alive) {
-          s.target.alive = false; skillOnKill(s.caster, s.target);
+        // Distance check: if target moved more than 2.5× their radius from cast point → miss
+        const ex = s.target.x, ey = s.target.y;
+        const driftDx = ex - s.castX, driftDy = ey - s.castY;
+        const drift = Math.sqrt(driftDx*driftDx + driftDy*driftDy);
+        const missThreshold = s.target.radius * 2.5 + 30;
+        if (drift > missThreshold) {
+          // Bolt fizzles — show miss visual at current target pos
+          spawnDamageNumber(ex, ey - s.target.radius - 16, '✨ miss!', '#aaaaaa');
+          spawnSparks(ex, ey, 5);
+          addBattleLog('race_skill', { attacker: getBallLabel(s.caster), aColor: s.caster.color,
+            text: `✨ Smite missed ${getBallLabel(s.target)} (dodged)` });
+        } else {
+          s.target.hp = Math.max(0, s.target.hp - s.dmg);
+          s.target.stunTimer = s.stunDur;
+          s.target.hitFlash  = 20;
+          s.caster.stats.damageDone += s.dmg;
+          spawnDamageNumber(ex, ey - s.target.radius - 16,
+            `⚡ -${s.dmg.toFixed(0)}`, '#ffffaa');
+          spawnSparks(ex, ey, 14);
+          addBattleLog('race_skill', { attacker: getBallLabel(s.caster), aColor: s.caster.color,
+            text: `✨ Smite hit ${getBallLabel(s.target)} for ${s.dmg.toFixed(0)}!` });
+          if (s.target.hp <= 0 && s.target.alive) {
+            s.target.alive = false; skillOnKill(s.caster, s.target);
+          }
         }
       }
     }
@@ -799,38 +856,82 @@ function drawRaceSkillEffects(ctx, rstate) {
     ctx.restore();
   });
 
-  // Smite lightning bolts
+  // Smite: telegraph warning ring + lightning bolt (tracks target)
   (rstate.smiteEffects || []).forEach(s => {
-    const progress = 1 - s.timer / s.maxTimer;
-    let alpha = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
-    alpha = Math.max(0, Math.min(1, alpha));
-    if (alpha < 0.01) return;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    // Outer glow
-    ctx.shadowColor = '#ffffaa'; ctx.shadowBlur = 24;
-    ctx.strokeStyle = '#ffffee'; ctx.lineWidth = 3 + Math.random()*2;
-    ctx.beginPath();
-    const segs = 8;
-    ctx.moveTo(s.x, 0);
-    for (let k = 1; k < segs; k++) {
-      const frac = k / segs;
-      ctx.lineTo(s.x + (Math.random()-0.5)*30*(1-frac), s.y * frac);
+    const progress  = 1 - s.timer / s.maxTimer;           // 0→1 over lifetime
+    const tx = s.target.alive ? s.target.x : s.castX;    // track live target pos
+    const ty = s.target.alive ? s.target.y : s.castY;
+    const tr = s.target.radius;
+
+    // ── Phase 1: windup telegraph (0%–55%) ─────────────────────
+    // Pulsing warning ring + crosshair on target so player knows bolt is coming
+    if (progress < 0.55) {
+      const windupT = progress / 0.55;                    // 0→1 within windup
+      const pulse   = Math.sin(progress * Math.PI * 8);  // fast pulse, more urgent near strike
+      const ringR   = tr + 10 + pulse * 6;
+      const ringA   = 0.35 + windupT * 0.45;             // grows more opaque toward strike
+
+      ctx.save();
+      // Outer warning ring
+      ctx.globalAlpha = ringA;
+      ctx.shadowColor  = '#ffffaa';
+      ctx.shadowBlur   = 10 + windupT * 14;
+      ctx.strokeStyle  = `hsl(50, 100%, ${55 + windupT * 30}%)`;
+      ctx.lineWidth    = 1.5 + windupT * 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.arc(tx, ty, ringR, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Crosshair lines (converging toward target center)
+      const crossLen = 10 + (1 - windupT) * 14;         // shrinks as strike approaches
+      ctx.lineWidth = 1.2; ctx.shadowBlur = 6;
+      [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach(ang => {
+        const ox = tx + Math.cos(ang) * (ringR + crossLen);
+        const oy = ty + Math.sin(ang) * (ringR + crossLen);
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(tx + Math.cos(ang) * ringR, ty + Math.sin(ang) * ringR);
+        ctx.stroke();
+      });
+      ctx.restore();
     }
-    ctx.lineTo(s.x, s.y);
-    ctx.stroke();
-    // Inner core
-    ctx.globalAlpha = alpha * 0.6;
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.moveTo(s.x, 0); ctx.lineTo(s.x, s.y); ctx.stroke();
-    // Impact circle
-    if (progress > 0.4) {
-      const ir = 28 * (progress - 0.4) / 0.6;
-      ctx.globalAlpha = alpha * 0.25;
-      ctx.fillStyle = '#ffffaa';
-      ctx.beginPath(); ctx.arc(s.x, s.y, ir, 0, Math.PI*2); ctx.fill();
+
+    // ── Phase 2: lightning strike (45%–100%) ───────────────────
+    if (progress >= 0.45) {
+      let alpha = progress < 0.5
+        ? (progress - 0.45) / 0.05        // fast fade-in over 5%
+        : (1 - progress) / 0.5;           // fade-out over remaining 50%
+      alpha = Math.max(0, Math.min(1, alpha));
+      if (alpha < 0.01) return;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.shadowColor = '#ffffaa'; ctx.shadowBlur = 24;
+      ctx.strokeStyle = '#ffffee'; ctx.lineWidth = 3 + Math.random() * 2;
+      ctx.beginPath();
+      const segs = 8;
+      ctx.moveTo(tx, 0);
+      for (let k = 1; k < segs; k++) {
+        const frac = k / segs;
+        ctx.lineTo(tx + (Math.random()-0.5) * 30 * (1 - frac), ty * frac);
+      }
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+
+      // Inner white core
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.moveTo(tx, 0); ctx.lineTo(tx, ty); ctx.stroke();
+
+      // Impact circle
+      if (progress > 0.45) {
+        const ir = 28 * (progress - 0.45) / 0.55;
+        ctx.globalAlpha = alpha * 0.28;
+        ctx.fillStyle = '#ffffaa';
+        ctx.beginPath(); ctx.arc(tx, ty, ir, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
     }
-    ctx.restore();
   });
 }
 
@@ -876,33 +977,59 @@ function drawRaceSkillUI(ctx, ball) {
 
   // Dragon: fire cone + pulsing glow while breathing
   if (race === 'dragon' && ball.rs_active) {
-    const coneAng = ball.weapon.angle;
+    const coneAng = ball.rs_sweepBase
+      + Math.sin((ball.rs_flameTick || 0) * (ball.rs_sweepFreq || 0.06))
+        * (ball.rs_sweepAmp || (40 * Math.PI / 180));
     const coneLen = 80 + ball.rs_duration * 0.25;
     const halfC   = ball.rs_halfCone || (Math.PI / 6);
 
-    // Draw filled cone sector with radial gradient
     ctx.save();
-    const grad = ctx.createRadialGradient(cx, cy, r, cx, cy, coneLen);
-    grad.addColorStop(0,   `rgba(255,200, 60,${0.70 + 0.15*Math.sin(t*0.6)})`);
-    grad.addColorStop(0.4, `rgba(255,100,  0,${0.50 + 0.10*Math.sin(t*0.5)})`);
-    grad.addColorStop(1,   'rgba(180, 30, 0, 0)');
-    ctx.fillStyle = grad;
+
+    // Layer 1: wide outer haze — bleeds past cone edges, kills hard-edge feel
+    const hazeG = ctx.createRadialGradient(cx, cy, r, cx, cy, coneLen * 1.08);
+    hazeG.addColorStop(0,    `rgba(255, 80,  0, ${0.22 + 0.06*Math.sin(t*0.5)})`);
+    hazeG.addColorStop(0.55, 'rgba(200, 40,  0, 0.10)');
+    hazeG.addColorStop(1,    'rgba(100, 10,  0, 0)');
+    ctx.fillStyle = hazeG;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, coneLen, coneAng - halfC, coneAng + halfC);
+    ctx.arc(cx, cy, coneLen * 1.08, coneAng - halfC * 1.65, coneAng + halfC * 1.65);
     ctx.closePath();
     ctx.fill();
 
-    // Bright edge outline of the cone
-    ctx.globalAlpha = 0.4 + 0.2*Math.sin(t*0.7);
-    ctx.strokeStyle = '#ffcc44';
-    ctx.lineWidth = 1.5;
+    // Layer 2: main fire body with organic (sin-perturbed) tip — no straight edges
+    const grad = ctx.createRadialGradient(cx, cy, r, cx, cy, coneLen);
+    grad.addColorStop(0,    `rgba(255,200, 60, ${0.78 + 0.14*Math.sin(t*0.6)})`);
+    grad.addColorStop(0.35, `rgba(255,100,  0, ${0.55 + 0.10*Math.sin(t*0.5)})`);
+    grad.addColorStop(0.72, 'rgba(180,  40,  0, 0.26)');
+    grad.addColorStop(1,    'rgba(100,  10,  0, 0)');
+    ctx.fillStyle = grad;
+    const STEPS = 22;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(coneAng - halfC)*coneLen, cy + Math.sin(coneAng - halfC)*coneLen);
+    for (let si = 0; si <= STEPS; si++) {
+      const ang = (coneAng - halfC) + (si / STEPS) * halfC * 2;
+      const wobble = 1.0
+        + 0.10 * Math.sin(si * 2.3 + t * 0.07)
+        + 0.05 * Math.sin(si * 5.1 + t * 0.12);
+      ctx.lineTo(cx + Math.cos(ang) * coneLen * wobble,
+                 cy + Math.sin(ang) * coneLen * wobble);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Layer 3: bright hot core (narrow, fades quickly — gives depth at mouth)
+    const coreG = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, coneLen * 0.52);
+    coreG.addColorStop(0,   `rgba(255,240,150, ${0.65 + 0.18*Math.sin(t*0.7)})`);
+    coreG.addColorStop(0.5, 'rgba(255,160,  30, 0.28)');
+    coreG.addColorStop(1,   'rgba(255, 60,   0, 0)');
+    ctx.fillStyle = coreG;
+    ctx.beginPath();
     ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(coneAng + halfC)*coneLen, cy + Math.sin(coneAng + halfC)*coneLen);
-    ctx.stroke();
+    ctx.arc(cx, cy, coneLen * 0.52, coneAng - halfC * 0.5, coneAng + halfC * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.restore();
 
     // ── Animated flame particles layer (on top of cone) ──────────
@@ -954,19 +1081,24 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.restore();
   }
 
-  // Orc: red frenzy glow + stack counter
-  if (race === 'orc' && ball.rs_active) {
+  // Human: golden limit break glow + stack counter
+  if (race === 'human' && ball.rs_active) {
+    const pulse = 0.3 + 0.25 * Math.sin(t * 0.65);
     ctx.save();
-    ctx.globalAlpha = 0.25 + 0.2*Math.sin(t*0.55);
-    ctx.shadowColor = '#ff2222'; ctx.shadowBlur = 22;
-    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(cx, cy, r+6, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = '#ffdd00'; ctx.shadowBlur = 28;
+    ctx.strokeStyle = '#ffee44'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
+    // Second outer ring, softer
+    ctx.globalAlpha = pulse * 0.4;
+    ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 11, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
     if (ball.rs_stacks > 0) {
       ctx.save();
-      ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ffee44';
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText(`×${ball.rs_stacks}`, cx, cy - r - 4);
+      ctx.fillText(`⚡×${ball.rs_stacks}`, cx, cy - r - 4);
       ctx.restore();
     }
   }

@@ -5,17 +5,17 @@ function initGame() {
   const arenaConfig = JSON.parse(JSON.stringify(
     (state.arenaId === 'custom' && state.customArena)
       ? state.customArena
-      : (ARENAS[state.arenaId] || ARENAS.square)
+      : (ARENAS[state.arenaId] || ARENAS.med_square)
   ));
   state.arena = arenaConfig;
   const N = state.fighters.length;
 
   // Determine arena center + spread radius
   let cx, cy, spreadR;
-  if (arenaConfig.type === 'circle') {
+  if (arenaConfig.type === 'circle' || arenaConfig.type === 'hole_ci') {
     cx = arenaConfig.cx; cy = arenaConfig.cy;
     spreadR = arenaConfig.r * 0.45;
-  } else if (arenaConfig.type === 'rect') {
+  } else if (arenaConfig.type === 'rect' || arenaConfig.type === 'hole_re') {
     cx = arenaConfig.x + arenaConfig.w / 2;
     cy = arenaConfig.y + arenaConfig.h / 2;
     spreadR = Math.min(arenaConfig.w, arenaConfig.h) * 0.33;
@@ -26,7 +26,7 @@ function initGame() {
     cx = arenaConfig.x + arenaConfig.w / 2;
     cy = arenaConfig.y + arenaConfig.h / 2;
     spreadR = Math.min(arenaConfig.w, arenaConfig.h) * 0.34;
-  } else { // square
+  } else { // square / hole_sq fallthrough
     cx = arenaConfig.x + arenaConfig.w / 2;
     cy = arenaConfig.y + arenaConfig.h / 2;
     spreadR = Math.min(arenaConfig.w, arenaConfig.h) * 0.34;
@@ -93,6 +93,8 @@ function initGame() {
   state.projectiles  = [];
   state.trollNets    = [];
   state.smiteEffects = [];
+  state.trapObjects  = (typeof initTrapObjects === 'function' && arenaConfig.traps)
+    ? initTrapObjects(arenaConfig) : [];
   state.frame = 0;
   state.ended = false;
   state.winner = null;
@@ -120,6 +122,7 @@ function startGame() {
   state.matchMode = state.matchMode ?? '1v1';
   state.teamIds   = state.teamIds ?? [];
   initGame();
+  applyArenaFit(state.arena);
   state.running = true;
   state.paused  = false;
   if (rafId) cancelAnimationFrame(rafId);
@@ -129,4 +132,48 @@ function startGame() {
 function stopGame() {
   state.running = false;
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  resetArenaFit();
+}
+
+// ── Auto-fit canvas viewport to arena bounding box ─────────────────
+const _ARENA_FIT_PAD = 55; // canvas-unit padding around arena
+
+function applyArenaFit(arena) {
+  const clip   = document.getElementById('canvas-clip-wrapper');
+  const canvas = document.getElementById('gameCanvas');
+  if (!arena || !clip || !canvas) return;
+
+  let ax, ay, aw, ah;
+  if (arena.type === 'circle' || arena.type === 'hole_ci') {
+    ax = arena.cx - arena.r;
+    ay = arena.cy - arena.r;
+    aw = arena.r * 2;
+    ah = arena.r * 2;
+  } else {
+    // square, rect, hole_sq, hole_re
+    ax = arena.x; ay = arena.y; aw = arena.w; ah = arena.h;
+  }
+
+  // Add padding, clamp so we never go outside 0-1000
+  ax = Math.max(0, ax - _ARENA_FIT_PAD);
+  ay = Math.max(0, ay - _ARENA_FIT_PAD);
+  const ax2 = Math.min(1000, ax + aw + _ARENA_FIT_PAD * 2);
+  const ay2 = Math.min(1000, ay + ah + _ARENA_FIT_PAD * 2);
+  aw = ax2 - ax;
+  ah = ay2 - ay;
+
+  clip.style.width        = `${aw}px`;
+  clip.style.height       = `${ah}px`;
+  canvas.style.marginLeft = `-${ax}px`;
+  canvas.style.marginTop  = `-${ay}px`;
+}
+
+function resetArenaFit() {
+  const clip   = document.getElementById('canvas-clip-wrapper');
+  const canvas = document.getElementById('gameCanvas');
+  if (!clip || !canvas) return;
+  clip.style.width        = '';
+  clip.style.height       = '';
+  canvas.style.marginLeft = '';
+  canvas.style.marginTop  = '';
 }
