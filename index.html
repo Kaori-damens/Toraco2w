@@ -633,6 +633,19 @@
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">4 Apr 2026</span>
+          <span class="changelog-badge">Patch 45</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🐛 <b>Bug Fix — Dwarf Forge làm đứng game</b>: <code>speedMul</code> bị khai báo trong block <code>if (netTrapped)</code> nhưng dùng bên ngoài để decrement <code>rs_forgeFlash</code> → <code>ReferenceError</code> sau lần forge đầu tiên → game loop dừng. Đã fix bằng cách chuyển <code>speedMul</code> lên function scope.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 Apr 2026</span>
           <span class="changelog-badge">Patch 44</span>
           <span class="changelog-chevron">▼</span>
         </div>

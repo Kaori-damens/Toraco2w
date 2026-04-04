@@ -637,11 +637,11 @@ function _dwarfForge(ball) {
 // Called every frame from game-loop step() for each ball
 function updateRaceSkills(ball, players, rstate) {
   if (!ball.alive) return;
+  const speedMul = (typeof state !== 'undefined' && state.speed > 0) ? state.speed : 1;
 
   // These effects can be applied to ANY ball by other races' skills — must run regardless of own raceSkillDef
   if (ball.netTrapped > 0) {
     // Decrement by state.speed so trap lasts the same real-time regardless of game speed
-    const speedMul = (typeof state !== 'undefined' && state.speed > 0) ? state.speed : 1;
     ball.netTrapped = Math.max(0, ball.netTrapped - speedMul);
     // Cap speed to near-zero (don't multiply-to-zero — ball needs some residual velocity to escape when released)
     const netSpd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
