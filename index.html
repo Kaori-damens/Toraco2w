@@ -270,6 +270,19 @@
         </div>
       </div>
 
+      <!-- Toraco Championship -->
+      <div class="battle-card tournament-battle-card" id="championship-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">🏆</div>
+          <div class="battle-card-title">Toraco Championship</div>
+        </div>
+        <div class="battle-card-desc">128 or 256-player mega tournament. Battle Royale → Last Stand → Double Elimination. BO3 Grand Finals.</div>
+        <button class="t-btn" id="championshipBtn">🏆 Enter Championship</button>
+        <div style="margin-top:8px">
+          <button class="t-btn t-btn-resume" id="cs-resume-btn" style="display:none">▶ Resume Championship</button>
+        </div>
+      </div>
+
       <!-- Boss Raid (PVE) -->
       <div class="battle-card pve-battle-card" id="pve-card">
         <div class="battle-card-header">
@@ -618,6 +631,157 @@
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 Apr 2026</span>
+          <span class="changelog-badge">Patch 44</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🏆 <b>Championship 128 — Cấu trúc 4 Phase</b>: Thêm Phase 3 mới (Playoff 1v1 BO3, 16→8 người). Phase cũ Double Elimination trở thành Phase 4 với 8 người thay vì 16. Cấu trúc đầy đủ: Phase 1 FFA 128→32 · Phase 2 Last Stand BO1 32→16 · Phase 3 Playoff BO3 16→8 · Phase 4 Double Elimination BO3 8 người.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 Apr 2026</span>
+          <span class="changelog-badge">Patch 43</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🐛 <b>Bug Fix — BO3 Arena không random</b>: Trong Championship BO3, game 2 và 3 bị kẹt cùng 1 đấu trường do <code>nextGameBtn</code> thiếu check <code>state.championship</code>. Đã fix, giờ mỗi game trong BO3 (bao gồm Championship) đều random đấu trường mới.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 Apr 2026</span>
+          <span class="changelog-badge">Patch 42</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📊 <b>Tournament Stats Panel</b>: Sau khi tournament kết thúc, nút "📊 Stats" xuất hiện trong bracket. Hiển thị 5 fact card (nhân vật/vũ khí gây sát thương cao nhất, nhiều skill nhất, tổng stats cao/thấp nhất) + 2 biểu đồ tròn (phân bố race & vũ khí) + 2 biểu đồ cột winrate (theo race & vũ khí).</li>
+          <li>🗡️ <b>Orc Race Trait</b>: Implement trait của Orc trong tournament/championship. Thắng: +2 stat thấp nhất. Thua: -3 stat cao nhất (min 0). Hiển thị damage number sau mỗi trận.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 Apr 2026</span>
+          <span class="changelog-badge">Patch 41</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🎭 <b>Copycat Wheel</b>: Trong tournament/championship, khi thắng và có skill Copycat, sau wheel PVP Reward sẽ hiện thêm một wheel mới để quay xem có copy được skill của đối thủ không. Segments gồm các skill của đối thủ + 1 MISS. Kết quả đã được tính trước theo BIQ×3.5%, wheel chỉ là visual reveal. Ngoài tournament vẫn apply trực tiếp như cũ.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 Apr 2026</span>
+          <span class="changelog-badge">Patch 40</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🐛 <b>Bug Fix — Championship Phase 2 BO1</b>: Sau khi kết thúc trận đấu ở Phase 2 (Last Stand BO1), nút bracket không xuất hiện và kết quả không được ghi nhận khiến resume bị kẹt mãi ở match #1. Root cause: BO1 tạo <code>state.bo3 = null</code>, result.js không có code path xử lý championship 1v1 không có bo3. Đã thêm handler riêng cho trường hợp này.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 Apr 2026</span>
+          <span class="changelog-badge">Patch 39</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🩸 <b>Race Skill — Orc: Blood Price</b>: Passive mới. Mỗi lần bị hit tích 1 stack Bloodlust (tối đa 5). Khi đủ 5 stack, đòn tấn công tiếp theo sẽ bùng nổ (Burst) với sát thương bonus tăng theo STR và hồi HP theo DUR. UI hiển thị badge 🩸×N và vòng đỏ khi BURST sẵn sàng.</li>
+          <li>🌍 <b>Race Skill — Giant: Quake</b>: Kỹ năng chủ động mới. Mỗi ~25 giây, Giant giậm đất tạo shockwave đẩy tất cả kẻ địch ra xa với lực lớn (scale theo STR). Kẻ địch trong vòng 160px nhận sát thương trực tiếp. Kẻ địch bị đẩy vào tường trong 1 giây tiếp theo nhận thêm wall slam damage (tỉ lệ tốc độ va chạm). Hiệu ứng vòng sóng vàng lan ra. Cooldown giảm theo DUR. Glow vàng khi sẵn sàng.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 Apr 2026</span>
+          <span class="changelog-badge">Patch 38</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🔤 <b>UI Readability — Tournament/Championship</b>: Tăng font-size cho bracket labels, match scores, round labels, phase info, group badges, DE labels, fighter rows từ 9-11px lên 12-13px; cải thiện contrast màu sắc cho toàn bộ khu vực này</li>
+          <li>🔤 <b>UI Readability — Setup Screens</b>: Tăng font-size cho t-section-label (13→14px), t-roster-card (12→13px), t-sel-btn (11→13px), t-summary-bot (11→12px)</li>
+          <li>🔤 <b>UI Readability — Weapon text inline</b>: Sửa inline style trong tournament.js và championship.js: tên weapon từ 10px/dim lên 12px/readable</li>
+          <li>🔤 <b>UI Readability — 2v2 team members</b>: Team member names trong 2v2 bracket từ 9px lên 12px</li>
+          <li>🔤 <b>UI Readability — In-game HUD</b>: Stat labels (STR/SPD...) 8→10px, stat values 12→13px, skill badges 10→11px, skill desc 9→10px, scale tag 10→11px, weapon sub 10→11px</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 Apr 2026</span>
+          <span class="changelog-badge">Patch 37</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🐛 <b>Fix Championship — Enter button</b>: Sửa lỗi nhấn nút không có gì xảy ra (script load order sai, championship.js phải load trước ui.js)</li>
+          <li>🐛 <b>Fix Championship — Resume button</b>: Sửa lỗi nút Resume Championship không có click handler</li>
+          <li>👆 <b>Fix Championship — FFA fighters clickable</b>: Có thể click vào tên fighter trong FFA group để xem Fighter Card</li>
+          <li>📊 <b>Fix Championship — Score format</b>: Score 1v1 và DE hiện dạng "X – Y" dưới card thay vì per-row, đồng nhất với Tournament</li>
+          <li>🎨 <b>Fix Championship — Setup panel</b>: Roster cards dùng đúng class t-roster-card (có lock state, bot count, summary dots)</li>
+          <li>👆 <b>Fix Championship — Champion clickable</b>: Click vào tên champion để xem Fighter Card</li>
+          <li>🔒 <b>Fix Championship — Selection cap</b>: Không thể chọn vượt quá size (128/256), Select All cũng bị cap</li>
+          <li>🐛 <b>Fix PVP Reward — BIQ stat key</b>: Sửa lỗi +1 BIQ và +1 All Stats hiển thị "0→1" do dùng sai key <code>biq</code> thay vì <code>battleiq</code></li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 Apr 2026</span>
+          <span class="changelog-badge">Patch 36</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🏆 <b>Toraco Championship</b>: Chế độ giải đấu khổng lồ 128 hoặc 256 người chơi, multi-phase</li>
+          <li>⚔️ <b>Phase 1 — Battle Royale</b>: Chia thành các group 4 người, mỗi group 1 trận FFA, chọn ra 1 người thắng</li>
+          <li>🗡️ <b>Phase 2 — Last Stand</b>: Các winner từ Phase 1 thi đấu 1v1 BO1 để rút xuống còn 16 người</li>
+          <li>🏅 <b>Phase 3 — Double Elimination</b>: 16 người cuối thi đấu DE bracket BO3, có Winners và Losers bracket, kết thúc bằng Grand Final</li>
+          <li>💾 <b>Auto-save</b>: Championship tự lưu tiến trình, có thể Resume từ Main Menu</li>
+          <li>📊 <b>Bracket viewer</b>: Xem từng phase với phase navigation (Prev/Next)</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 Apr 2026</span>
+          <span class="changelog-badge">Patch 35</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⚒️ <b>Dwarf Race Skill — Master Forge</b>: Passive scaling — cứ ~10s (scale với DUR), vũ khí được rèn thêm 1 upgrade ngẫu nhiên, tích lũy qua các round</li>
+          <li>⚔️ <b>Forge Melee upgrades</b>: Bigger Blade (+4 hit radius), Sharpness (+5% dmg/stack), Tempered Edge (+6 parry detection radius)</li>
+          <li>🏹 <b>Forge Ranged upgrades</b>: Heavy Ammo (+2 proj radius), Sharp Tip (+5% dmg/stack), Swift Flight (+0.8 proj speed), Keen Eye (+3% crit chance)</li>
+          <li>✨ <b>Visual</b>: Golden ring flash khi forge kích hoạt, badge ⚒️×N hiện số upgrade trên ball</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">2 Apr 2026</span>
           <span class="changelog-badge">Patch 34</span>
@@ -1317,6 +1481,32 @@
   </div>
 </div>
 
+<!-- CHAMPIONSHIP SETUP -->
+<div id="championship-setup" class="screen">
+  <div class="game-title">🏆 Toraco Championship</div>
+  <div class="t-setup">
+    <div class="t-section-label">Size</div>
+    <div class="t-size-row">
+      <button class="t-size-btn sel" data-cssize="128">128 Players</button>
+      <button class="t-size-btn" data-cssize="256">256 Players</button>
+    </div>
+    <div class="t-section-label" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Select Radosers <span id="cs-slot-info" style="color:#555;font-weight:400">(0 / 128)</span></span>
+      <div style="display:flex;gap:6px">
+        <button class="t-sel-btn" id="csSelectAllBtn">Select All</button>
+        <button class="t-sel-btn" id="csClearBtn">Clear</button>
+      </div>
+    </div>
+    <div id="cs-roster-list" class="t-roster-list"></div>
+    <div class="t-section-label">Lineup Preview</div>
+    <div id="cs-slot-summary" class="t-slot-summary"></div>
+    <div class="r-btns">
+      <button class="start-btn" id="csStartBtn" disabled>🏆 Start Championship</button>
+      <button class="r-btn" id="csBackBtn">← Back</button>
+    </div>
+  </div>
+</div>
+
 <!-- BRACKET VIEW -->
 <div id="bracket" class="screen">
 
@@ -1333,6 +1523,7 @@
   <!-- ── Action bar ── -->
   <div class="bracket-action-bar">
     <button class="r-btn primary" id="nextMatchBtn">⚔️ Fight Next Match</button>
+    <button class="r-btn"         id="tournamentStatsBtn" style="display:none">📊 Stats</button>
     <button class="r-btn gold"    id="bracketMenuBtn">← Main Menu</button>
   </div>
 
@@ -1416,11 +1607,26 @@
       <button id="pvp-spin-btn" class="pvp-spin-btn">🎰 SPIN!</button>
     </div>
     <div id="pvp-reward-result" style="display:none">
-      <div class="pvp-rw-res-icon"    id="pvp-reward-res-icon"></div>
-      <div class="pvp-rw-res-label"   id="pvp-reward-res-label"></div>
+<div class="pvp-rw-res-label"   id="pvp-reward-res-label"></div>
       <div class="pvp-rw-res-outcome" id="pvp-reward-res-outcome"></div>
       <button class="pvp-rw-cont-btn" id="pvp-reward-continue">✓ Accept &amp; Continue</button>
     </div>
+  </div>
+</div>
+
+<div id="copycat-modal" style="display:none">
+  <div id="copycat-box">
+    <div class="pvp-rw-title">🎭 Copycat</div>
+    <div class="pvp-rw-winner" id="cc-winner-label">— Copycat —</div>
+    <canvas id="copycat-wheel" width="260" height="260"></canvas>
+    <div class="pvp-rw-spin-row">
+      <button id="cc-spin-btn" class="pvp-spin-btn">🎭 SPIN!</button>
+    </div>
+    <div id="cc-result" style="display:none">
+      <div class="pvp-rw-res-label"   id="cc-res-label"></div>
+      <div class="pvp-rw-res-outcome" id="cc-res-outcome"></div>
+    </div>
+    <button class="pvp-rw-cont-btn" id="cc-continue-btn" style="display:none">✓ Continue</button>
   </div>
 </div>
 
@@ -1471,6 +1677,7 @@
 <script src="setup.js"></script>
 <script src="result.js"></script>
 <script src="tournament.js"></script>
+<script src="championship.js"></script>
 <script src="ui.js"></script>
 <script src="chargen-data.js"></script>
 <script src="spin-wheel.js"></script>
@@ -1496,6 +1703,51 @@
 <script src="boss-maddox.js"></script>
 <script src="pve.js"></script>
 <script src="pvp-reward.js"></script>
+<script src="tournament-stats.js"></script>
+
+<!-- ── Tournament Stats Modal ──────────────────────── -->
+<div id="tournament-stats-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:9100;overflow-y:auto;padding:20px 12px;" onclick="if(event.target===this)document.getElementById('tournament-stats-modal').style.display='none'">
+  <div id="tournament-stats-box">
+    <div class="ts-header">
+      <span>📊 Tournament Statistics</span>
+      <button class="ts-close-btn" onclick="document.getElementById('tournament-stats-modal').style.display='none'">✕</button>
+    </div>
+
+    <!-- Fact cards -->
+    <div class="ts-section-title">🏅 Highlights</div>
+    <div id="ts-facts" class="ts-facts-row"></div>
+
+    <!-- Distribution pies -->
+    <div class="ts-section-title">🥧 Distribution</div>
+    <div class="ts-charts-row">
+      <div class="ts-chart-wrap">
+        <div class="ts-chart-title">Race Distribution</div>
+        <canvas id="ts-race-pie" width="300" height="230"></canvas>
+      </div>
+      <div class="ts-chart-wrap">
+        <div class="ts-chart-title">Weapon Distribution</div>
+        <canvas id="ts-weapon-pie" width="300" height="230"></canvas>
+      </div>
+    </div>
+
+    <!-- Winrate bars -->
+    <div class="ts-section-title">📊 Win Rate</div>
+    <div class="ts-charts-row">
+      <div class="ts-chart-wrap">
+        <div class="ts-chart-title">Race Win Rate</div>
+        <canvas id="ts-race-bar" width="300" height="230"></canvas>
+      </div>
+      <div class="ts-chart-wrap">
+        <div class="ts-chart-title">Weapon Win Rate</div>
+        <canvas id="ts-weapon-bar" width="300" height="230"></canvas>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:18px">
+      <button class="r-btn gold" onclick="document.getElementById('tournament-stats-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Debug Radoser Modal ─────────────────────────── -->
 <div id="debug-radoser-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;overflow-y:auto;padding:24px 16px;" onclick="if(event.target===this)closeDebugRadoser()">

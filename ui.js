@@ -204,13 +204,15 @@ document.getElementById('menuBtnR').addEventListener('click', () => {
   buildFightersPanel();
 });
 document.getElementById('nextGameBtn').addEventListener('click', () => {
-  // Continue BO3 — keep same fighters, random arena if tournament
-  if (state.tournament || state.tournament2v2) state.arenaId = randomArena();
+  // Continue BO3 — keep same fighters, random arena
+  if (state.tournament || state.tournament2v2 || state.championship) state.arenaId = randomArena();
   showScreen('game');
   startGame();
 });
 document.getElementById('bracketBtn').addEventListener('click', () => {
-  if (state.tournament2v2 && state.matchMode === '2v2') {
+  if (state.championship) {
+    renderChampionshipBracket();
+  } else if (state.tournament2v2 && state.matchMode === '2v2') {
     renderBracket2v2();
   } else {
     renderBracket();
@@ -324,6 +326,11 @@ document.getElementById('tBackBtn').addEventListener('click', () => {
 
 // Bracket → Next match
 document.getElementById('nextMatchBtn').addEventListener('click', () => {
+  // Championship
+  if (state.championship && !state.championship.completed) {
+    launchNextChampionshipMatch();
+    return;
+  }
   // 2v2 tournament
   if (state.tournament2v2 && !state.tournament2v2.completed) {
     const match = getNextTournamentMatch2v2();
@@ -361,14 +368,20 @@ document.getElementById('nextMatchBtn').addEventListener('click', () => {
 document.getElementById('bracketMenuBtn').addEventListener('click', () => {
   state.tournament = null;
   state.tournament2v2 = null;
+  state.championship = null;
   state.bo3 = null;
   showScreen('menu');
   buildFightersPanel();
-  _updateTournamentResumeUI(); // show resume button if save exists
+  _updateTournamentResumeUI();
+  _updateChampionshipResumeUI();
 });
 
 // Bracket phase navigation
 document.getElementById('prevPhaseBtn').addEventListener('click', () => {
+  if (state.championship) {
+    if (state.championship.viewPhaseIdx > 0) { state.championship.viewPhaseIdx--; renderChampionshipBracket(); }
+    return;
+  }
   if (state.tournament2v2 && state.matchMode === '2v2') {
     const t = state.tournament2v2;
     if (t && t.viewRound > 0) { t.viewRound--; renderBracket2v2(); }
@@ -378,6 +391,11 @@ document.getElementById('prevPhaseBtn').addEventListener('click', () => {
   }
 });
 document.getElementById('nextPhaseBtn').addEventListener('click', () => {
+  if (state.championship) {
+    const cs = state.championship;
+    if (cs.viewPhaseIdx < cs.currentPhaseIdx) { cs.viewPhaseIdx++; renderChampionshipBracket(); }
+    return;
+  }
   if (state.tournament2v2 && state.matchMode === '2v2') {
     const t = state.tournament2v2;
     if (!t) return;
@@ -434,6 +452,66 @@ document.getElementById('tournamentResumeBtn').addEventListener('click', () => {
 
 // Show resume button on page load if save exists
 _updateTournamentResumeUI();
+if (typeof _updateChampionshipResumeUI === 'function') _updateChampionshipResumeUI();
+
+// ── Championship UI handlers ──────────────────────────────────────
+document.getElementById('cs-resume-btn').addEventListener('click', () => {
+  const ok = resumeChampionship();
+  if (!ok) alert('No saved championship found.');
+});
+
+document.getElementById('championshipBtn').addEventListener('click', () => {
+  state.tournament  = null;
+  state.tournament2v2 = null;
+  state.bo3 = null;
+  // Reset setup state (keep size preference)
+  if (!state.championship || state.championship.phases) state.championship = {size:128, selectedFighters:[]};
+  buildChampionshipSetup();
+  showScreen('championship-setup');
+});
+
+document.getElementById('csBackBtn').addEventListener('click', () => {
+  showScreen('menu');
+  buildFightersPanel();
+});
+
+document.getElementById('csSelectAllBtn').addEventListener('click', () => {
+  const roster = JSON.parse(localStorage.getItem('cgRoster') ?? '[]');
+  if (!state.championship || state.championship.phases) state.championship = {size:128, selectedFighters:[]};
+  const size = state.championship.size ?? 128;
+  state.championship.selectedFighters = roster.map((_,i) => i).slice(0, size);
+  buildChampionshipSetup();
+});
+
+document.getElementById('csClearBtn').addEventListener('click', () => {
+  if (state.championship) state.championship.selectedFighters = [];
+  buildChampionshipSetup();
+});
+
+document.getElementById('csStartBtn').addEventListener('click', () => {
+  const roster   = JSON.parse(localStorage.getItem('cgRoster') ?? '[]');
+  const cs       = state.championship;
+  const size     = cs?.size ?? 128;
+  const selIdxs  = cs?.selectedFighters ?? [];
+  const selFighters = selIdxs.map(i => roster[i]).filter(Boolean);
+  clearChampionshipSave();
+  clearTournamentSave();
+  state.championship  = createChampionship(size, selFighters);
+  state.tournament    = null;
+  state.tournament2v2 = null;
+  state.bo3           = null;
+  saveChampionshipProgress();   // save ngay sau khi tạo để F5 có thể resume
+  renderChampionshipBracket();
+  showScreen('bracket');
+});
+
+document.querySelectorAll('[data-cssize]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!state.championship || state.championship.phases) state.championship = {size:128, selectedFighters:[]};
+    state.championship.size = parseInt(btn.dataset.cssize);
+    buildChampionshipSetup();
+  });
+});
 
 // ============================================================
 // ARENA BUILDER

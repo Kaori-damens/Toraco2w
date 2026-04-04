@@ -2,6 +2,11 @@
 // RESULT SCREEN
 // ============================================================
 function showResult() {
+  // Capture per-game stats into tournament aggregate before anything else
+  if (state.tournament && typeof updateTournamentAggregateStats === 'function') {
+    updateTournamentAggregateStats();
+  }
+
   const titleEl  = document.getElementById('rTitle');
   const statsEl  = document.getElementById('rStats');
   const bo3Panel = document.getElementById('bo3-result-panel');
@@ -68,7 +73,9 @@ function showResult() {
     document.getElementById('bo3-r-score').textContent = `${bo3.wins[0]} : ${bo3.wins[1]}`;
 
     // Sync wins back to bracket match record
-    if (state.tournament2v2 && state.matchMode === '2v2') {
+    if (state.championship) {
+      syncChampionshipBo3Wins(bo3.wins);
+    } else if (state.tournament2v2 && state.matchMode === '2v2') {
       const t  = state.tournament2v2;
       const m  = t.rounds[t.currentRound]?.[t.currentMatch];
       if (m) m.bo3Wins = [...bo3.wins];
@@ -85,18 +92,19 @@ function showResult() {
       document.getElementById('bo3-game-label').textContent =
         `Match over — ${mw.charName ?? mw.weaponId} advances!`;
       bracketB.style.display = '';
-      // Record in tournament bracket
-      if (state.tournament2v2 && state.matchMode === '2v2') {
+      // Record in championship
+      if (state.championship) {
+        recordChampionshipMatchResult(mw);
+        if (state.championship.completed) bracketB.textContent = '🏆 Championship Over';
+      } else if (state.tournament2v2 && state.matchMode === '2v2') {
         recordTournamentMatchResult2v2(mw);
         if (state.tournament2v2.completed) bracketB.textContent = '🏆 Final Results';
       } else if (state.tournament) {
         recordTournamentMatchResult(mw);
-        if (state.tournament.completed) {
-          bracketB.textContent = '🏆 Final Results';
-        }
+        if (state.tournament.completed) bracketB.textContent = '🏆 Final Results';
       }
       // ── PVP Reward Wheel (tournament matches only) ──
-      if (typeof showPVPRewardWheel === 'function' && (state.tournament || state.tournament2v2)) {
+      if (typeof showPVPRewardWheel === 'function' && (state.tournament || state.tournament2v2 || state.championship)) {
         setTimeout(() => showPVPRewardWheel(mw), 500);
       }
     } else {
@@ -105,6 +113,43 @@ function showResult() {
       document.getElementById('bo3-game-label').textContent =
         `Game ${gameNum - 1} done · Next: Game ${gameNum} of ${totalGames}`;
       nextGame.style.display = '';
+    }
+  }
+
+  // ── Championship 1v1 BO1 phase handling (no bo3 object) ──
+  if (state.championship && state.matchMode === '1v1' && !state.bo3) {
+    rematch.style.display = 'none';
+    if (menuBtnR) menuBtnR.style.display = 'none';
+    bracketB.style.display = '';
+    bracketB.textContent = '🏆 View Bracket';
+    const winner = state.winner && state.winner !== 'draw' ? state.winner : null;
+    if (winner) {
+      const winnerIdx = state.players.indexOf(winner);
+      const mw = state.fighters[winnerIdx] ?? null;
+      if (mw) {
+        recordChampionshipMatchResult(mw);
+        if (state.championship.completed) bracketB.textContent = '🏆 Championship Over';
+        if (typeof showPVPRewardWheel === 'function') setTimeout(() => showPVPRewardWheel(mw), 500);
+      }
+    }
+  }
+
+  // ── Championship FFA phase handling ──
+  if (state.championship && state.matchMode === 'ffa' && !state.bo3) {
+    rematch.style.display = 'none';
+    if (menuBtnR) menuBtnR.style.display = 'none';
+    bracketB.style.display = '';
+    bracketB.textContent = '🏆 View Bracket';
+    const winner = state.winner && state.winner !== 'draw' ? state.winner : null;
+    if (winner) {
+      // Map ball winner back to fighter object
+      const winnerIdx = state.players.indexOf(winner);
+      const winnerFighter = state.fighters[winnerIdx] ?? null;
+      if (winnerFighter) {
+        recordChampionshipFfaResult(winnerFighter);
+        if (typeof showPVPRewardWheel === 'function') setTimeout(() => showPVPRewardWheel(winnerFighter), 500);
+      }
+      if (state.championship.completed) bracketB.textContent = '🏆 Championship Over';
     }
   }
 
@@ -117,6 +162,46 @@ function showResult() {
       : (ball === state.winner);
     skillOnPostCombat(ball, won, fi);
   });
+
+  // ── Race trait: Orc (Win: +2 lowest stat / Lose: -3 highest stat) ──
+  // Tournament/championship only. Applied once per MATCH, not per BO3 game.
+  // BO1 → apply now (this game IS the match).
+  // BO3 → apply only when match winner is decided (someone reaches winsNeeded).
+  const _inTournament = !!(state.tournament || state.tournament2v2 || state.championship);
+  const _isDraw       = state.winner === 'draw' || (state.matchMode === '2v2' && state.winTeam === -1);
+  let _orcMatchDone   = !state.bo3; // BO1: yes; BO3: check wins
+  if (state.bo3) {
+    const _wn = state.bo3.winsNeeded ?? 2;
+    _orcMatchDone = state.bo3.wins[0] >= _wn || state.bo3.wins[1] >= _wn;
+  }
+  if (_inTournament && _orcMatchDone && !_isDraw) {
+    const _OS = ['strength','speed','durability','iq','battleiq','ma'];
+    const _SH = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+    state.players.forEach((ball, i) => {
+      if (ball.charRace !== 'orc') return;
+      const fi = state.fighters?.[i];
+      if (!fi?.charStats) return;
+      const cs = fi.charStats;
+      let won;
+      if (state.bo3) {
+        // Use match wins to determine winner, not the last game's state.winner
+        const _wn2 = state.bo3.winsNeeded ?? 2;
+        const _mwi = state.bo3.wins[0] >= _wn2 ? 0 : 1; // match winner index in state.players
+        won = (state.matchMode === '2v2') ? (ball.teamId === state.winTeam) : (i === _mwi);
+      } else {
+        won = (state.matchMode === '2v2') ? (ball.teamId === state.winTeam) : (ball === state.winner);
+      }
+      if (won) {
+        const k = _OS.reduce((a, b) => (cs[b] ?? 0) < (cs[a] ?? 0) ? b : a);
+        cs[k] = (cs[k] ?? 0) + 2;
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `🗡️ ORC +2 ${_SH[k]}!`, '#ff7733');
+      } else {
+        const k = _OS.reduce((a, b) => (cs[b] ?? 0) > (cs[a] ?? 0) ? b : a);
+        cs[k] = Math.max(0, (cs[k] ?? 0) - 3);
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `🗡️ ORC -3 ${_SH[k]}!`, '#995522');
+      }
+    });
+  }
 
   showScreen('result');
 }

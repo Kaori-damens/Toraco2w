@@ -42,9 +42,11 @@ function collidePair(b1, b2) {
     const pts1 = b1.weaponDef.getHitPoints(b1);
     const pts2 = b2.weaponDef.getHitPoints(b2);
     let parryOccurred = false;
+    const parryBonus1 = b1.rs_forgeParryBonus || 0;
+    const parryBonus2 = b2.rs_forgeParryBonus || 0;
     for (const p1 of pts1) {
       for (const p2 of pts2) {
-        const threshold = p1.r + p2.r + 6;
+        const threshold = p1.r + p2.r + 6 + parryBonus1 + parryBonus2; // Dwarf: Tempered Edge
         if (dist2(p1.x, p1.y, p2.x, p2.y) < threshold*threshold) {
           const d12x = p2.x - p1.x, d12y = p2.y - p1.y;
           const d12len = Math.sqrt(d12x*d12x + d12y*d12y);
@@ -199,8 +201,9 @@ function _checkWeaponHit(attacker, defender) {
   if (def.aiType === 'ranged') return; // ranged weapons don't melee-hit
 
   const pts = def.getHitPoints(attacker);
+  const forgeSizeBonus = attacker.rs_forgeSizeBonus || 0; // Dwarf: Bigger Blade
   for (const p of pts) {
-    const threshold = p.r + defender.radius;
+    const threshold = p.r + forgeSizeBonus + defender.radius;
     if (dist2(p.x, p.y, defender.x, defender.y) < threshold*threshold) {
       const isCrit = Math.random() < attacker.critChance;
       const isHammer = def.id === 'hammer';

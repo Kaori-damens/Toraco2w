@@ -117,8 +117,7 @@ function initGame() {
 }
 
 function startGame() {
-  // Random arena for tournament matches
-  if (state.tournament && !state.bo3?.gameNum > 1) state.arenaId = randomArena();
+  // Arena randomization is handled by callers (nextMatchBtn / nextGameBtn / launchNextChampionshipMatch)
   state.matchMode = state.matchMode ?? '1v1';
   state.teamIds   = state.teamIds ?? [];
   initGame();

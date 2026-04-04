@@ -184,7 +184,7 @@ function renderCgStep() {
     // Guaranteed weapon from certain subraces — skip wheel
     const sr = cgState.subrace?.label;
     const rid = cgState.race?.id;
-    if ((rid === 'human' && sr === 'Trắng') || (rid === 'goblin' && sr === '×100,000')) {
+    if ((rid === 'human' && sr === 'Trắng') || (rid === 'goblin' && sr === '×100,000') || rid === 'dwarf') {
       cgState.hasWeapon = true;
       box.innerHTML = `<div class="cg-card">
         <div class="cg-label">⚔️ Armed!</div>

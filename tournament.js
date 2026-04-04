@@ -220,6 +220,11 @@ function createTournament(size, roster) {
   while (participants.length < size) {
     participants.push(makeBotFighter(participants.length));
   }
+  // Assign unique IDs for aggregate stats tracking
+  const ts = Date.now();
+  participants.forEach((f, i) => {
+    if (!f._uid) f._uid = `f${i}_${ts}_${Math.random().toString(36).slice(2,5)}`;
+  });
   shuffle(participants);
 
   // Build all rounds (single-elimination)
@@ -234,7 +239,45 @@ function createTournament(size, roster) {
     prev = new Array(round.length).fill(null); // placeholders for next round
   }
 
-  return { size, rounds, currentRound: 0, currentMatch: 0, completed: false };
+  return { size, rounds, currentRound: 0, currentMatch: 0, completed: false, agg: {} };
+}
+
+// ── Aggregate stats (called after every game in a tournament) ─────
+function updateTournamentAggregateStats() {
+  const t = state.tournament;
+  if (!t || !state.players) return;
+  if (!t.agg) t.agg = {};
+
+  state.players.forEach((ball, i) => {
+    if (!ball) return;
+    const f = state.fighters?.[i];
+    if (!f) return;
+
+    const uid = f._uid || (f.charName + '_' + (f.weaponId || '?'));
+    if (!t.agg[uid]) {
+      const cs = f.charStats || {};
+      t.agg[uid] = {
+        name:        f.charName     || '?',
+        race:        cs.race        || '?',
+        weapon:      f.weaponId     || '?',
+        color:       f.color        || '#888',
+        skills:      [...(f.skills  || [])],
+        charStats:   { ...cs },
+        totalDamage: 0,
+        wins:        0,
+        games:       0,
+      };
+    }
+    const e = t.agg[uid];
+    e.totalDamage += ball.stats?.damageDone || 0;
+    e.games++;
+    const won = state.matchMode === '2v2'
+      ? ball.teamId === state.winTeam
+      : ball === state.winner;
+    if (won) e.wins++;
+    // Merge any newly learned skills
+    (f.skills || []).forEach(sid => { if (!e.skills.includes(sid)) e.skills.push(sid); });
+  });
 }
 
 function recordTournamentMatchResult(matchWinner) {
@@ -389,6 +432,13 @@ function renderBracket() {
       nextMatchBtn.textContent = '⚔️ Fight Next Match';
     }
   }
+
+  // ── Stats button (only when tournament is done) ──
+  const statsBtn = document.getElementById('tournamentStatsBtn');
+  if (statsBtn) {
+    statsBtn.style.display = t.completed ? '' : 'none';
+    statsBtn.onclick = () => { if (typeof showTournamentStatsModal === 'function') showTournamentStatsModal(); };
+  }
 }
 
 function buildTournamentSetup() {
@@ -439,7 +489,7 @@ function buildTournamentSetup() {
       card.innerHTML = `
         <span class="t-slot-dot" style="background:${r.color ?? '#888'}"></span>
         <span class="t-card-name" style="color:${r.color ?? '#aac'}">${r.raceEmoji ?? ''} ${r.name ?? `Fighter ${i+1}`}</span>
-        <span style="font-size:10px;color:#556">${wIcon} ${r.weapon ?? ''}</span>
+        <span style="font-size:12px;color:#8899aa">${wIcon} ${r.weapon ?? ''}</span>
         <span class="t-card-check">${isSel ? '✓' : ''}</span>
       `;
 
@@ -632,7 +682,7 @@ function renderBracket2v2() {
           <span class="bp-name" style="color:${tc};font-weight:900">${team.charName ?? '?'}</span>`;
         if (team.fighters) {
           const sub = document.createElement('div');
-          sub.style.cssText = 'font-size:9px;color:#556;padding-left:16px;line-height:1.5';
+          sub.style.cssText = 'font-size:12px;color:#99aacc;padding-left:16px;line-height:1.5';
           sub.textContent = team.fighters.map(f => f.charName ?? '?').join(' + ');
           row.appendChild(sub);
         }

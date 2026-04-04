@@ -1,6 +1,6 @@
 # AutoRPNG Battle (TORACO) — Game Design Document (English)
 
-> **Version**: 4.0 | **Engine**: Vanilla HTML5 Canvas + Web Audio API | **Files**: `index.html` · `style.css` · 30+ JS modules
+> **Version**: 4.2 | **Engine**: Vanilla HTML5 Canvas + Web Audio API | **Files**: `index.html` · `style.css` · 30+ JS modules
 
 ---
 
@@ -126,7 +126,7 @@ Subrace bonuses are applied **inline** during chargen (shown immediately after e
 
 ## 6. Races & Subraces
 
-13 playable races, each with a unique visual decoration, stat distribution, optional subrace table, and (for 5 races) a **Race Skill** (see §15).
+13 playable races, each with a unique visual decoration, stat distribution, optional subrace table, and (for 7 races) a **Race Skill** (see §15).
 
 ### Race List
 
@@ -138,8 +138,8 @@ Subrace bonuses are applied **inline** during chargen (shown immediately after e
 | Dwarf | ⛏️ | 6.5 | Common | — |
 | Skeleton | 💀 | 5.25 | Uncommon | — |
 | Troll | 🧌 | 5.25 | Uncommon | 🕸️ Net Throw |
-| Orc | 🗡️ | 5.25 | Uncommon | — |
-| Giant | 🏔️ | 4.0 | Rare | — |
+| Orc | 🗡️ | 5.25 | Uncommon | 🩸 Blood Price |
+| Giant | 🏔️ | 4.0 | Rare | 🌍 Quake |
 | Dragon | 🐉 | 4.0 | Rare | 🔥 Flame Breath |
 | Angel | 👼 | 3.5 | Epic | ✨ Smite |
 | Primordial Being | 🌌 | 3.5 | Epic | 🌌 Void Grip |
@@ -512,7 +512,7 @@ At round start, all opponents permanently lose −2 SPD (−3 maxSpd) for that r
 
 ## 15. Race Skills
 
-Five races have unique active abilities that trigger automatically during battle.
+Seven races have unique active or passive abilities that trigger automatically during battle.
 
 ### 15.1 🔥 Dragon — Flame Breath
 
@@ -566,7 +566,35 @@ Effect: The attacker's weapon gets "stuck in the void" — pulled toward the Pri
 
 > **Design intent:** Human is the "underdog" race. Limit Break is their last-gasp trump card — only when truly on the brink (HP < 20%) do they flip the script. The longer they survive at death's door, the more dangerous they become.
 
-### 15.5 ✨ Angel — Smite
+### 15.5 🩸 Orc — Blood Price
+
+| Property | Value |
+|----------|-------|
+| Type | Passive |
+| Stack gain | +1 Bloodlust stack per hit received (capped at 5) |
+| Burst trigger | At 5 stacks → next attack armed as BURST (stacks reset) |
+| Burst damage bonus | `× (1 + STR × 0.15)` on that one hit |
+| Burst heal | `round(DUR × 2)` HP restored on burst hit landing |
+| Cooldown | None (stack-based) |
+| Visual | `🩸×N` badge above ball; pulsing crimson double-ring when BURST ready |
+
+> **Design intent:** Orc rewards aggressive play — you take hits to fuel your next devastating burst. High DUR Orcs get meaningful healing; high STR Orcs deal crushing burst damage. The 5-hit requirement creates a tense wait-and-watch rhythm.
+
+### 15.6 🌍 Giant — Quake
+
+| Property | Value |
+|----------|-------|
+| Type | Active (auto-fires when cooldown = 0) |
+| Cooldown | `max(1200, 1800 − STR × 50 − DUR × 30)` frames (~20s – 30s) |
+| Shockwave force | `6 + STR × 1.5` px/frame velocity impulse (falloff with distance) |
+| Force falloff | `max(0.1, 1 − dist / 380)` — scales from full force at center to 10% at edge |
+| Close damage | `round(STR × 2)` to enemies within 160px |
+| Push radius | Affects ALL living enemies regardless of distance |
+| Visual | Expanding gold shockwave ring (30-frame animation) + `🌍 READY` glow when cooldown = 0 |
+
+> **Design intent:** Giant is a slow bruiser who periodically reshuffles the entire battlefield. In FFA (many-player), Quake is chaotic and powerful — sending multiple enemies flying. In 1v1, it's a reliable spacing reset tool. High STR Giants hit hard and push far.
+
+### 15.7 ✨ Angel — Smite
 
 | Property | Value |
 |----------|-------|
@@ -687,7 +715,7 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 |---|---|
 | **Showcase** | Rotating preview of roster Radosers (7s interval, canvas animation) |
 | **Radosers** | Full roster list; search (smart query syntax); filter by race/weapon; create / delete / export / import Radosers |
-| **Battle** | Quick Match · Tournament bracket · PvE Boss Raid |
+| **Battle** | Quick Match · Tournament bracket · Toraco Championship · PvE Boss Raid |
 | **Wiki** | In-game reference: Stats · Combat · Races · Weapons · Race Skills · Skills |
 | **Changelogs** | Patch history (collapsible) |
 
@@ -707,6 +735,55 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 - Full history accessible via modal
 - Logs: hits, crits, evades, parries, projectile hits, skill triggers, deaths, race skills
 - Format: `MM:SS AttackerName → DefenderName [event] [HP left: X]`
+
+---
+
+## 20b. Toraco Championship
+
+Mega-tournament mode supporting 128 or 256 players across 3 sequential phases.
+
+### Entry & Setup
+
+- Select from Main Menu → **Toraco Championship** card
+- Choose size: **128** or **256** players
+- Select Radosers from roster (remaining slots filled by bots); selection capped at size
+- Auto-save to `localStorage` — resumable via **Resume Championship** button
+
+### Phase 1 — Battle Royale (FFA)
+
+| Property | Value |
+|----------|-------|
+| Format | FFA groups of 4 fighters |
+| Groups | size ÷ 4 (32 groups for 128, 64 for 256) |
+| Match | Single FFA round — last Radoser standing wins |
+| Advance | 1 winner per group → proceeds to Phase 2 |
+
+### Phase 2 — Last Stand (1v1 BO1)
+
+| Property | Value |
+|----------|-------|
+| Format | Single-elimination 1v1, BO1 |
+| Entrants | Phase 1 winners (32 for 128-player, 64 for 256-player) |
+| Advance | 16 winners proceed to Phase 3 |
+
+### Phase 3 — Double Elimination (DE16, BO3)
+
+| Property | Value |
+|----------|-------|
+| Format | Double-elimination bracket, 16 players |
+| Match format | BO3 (first to 2 wins) |
+| Structure | Winners Bracket (R1→R2→SF→F) + Losers Bracket (R1→R2→R3→R4→SF→F) + Grand Final |
+| Champion | Winner of Grand Final |
+
+### PVP Reward
+- Winners of each match (FFA, 1v1, BO3) spin the PVP Reward Wheel
+- Stat/skill gains are **temporary** — reset when championship ends (not saved to roster)
+
+### Bracket Viewer
+- Phase navigation: Prev / Next phase buttons
+- FFA: group grid — click fighter to view Fighter Card
+- 1v1 & DE: bracket-match cards — click fighter to view Fighter Card, score shown as `X – Y`
+- Champion screen: clickable name → Fighter Card
 
 ---
 
@@ -746,6 +823,7 @@ AutoRPNG battle/
 ├── setup.js             — initGame(), match setup, fighter construction
 ├── result.js            — Result screen rendering, match stats
 ├── tournament.js        — Tournament bracket logic, BO1/BO3/BO5
+├── championship.js      — Toraco Championship (FFA → Last Stand → Double Elimination)
 ├── ui.js                — HUD, battle log, in-match controls, arena builder (AB_PARAMS)
 ├── chargen-data.js      — CG_RACES, CG_SUBRACES, CG_STAT_WEIGHTS, CG_WEAPONS, SKILL_DEFS
 ├── spin-wheel.js        — SpinWheel class (canvas wheel animation)
@@ -771,9 +849,9 @@ AutoRPNG battle/
 | `CG_SUBRACES` | `chargen-data.js` | Subrace tables per race |
 | `CG_STAT_WEIGHTS` | `chargen-data.js` | Per-race probability weights for each stat (1–10) |
 | `SKILL_DEFS` | `chargen-data.js` + `skills.js` | All 25 skill definitions |
-| `RACE_SKILL_DEFS` | `skills.js` | 5 race skill definitions |
+| `RACE_SKILL_DEFS` | `skills.js` | 7 race skill definitions |
 | `initRaceSkillState()` | `skills.js` | Initializes rs_* properties per race on ball construction |
-| `updateRaceSkills()` | `skills.js` | Per-frame race skill logic (Dragon, Human, Primordial, Angel) |
+| `updateRaceSkills()` | `skills.js` | Per-frame race skill logic (Dragon, Troll, Human, Primordial, Angel, Giant) |
 | `updateRaceSkillProjectiles()` | `skills.js` | Troll net + Smite bolt tick updates |
 | `class Ball` | `ball.js` | Radoser unit: stats, physics, weapon, rendering |
 | `takeDamage()` | `ball.js` | Damage application with separate melee/proj immunity |
@@ -787,4 +865,4 @@ AutoRPNG battle/
 
 ---
 
-*AutoRPNG Battle (TORACO) — GDD v4.0*
+*AutoRPNG Battle (TORACO) — GDD v4.2*

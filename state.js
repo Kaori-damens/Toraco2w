@@ -39,4 +39,6 @@ let state = {
   terrainObjects: [],           // flat array; bosses can push dynamic objects (lava pools, etc.)
   healOrbs:       [],           // healing pickup orbs spawned during PVE
   trapObjects:    [],           // PvP trap objects (pillars, scythes, lightning, bombs)
+  // Championship
+  championship:   null,         // { size, phases, currentPhaseIdx, completed, champion, viewPhaseIdx } or null
 };

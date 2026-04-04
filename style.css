@@ -419,9 +419,9 @@ body {
   flex: 1;
 }
 .hud-card-name .wep-sub {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
-  color: #556;
+  color: #6677aa;
   display: block;
 }
 .hp-fraction {
@@ -455,8 +455,8 @@ body {
   border-radius: 3px;
 }
 .hud-scale-tag {
-  font-size: 10px;
-  color: #556;
+  font-size: 11px;
+  color: #778;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -477,13 +477,13 @@ body {
   padding: 3px 2px;
 }
 .hud-sk {
-  font-size: 8px;
-  color: #556;
+  font-size: 10px;
+  color: #7788aa;
   letter-spacing: 0.5px;
   font-weight: 700;
 }
 .hud-sv {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   color: #ccd;
 }
@@ -503,15 +503,15 @@ body {
   gap: 2px;
 }
 .hud-skill-desc {
-  font-size: 9px;
-  color: #445;
+  font-size: 10px;
+  color: #667;
   line-height: 1.35;
   padding: 0 2px;
 }
 
 /* Default dim state — skills inactive */
 .hud-skill-badge {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 8px;
   border-radius: 20px;
   border: 1px solid #22223a;
@@ -722,9 +722,9 @@ canvas#gameCanvas {
   padding: 10px 0;
 }
 .t-section-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: #667;
+  color: #8899aa;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -768,7 +768,7 @@ canvas#gameCanvas {
   background: #0e0e20;
   border: 1px solid #1e1e38;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   min-width: 150px;
   cursor: pointer;
   transition: all 0.15s;
@@ -836,8 +836,8 @@ canvas#gameCanvas {
   border-radius: 50%;
 }
 .t-summary-bot {
-  font-size: 11px;
-  color: #444;
+  font-size: 12px;
+  color: #778;
   font-style: italic;
 }
 .t-roster-empty {
@@ -849,7 +849,7 @@ canvas#gameCanvas {
 }
 .t-sel-btn {
   padding: 3px 10px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   border: 1px solid #2a2a44;
   background: #0e0e1e;
@@ -877,7 +877,7 @@ canvas#gameCanvas {
   min-width: 180px;
 }
 .bracket-round-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
   text-transform: uppercase;
   color: #556;
@@ -921,8 +921,8 @@ canvas#gameCanvas {
   flex-shrink: 0;
 }
 .bracket-score {
-  font-size: 10px;
-  color: #556;
+  font-size: 12px;
+  color: #8899bb;
   text-align: center;
 }
 
@@ -995,7 +995,7 @@ canvas#gameCanvas {
 
 /* ── 2v2 bracket extra styles ── */
 .bracket-team-row { display:flex; flex-direction:column; gap:2px; padding: 4px 0; }
-.bracket-team-player { display:flex; align-items:center; gap:6px; font-size:11px; color:#ccc; }
+.bracket-team-player { display:flex; align-items:center; gap:6px; font-size:12px; color:#ccc; }
 .bracket-team-name { font-size:13px; font-weight:900; }
 .t2-team-badge { width:10px; height:10px; border-radius:50%; display:inline-block; }
 
@@ -2924,12 +2924,12 @@ body, #menu, #game, #chargen, #result,
 /* ── HP BAR ── */
 .hp-track { background: #1a0808; }
 .hp-fraction { color: var(--m-text-sec); }
-.hud-scale-tag { color: var(--m-text-dim); }
+.hud-scale-tag { color: var(--m-text-sec); }
 .hud-card {
   background: rgba(20,14,6,0.92);
   border-color: var(--m-border-lo);
 }
-.hud-card-name .wep-sub { color: var(--m-text-dim); }
+.hud-card-name .wep-sub { color: var(--m-text-sec); }
 
 /* ── SKILL BADGES ── */
 .hud-skill-badge {
@@ -3023,19 +3023,19 @@ canvas#gameCanvas {
   box-shadow: 0 0 6px rgba(90,140,58,0.5);
 }
 .t-slot-summary { background: #0c0804; border-color: var(--m-border-lo); }
-.t-summary-bot  { color: var(--m-text-lo); }
+.t-summary-bot  { color: var(--m-text-dim); }
 .t-roster-empty { color: var(--m-text-lo); }
 
 /* ── BRACKET ── */
-.bracket-round-label { color: var(--m-text-dim); letter-spacing: 1.5px; }
+.bracket-round-label { color: var(--m-text-sec); letter-spacing: 1.5px; }
 .bracket-match { background: var(--m-panel); border-color: var(--m-border-lo); }
 .bracket-match.current { border-color: var(--m-crimson); box-shadow: 0 0 12px rgba(139,26,26,0.3); }
 .bracket-player.winner { background: #0a1a08; color: var(--m-forest); }
-.bracket-score { color: var(--m-text-dim); }
+.bracket-score { color: var(--m-text-sec); }
 .phase-nav-btn { background: var(--m-panel); border-color: var(--m-border); color: var(--m-text-sec); }
 .phase-nav-btn:hover:not(:disabled) { background: var(--m-raised); color: var(--m-gold-lt); }
-.bracket-phase-info { color: var(--m-text-dim); }
-.bracket-match-num { color: var(--m-text-lo); }
+.bracket-phase-info { color: var(--m-text-sec); }
+.bracket-match-num { color: var(--m-text-dim); }
 
 /* ── MENU TABS ── */
 .menu-tabs { border-bottom-color: var(--m-border-lo); }
@@ -3648,7 +3648,104 @@ canvas#gameCanvas {
 .wiki-skill-row-name { font-size:12px; font-weight:700; color:#aabb; }
 .wiki-skill-row-desc { font-size:11px; color:#556; margin-top:1px; }
 
+/* ── Tournament Stats Modal ─────────────────────────────────────── */
+#tournament-stats-box {
+  background: #0d0a1a;
+  border: 2px solid #3a5a8a;
+  border-radius: 16px;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 22px 20px 28px;
+  color: #ddd;
+  font-family: inherit;
+}
+.ts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 900;
+  color: #aad4ff;
+  margin-bottom: 18px;
+  letter-spacing: 0.5px;
+}
+.ts-close-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+.ts-close-btn:hover { color: #fff; }
+.ts-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7799bb;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 18px 0 10px;
+}
+.ts-facts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ts-fact-card {
+  flex: 1 1 110px;
+  background: #13101f;
+  border: 1px solid #2a2a3a;
+  border-top: 3px solid #4d96ff;
+  border-radius: 10px;
+  padding: 12px 10px 10px;
+  text-align: center;
+  min-width: 100px;
+}
+.ts-fact-icon  { font-size: 22px; line-height: 1; margin-bottom: 4px; }
+.ts-fact-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+.ts-fact-value { font-size: 14px; font-weight: 800; color: #eee; margin-bottom: 3px; word-break: break-word; }
+.ts-fact-sub   { font-size: 11px; color: #777; }
+.ts-charts-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.ts-chart-wrap {
+  flex: 1 1 280px;
+  background: #111020;
+  border: 1px solid #222233;
+  border-radius: 10px;
+  padding: 10px 8px 6px;
+  text-align: center;
+}
+.ts-chart-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7799bb;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.ts-chart-wrap canvas { display: block; margin: 0 auto; max-width: 100%; }
+
 /* ── PVP Reward Wheel Modal ─────────────────────────────────────── */
+#copycat-modal {
+  position: fixed; inset: 0; z-index: 9200;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+}
+#copycat-box {
+  background: #0d0b1e;
+  border: 2px solid #4a2a6a;
+  border-radius: 20px;
+  padding: 24px 28px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+  box-shadow: 0 0 80px rgba(120,40,200,0.40);
+  max-width: 340px; width: 100%;
+}
 #pvp-reward-modal {
   position: fixed; inset: 0; z-index: 9100;
   background: rgba(0,0,0,0.85);
@@ -3691,7 +3788,6 @@ canvas#gameCanvas {
   70%  { transform: scale(1.08); }
   100% { transform: scale(1); opacity: 1; }
 }
-.pvp-rw-res-icon    { font-size: 48px; line-height: 1; }
 .pvp-rw-res-label   { font-size: 22px; font-weight: bold; color: #ffdd66; text-shadow: 0 0 16px #ffaa00; }
 .pvp-rw-res-outcome { font-size: 13px; color: #88ffbb; text-align: center; max-width: 280px; }
 .pvp-rw-cont-btn {
@@ -3783,8 +3879,8 @@ canvas#gameCanvas {
   margin: 0;
 }
 .bracket-phase-info {
-  font-size: 11px;
-  color: #556;
+  font-size: 13px;
+  color: #9aabb0;
   letter-spacing: 1px;
   margin-top: 2px;
   text-transform: uppercase;
@@ -3831,8 +3927,8 @@ canvas#gameCanvas {
   width: 100%;
 }
 .bracket-match-num {
-  font-size: 9px;
-  color: #334;
+  font-size: 11px;
+  color: #667;
   letter-spacing: 0.5px;
   margin-bottom: 2px;
 }
@@ -3856,7 +3952,7 @@ canvas#gameCanvas {
 }
 .bracket-champ-trophy { font-size: 48px; line-height: 1; }
 .bracket-champ-label {
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: #aa8833;
@@ -3932,4 +4028,133 @@ canvas#gameCanvas {
 }
 .hud-skill-desc-race {
   color: #887744;
+}
+
+/* ============================================================
+   TORACO CHAMPIONSHIP
+   ============================================================ */
+
+/* FFA phase grid */
+.cs-ffa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+.cs-group-card {
+  background: #0d0a1a;
+  border: 1px solid #2a2040;
+  border-radius: 10px;
+  padding: 10px;
+  transition: border-color .2s;
+}
+.cs-group-card.current {
+  border-color: #9933ff;
+  box-shadow: 0 0 14px #9933ff44;
+}
+.cs-group-card.done { border-color: #2a4a2a; }
+.cs-group-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8899aa;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.cs-fighter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 13px;
+  color: #bbc;
+}
+.cs-fighter-row.winner { color: #ffe066; font-weight: 700; }
+.cs-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cs-fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-win-mark { color: #55cc55; font-weight: 900; }
+
+/* 1v1 phase — reuses bracket-match / bracket-player classes */
+.cs-match-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+.bp-score {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffe066;
+}
+
+/* Double Elimination */
+.cs-de-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 12px;
+}
+.cs-de-section { }
+.cs-de-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #9a9080;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.cs-de-round {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.cs-de-round-label {
+  font-size: 12px;
+  color: #998877;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+}
+.cs-de-match-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cs-de-match {
+  min-width: 160px;
+  max-width: 220px;
+}
+.cs-de-pending {
+  color: #556;
+  font-size: 13px;
+  padding: 24px;
+  text-align: center;
+}
+
+/* Champion display */
+.bracket-champion-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px;
+  gap: 10px;
+}
+.champion-trophy { font-size: 64px; }
+.champion-title {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #ffe066;
+  text-transform: uppercase;
+}
+.champion-name {
+  font-size: 22px;
+  font-weight: 900;
 }

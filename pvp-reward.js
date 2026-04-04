@@ -2,8 +2,8 @@
 // PVP REWARD WHEEL — spins after each tournament match win
 // ============================================================
 
-const STAT_KEYS_PVP = ['strength', 'speed', 'durability', 'iq', 'biq', 'ma'];
-const STAT_SHORT_PVP = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', biq:'BIQ', ma:'MA' };
+const STAT_KEYS_PVP = ['strength', 'speed', 'durability', 'iq', 'battleiq', 'ma'];
+const STAT_SHORT_PVP = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
 
 const PVP_REWARDS = [
   { id:'str1',  label:'+1 STR',     desc:'Strength +1',             icon:'💪', weight:10,   color:'#bb3311' },
@@ -53,7 +53,7 @@ function _pvpApplyReward(fighter, reward) {
     case 'spd1':  { const o=cs.speed      ||0; cs.speed      =o+1; return `SPD: ${o} → ${o+1}`; }
     case 'dur1':  { const o=cs.durability ||0; cs.durability =o+1; return `DUR: ${o} → ${o+1}`; }
     case 'iq1':   { const o=cs.iq         ||0; cs.iq         =o+1; return `IQ: ${o} → ${o+1}`;  }
-    case 'biq1':  { const o=cs.biq        ||0; cs.biq        =o+1; return `BIQ: ${o} → ${o+1}`; }
+    case 'biq1':  { const o=cs.battleiq   ||0; cs.battleiq   =o+1; return `BIQ: ${o} → ${o+1}`; }
     case 'ma1':   { const o=cs.ma         ||0; cs.ma         =o+1; return `MA: ${o} → ${o+1}`;  }
     case 'low2': {
       const st = STAT_KEYS_PVP.reduce((a,k) => (cs[k]||0) < (cs[a]||0) ? k : a, STAT_KEYS_PVP[0]);
@@ -140,18 +140,6 @@ function _pvpDrawWheel(rot) {
       ctx.restore();
     }
 
-    // Icon (only if segment is wide enough)
-    if (sweep > 0.30) {
-      const mid = angle + sweep / 2;
-      ctx.save();
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(rw.icon,
-        _PCX + Math.cos(mid) * _PR * 0.46,
-        _PCY + Math.sin(mid) * _PR * 0.46);
-      ctx.restore();
-    }
 
     angle += sweep;
   }
@@ -214,7 +202,6 @@ function _pvpOnLand() {
   const outcome = _pvpApplyReward(_pvpFighter, _pvpReward);
 
   // Show result panel
-  document.getElementById('pvp-reward-res-icon').textContent    = _pvpReward.icon;
   document.getElementById('pvp-reward-res-label').textContent   = _pvpReward.label;
   document.getElementById('pvp-reward-res-outcome').textContent = outcome;
   document.getElementById('pvp-reward-result').style.display    = '';
@@ -278,7 +265,163 @@ document.getElementById('pvp-spin-btn')?.addEventListener('click', () => {
 
 document.getElementById('pvp-reward-continue')?.addEventListener('click', () => {
   document.getElementById('pvp-reward-modal').style.display = 'none';
-  // Proceed to bracket view
-  const bracketBtn = document.getElementById('bracketBtn');
-  if (bracketBtn && bracketBtn.style.display !== 'none') bracketBtn.click();
+  // If winner has Copycat pending → show Copycat Wheel next
+  if (_pvpFighter?._copycatWheel) {
+    const wheel = _pvpFighter._copycatWheel;
+    _pvpFighter._copycatWheel = null;
+    setTimeout(() => showCopycatWheel(_pvpFighter, wheel), 200);
+  }
+});
+
+// ============================================================
+// COPYCAT WHEEL — spins after PVP reward when winner has Copycat
+// ============================================================
+const _CCW = 260, _CCH = 260, _CCR = 108, _CCCX = 130, _CCCY = 130;
+let _ccCtx = null, _ccSpinning = false, _ccApplied = false;
+let _ccFighter = null, _ccWheel = null;
+let _ccRotation = 0, _ccSpinTarget = 0, _ccStartTime = null;
+const _ccSpinDur = 3200;
+
+const _CC_MISS = { id: 'miss', label: 'MISS', icon: '❌', color: '#333355' };
+
+function _ccEase(t) { return 1 - Math.pow(1 - t, 4); }
+
+function _ccBuildSegments(candidates) {
+  const segs = candidates.map(id => {
+    const def = (typeof SKILL_MAP !== 'undefined' && SKILL_MAP[id]) || { name: id, icon: '✦' };
+    return { id, label: def.name, icon: def.icon ?? '✦', color: '#224466' };
+  });
+  segs.push(_CC_MISS);
+  return segs;
+}
+
+function _ccDraw(rot, segs) {
+  if (!_ccCtx) return;
+  const ctx = _ccCtx;
+  const sweep = (Math.PI * 2) / segs.length;
+  ctx.clearRect(0, 0, _CCW, _CCH);
+
+  const COLORS = ['#1a3a5c','#2a1a5c','#1a4a2c','#4a1a1a','#3a2a1a','#1a3a4a'];
+  segs.forEach((seg, i) => {
+    const start = rot + i * sweep;
+    ctx.beginPath();
+    ctx.moveTo(_CCCX, _CCCY);
+    ctx.arc(_CCCX, _CCCY, _CCR, start, start + sweep);
+    ctx.closePath();
+    ctx.fillStyle = seg.id === 'miss' ? '#221122' : COLORS[i % COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = '#07071a'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Label
+    const mid = start + sweep / 2;
+    ctx.save();
+    ctx.translate(_CCCX + Math.cos(mid) * _CCR * 0.66, _CCCY + Math.sin(mid) * _CCR * 0.66);
+    ctx.rotate(mid + Math.PI / 2);
+    ctx.fillStyle = seg.id === 'miss' ? '#aa4444' : '#cceeff';
+    ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+    ctx.fillText(seg.icon + ' ' + (seg.label.length > 10 ? seg.label.slice(0, 10) + '…' : seg.label), 0, 0);
+    ctx.restore();
+  });
+
+  // Outer ring
+  ctx.beginPath(); ctx.arc(_CCCX, _CCCY, _CCR, 0, Math.PI * 2);
+  ctx.strokeStyle = '#2a2a5a'; ctx.lineWidth = 5; ctx.stroke();
+  // Center
+  ctx.beginPath(); ctx.arc(_CCCX, _CCCY, 14, 0, Math.PI * 2);
+  ctx.fillStyle = '#09091a'; ctx.fill();
+  ctx.strokeStyle = '#4a4a9a'; ctx.lineWidth = 2; ctx.stroke();
+  // Pointer
+  ctx.save();
+  ctx.shadowColor = '#cc55ff'; ctx.shadowBlur = 10;
+  ctx.fillStyle = '#aa22ff'; ctx.strokeStyle = '#ddaaff'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(_CCCX, _CCCY - _CCR + 14);
+  ctx.lineTo(_CCCX - 10, _CCCY - _CCR - 12);
+  ctx.lineTo(_CCCX + 10, _CCCY - _CCR - 12);
+  ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+}
+
+function _ccAnimate(ts) {
+  if (!_ccStartTime) _ccStartTime = ts;
+  const t = Math.min((ts - _ccStartTime) / _ccSpinDur, 1);
+  _ccRotation = _ccEase(t) * _ccSpinTarget;
+  _ccDraw(_ccRotation, _ccWheel.segs);
+  if (t < 1) { requestAnimationFrame(_ccAnimate); }
+  else {
+    _ccSpinning = false;
+    _ccDraw(_ccSpinTarget, _ccWheel.segs);
+    _ccOnLand();
+  }
+}
+
+function _ccOnLand() {
+  if (_ccApplied) return;
+  _ccApplied = true;
+  const result = _ccWheel.result;
+  const resLabel = document.getElementById('cc-res-label');
+  const resOut   = document.getElementById('cc-res-outcome');
+  if (result) {
+    const def = (typeof SKILL_MAP !== 'undefined' && SKILL_MAP[result]) || { name: result, icon: '✦' };
+    if (resLabel)  resLabel.textContent  = `${def.icon ?? '✦'} ${def.name} — Copied!`;
+    if (resOut)    resOut.textContent    = 'Skill will be available next round.';
+    _ccFighter.copycatSkill = result;
+  } else {
+    if (resLabel)  resLabel.textContent  = '❌ MISS — No copy this time.';
+    if (resOut)    resOut.textContent    = '';
+  }
+  document.getElementById('cc-result').style.display = '';
+  document.getElementById('cc-continue-btn').style.display = '';
+  document.getElementById('cc-spin-btn').style.display = 'none';
+}
+
+function showCopycatWheel(fighter, wheelData) {
+  _ccFighter  = fighter;
+  _ccApplied  = false;
+  _ccSpinning = false;
+  _ccStartTime = null;
+  _ccRotation  = 0;
+
+  const segs   = _ccBuildSegments(wheelData.candidates);
+  const result = wheelData.result;   // null = miss, else skill id
+  _ccWheel = { segs, result };
+
+  // Find landing segment index
+  const targetId  = result ?? 'miss';
+  const targetIdx = segs.findIndex(s => s.id === targetId);
+  const sweep     = (Math.PI * 2) / segs.length;
+  const segCenter = targetIdx * sweep + sweep / 2;
+  let land = (3 * Math.PI / 2) - segCenter;
+  while (land < 0) land += Math.PI * 2;
+  land += 5 * Math.PI * 2;
+  land += (Math.random() - 0.5) * sweep * 0.6;
+  _ccSpinTarget = land;
+
+  // Winner label
+  const nameEl = document.getElementById('cc-winner-label');
+  if (nameEl) nameEl.textContent = `${fighter.charEmoji ?? '🎭'} ${fighter.charName ?? 'Winner'} — Copycat`;
+
+  // Reset UI
+  document.getElementById('cc-result').style.display = 'none';
+  document.getElementById('cc-spin-btn').style.display = '';
+  document.getElementById('cc-spin-btn').disabled = false;
+  document.getElementById('cc-spin-btn').textContent = '🎭 SPIN!';
+  document.getElementById('cc-continue-btn').style.display = 'none';
+
+  // Show modal & draw
+  document.getElementById('copycat-modal').style.display = 'flex';
+  _ccCtx = document.getElementById('copycat-wheel').getContext('2d');
+  _ccDraw(0, segs);
+}
+
+document.getElementById('cc-spin-btn')?.addEventListener('click', () => {
+  if (_ccSpinning || _ccApplied) return;
+  _ccSpinning = true; _ccStartTime = null;
+  const btn = document.getElementById('cc-spin-btn');
+  btn.disabled = true; btn.textContent = '🎡 Spinning…';
+  requestAnimationFrame(_ccAnimate);
+});
+
+document.getElementById('cc-continue-btn')?.addEventListener('click', () => {
+  document.getElementById('copycat-modal').style.display = 'none';
 });

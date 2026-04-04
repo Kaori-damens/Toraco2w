@@ -28,7 +28,7 @@ class Ball {
 
     this.maxHp = dur !== null ? (50 + dur * 10) : BASE_HP;
     this.hp    = this.maxHp;
-    this.maxSpd     = spd !== null ? (10 + spd * 1.5) : 18;
+    this.maxSpd     = spd !== null ? (7 + spd * 1.5) : 15;
     this.baseMaxSpd = this.maxSpd; // Speed Floor reference
     this.alive = true;
     this.mass = this.radius * this.radius * 0.05;
@@ -137,6 +137,10 @@ class Ball {
     if (this.mindBreakDebuff > 0)      dmg *= (1 - this.mindBreakDebuff);
     // Human Limit Break: each hit stacks +15% damage (no expiry)
     if (this.charRace === 'human' && this.rs_active) dmg *= (1 + (this.rs_stacks || 0) * 0.15);
+    // Dwarf Master Forge: Sharpness stacks +5% dmg each
+    if (this.rs_forgeSharpness > 0) dmg *= (1 + this.rs_forgeSharpness * 0.05);
+    // Orc Blood Price: burst hit deals bonus damage (STR-scaled)
+    if (this.charRace === 'orc' && this.rs_burstReady) dmg *= (1 + (this.charSTR ?? 5) * 0.15);
     return dmg;
   }
 
@@ -190,6 +194,21 @@ class Ball {
       this.vx *= 1.1;
       this.vy *= 1.1;
       this.wallBoostFactor = 1.1;
+
+      // Quake wall slam: nếu bị Giant Quake đẩy và đang còn trong window → deal wall damage
+      if (this.quakeSlamFrames > 0 && spd >= 4) {
+        const wallDmg = Math.round(spd * 1.8);
+        const src = this.quakeSlamGiant;
+        this.takeDamage(wallDmg, this.x + (wallHitX ? (this.vx > 0 ? -10 : 10) : 0),
+                                  this.y + (wallHitY ? (this.vy > 0 ? -10 : 10) : 0),
+                                  false, src);
+        spawnDamageNumber(this.x, this.y - this.radius - 18, `🌍 SLAM! -${wallDmg}`, '#cc9944');
+        if (typeof addBattleLog === 'function' && src) {
+          addBattleLog('race_skill', { attacker: getBallLabel(src), aColor: src.color,
+            text: `🌍 Wall slam! -${wallDmg} on ${getBallLabel(this)}` });
+        }
+        this.quakeSlamFrames = 0; // one slam per quake only
+      }
     }
     if (this.bounceCooldown > 0) this.bounceCooldown--;
 
@@ -306,7 +325,8 @@ class Ball {
     if (def.id === 'bow') {
       // Arrow speed scales with SPD (arm strength) and IQ (technique)
       const baseSpd = def.arrowSpeed + (this.weapon.arrowSpeedBonus || 0)
-                    + spdStat * 0.25 + iqStat * 0.15;
+                    + spdStat * 0.25 + iqStat * 0.15
+                    + (this.rs_forgeProjSpeedBonus || 0); // Dwarf: Swift Flight
 
       // Multi-stream spread: MA>=5 → 2 streams ±5°, MA>=10 → 3 streams ±10°
       const streams    = this.weapon._bowStreams || 1;
@@ -321,22 +341,27 @@ class Ball {
 
       for (const offset of offsets) {
         const ang = a + offset;
-        projectiles.push(new Projectile(
+        const arrow = new Projectile(
           this.x + Math.cos(ang) * this.radius,
           this.y + Math.sin(ang) * this.radius,
           Math.cos(ang) * baseSpd, Math.sin(ang) * baseSpd,
           this, 'arrow', (this.charSTR ?? 1)
-        ));
+        );
+        if (this.rs_forgeProjSizeBonus) arrow.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
+        projectiles.push(arrow);
       }
     } else if (def.id === 'shuriken') {
       // Shuriken speed scales more aggressively (low base, needs stats to be viable)
-      const spd = def.shurikenSpeed + spdStat * 0.4 + iqStat * 0.25;
-      projectiles.push(new Projectile(
+      const spd = def.shurikenSpeed + spdStat * 0.4 + iqStat * 0.25
+                + (this.rs_forgeProjSpeedBonus || 0); // Dwarf: Swift Flight
+      const star = new Projectile(
         this.x + Math.cos(a) * this.radius,
         this.y + Math.sin(a) * this.radius,
         Math.cos(a) * spd, Math.sin(a) * spd,
         this, 'shuriken', (this.charSTR ?? 1)
-      ));
+      );
+      if (this.rs_forgeProjSizeBonus) star.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
+      projectiles.push(star);
     }
   }
 
@@ -382,6 +407,15 @@ class Ball {
     // Flow State: reset stacks when hit
     if (this.skillState?.flowStateStacks > 0) {
       this.skillState.flowStateStacks = 0;
+    }
+
+    // Race: Orc Blood Price — accumulate stacks each time hit; at 5 stacks, arm burst
+    if (this.charRace === 'orc' && this.raceSkillDef && !this.rs_burstReady) {
+      this.rs_stacks = (this.rs_stacks || 0) + 1;
+      if (this.rs_stacks >= 5) {
+        this.rs_stacks = 0; this.rs_burstReady = true;
+        spawnDamageNumber(this.x, this.y - this.radius - 20, '🩸 BLOODLUST!', '#cc2222');
+      }
     }
 
     // Race: Human Limit Break — triggers when HP crosses below 20% (last stand)

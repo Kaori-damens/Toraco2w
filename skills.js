@@ -241,6 +241,16 @@ function skillOnHit(attacker, defender, dmg) {
     attacker.rs_lbBackoffTimer = 30;  // ~0.5s backoff before next charge
   }
 
+  // ── Race: Orc Blood Price burst consume ──────────────────────
+  if (attacker.charRace === 'orc' && attacker.raceSkillDef && attacker.rs_burstReady) {
+    attacker.rs_burstReady = false;
+    const healAmt = Math.round((attacker.charDUR ?? 5) * 1.2);
+    attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
+    spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 26, `🩸 BURST! +${healAmt}HP`, '#ff3333');
+    spawnSparks(attacker.x, attacker.y, 10);
+    addBattleLog('race_skill', { attacker: getBallLabel(attacker), aColor: attacker.color, text: `🩸 Blood Price burst!` });
+  }
+
   // ── Race: Primordial Void Grip ────────────────────────────────
   if (typeof raceSkillOnHitDefending === 'function') raceSkillOnHitDefending(attacker, defender);
 }
@@ -404,21 +414,26 @@ function skillOnPostCombat(ball, won, fighter) {
     // Copycat: BIQ×3.5% chance to learn 1 random skill from an opponent
     if (ball.skills.includes('copycat')) {
       const chance = (ball.charBIQ ?? 5) * 0.035;
-      if (Math.random() < chance) {
-        const candidateSkills = [];
-        state.players.forEach(other => {
-          if (other === ball) return;
+      const candidateSkills = [...new Set(
+        state.players.flatMap(other => {
+          if (other === ball) return [];
           const isOpponent = ball.teamId < 0 || ball.teamId !== other.teamId;
-          if (!isOpponent || !other.skills) return;
-          for (const sid of other.skills) {
-            if (ball.skills.includes(sid)) continue;
-            // Regular skills: weight ×3 (push 3 times)
-            candidateSkills.push(sid, sid, sid);
-          }
-        });
-        if (candidateSkills.length > 0) {
-          const learned = candidateSkills[Math.floor(Math.random() * candidateSkills.length)];
-          fighter.copycatSkill = learned; // applied next round in applySkillPassives
+          if (!isOpponent || !other.skills) return [];
+          return other.skills.filter(sid => !ball.skills.includes(sid));
+        })
+      )];
+      if (candidateSkills.length > 0) {
+        const success = Math.random() < chance;
+        const learned = success
+          ? candidateSkills[Math.floor(Math.random() * candidateSkills.length)]
+          : null;
+        const inTournament = state.tournament || state.tournament2v2 || state.championship;
+        if (inTournament) {
+          // Store for Copycat Wheel — applied after wheel spin
+          fighter._copycatWheel = { candidates: candidateSkills, result: learned };
+        } else if (learned) {
+          // Non-tournament: apply directly
+          fighter.copycatSkill = learned;
           spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🎭 COPYCAT!', '#ffaaff');
           flashSkillHUD(ball, SKILL_MAP['copycat']);
         }
@@ -442,6 +457,12 @@ const RACE_SKILL_DEFS = {
                 desc:'Triggers once when HP drops below 80%. Lasts until end of match. Each hit stacks +15% damage. Charge mode — no retreat.' },
   angel:      { id:'race_smite',        name:'Smite',        icon:'✨',
                 desc:'Calls divine lightning on the nearest foe every 15s. Deals damage + stuns. Scales with IQ & MA.' },
+  dwarf:      { id:'race_master_forge', name:'FORGE!', icon:'⚒️',
+                desc:'Passive: every 10s, weapon is forged with a random upgrade. Upgrades stack across rounds. Forge speed scales with DUR.' },
+  orc:        { id:'race_blood_price',  name:'Blood Price', icon:'🩸',
+                desc:'Passive: each hit taken adds 1 Bloodlust stack (max 5). At 5 stacks, next attack bursts for bonus damage and heals. Burst damage scales with STR, heal with DUR.' },
+  giant:      { id:'race_quake',        name:'Quake', icon:'🌍',
+                desc:'Every ~25s, stomps the ground — shockwave pushes ALL enemies away with massive knockback. Close enemies also take damage. Force and damage scale with STR, cooldown reduced by DUR.' },
 };
 
 function getRaceSkillDef(race) { return RACE_SKILL_DEFS[race] ?? null; }
@@ -496,6 +517,33 @@ function initRaceSkillState(ball) {
     ball.rs_smiteDmg    = 8 + iq * 2;
     ball.rs_smiteStun   = 60 + ma * 12;
   }
+  if (race === 'orc') {
+    ball.rs_stacks     = 0;       // bloodlust stacks (0–5)
+    ball.rs_burstReady = false;   // true when 5 stacks reached
+    ball.rs_maxCooldown = 0;      // passive — no cooldown bar
+  }
+  if (race === 'giant') {
+    // Cooldown: STR5,DUR5→1400f(~23s); STR10,DUR10→1200f(20s)
+    ball.rs_maxCooldown  = Math.max(1200, 1800 - str * 50 - (ball.charDUR ?? 5) * 30);
+    ball.rs_cooldown     = ball.rs_maxCooldown; // starts on full cooldown
+    ball.rs_quakeForce   = 6 + str * 1.5;      // STR5→13.5, STR10→21
+    ball.rs_quakeDmg     = Math.round(str * 2); // close-range damage
+    ball.rs_quakeActive  = false;
+    ball.rs_quakeTimer   = 0;
+    ball.rs_quakeWaveR   = 0;
+  }
+  if (race === 'dwarf') {
+    // Forge interval: DUR5→600f(10s), DUR10→480f(8s)
+    ball.rs_maxCooldown       = Math.max(420, 720 - (ball.charDUR ?? 5) * 24);
+    ball.rs_cooldown          = ball.rs_maxCooldown; // start counting down immediately
+    ball.rs_forgeLevel        = 0;   // total upgrades across rounds
+    ball.rs_forgeSizeBonus    = 0;   // melee: extra hit threshold radius
+    ball.rs_forgeParryBonus   = 0;   // melee: extra parry detection radius
+    ball.rs_forgeSharpness    = 0;   // both: +5% dmg per stack
+    ball.rs_forgeProjSizeBonus  = 0; // ranged: extra projectile radius
+    ball.rs_forgeProjSpeedBonus = 0; // ranged: extra projectile speed
+    ball.rs_forgeFlash        = 0;   // visual flash timer after each forge
+  }
 }
 
 // Called every frame for ALL alive balls (regardless of race skill).
@@ -544,6 +592,48 @@ function updateVoidGripPhysics(ball) {
   }
 }
 
+// ── Dwarf: apply one random forge upgrade ─────────────────────
+function _dwarfForge(ball) {
+  const isRanged = ball.weaponDef?.aiType === 'ranged';
+  let upgradeName, upgradeIcon;
+
+  if (isRanged) {
+    const roll = Math.random();
+    if (roll < 0.25) {
+      ball.rs_forgeProjSizeBonus = (ball.rs_forgeProjSizeBonus || 0) + 2;
+      upgradeName = 'Heavy Ammo'; upgradeIcon = '🏹';
+    } else if (roll < 0.50) {
+      ball.rs_forgeSharpness = (ball.rs_forgeSharpness || 0) + 1;
+      upgradeName = 'Sharp Tip'; upgradeIcon = '✨';
+    } else if (roll < 0.75) {
+      ball.rs_forgeProjSpeedBonus = (ball.rs_forgeProjSpeedBonus || 0) + 0.8;
+      upgradeName = 'Swift Flight'; upgradeIcon = '💨';
+    } else {
+      ball.critChance = Math.min(0.85, (ball.critChance || 0) + 0.03);
+      upgradeName = 'Keen Eye'; upgradeIcon = '🎯';
+    }
+  } else {
+    const roll = Math.random();
+    if (roll < 0.34) {
+      ball.rs_forgeSizeBonus = (ball.rs_forgeSizeBonus || 0) + 4;
+      upgradeName = 'Bigger Blade'; upgradeIcon = '⚔️';
+    } else if (roll < 0.67) {
+      ball.rs_forgeSharpness = (ball.rs_forgeSharpness || 0) + 1;
+      upgradeName = 'Sharpness'; upgradeIcon = '✨';
+    } else {
+      ball.rs_forgeParryBonus = (ball.rs_forgeParryBonus || 0) + 6;
+      upgradeName = 'Tempered Edge'; upgradeIcon = '🛡️';
+    }
+  }
+
+  ball.rs_forgeLevel = (ball.rs_forgeLevel || 0) + 1;
+  ball.rs_forgeFlash = 55;
+  spawnDamageNumber(ball.x, ball.y - ball.radius - 22,
+    `${upgradeIcon} ${upgradeName}!`, '#f0c040');
+  addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
+    text: `⚒️ Forge Lv.${ball.rs_forgeLevel}: ${upgradeIcon} ${upgradeName}` });
+}
+
 // Called every frame from game-loop step() for each ball
 function updateRaceSkills(ball, players, rstate) {
   if (!ball.alive) return;
@@ -571,6 +661,9 @@ function updateRaceSkills(ball, players, rstate) {
 
   // Tick race-specific cooldown
   if (ball.rs_cooldown > 0) ball.rs_cooldown--;
+
+  // Tick Quake wall-slam window
+  if (ball.quakeSlamFrames > 0) ball.quakeSlamFrames--;
 
   // Human Limit Break trigger is in takeDamage() (ball.js) — fires mid-frame when HP crosses 80%
 
@@ -673,6 +766,52 @@ function updateRaceSkills(ball, players, rstate) {
       ball.vx += (targetVx - ball.vx) * 0.07;
       ball.vy += (targetVy - ball.vy) * 0.07;
       ball.weapon.angle = Math.atan2(dy, dx);
+    }
+  }
+
+  // ── GIANT: Quake ─────────────────────────────────────────────
+  if (race === 'giant') {
+    if (ball.rs_quakeTimer > 0) {
+      ball.rs_quakeTimer--;
+      ball.rs_quakeWaveR = (1 - ball.rs_quakeTimer / 30) * 360; // expand 0→360
+    }
+    if (ball.rs_cooldown === 0) {
+      ball.rs_quakeActive = true;
+      ball.rs_quakeTimer  = 30;
+      ball.rs_quakeWaveR  = 0;
+      ball.rs_cooldown    = ball.rs_maxCooldown;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 22, '🌍 QUAKE!', '#cc9944');
+      addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🌍 Quake!' });
+      // Apply shockwave to all enemies
+      for (const en of players) {
+        if (!en.alive || en === ball) continue;
+        const dx   = en.x - ball.x, dy = en.y - ball.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const nx   = dx / dist, ny = dy / dist;
+        const falloff = Math.max(0.1, 1 - dist / 380);
+        const force   = ball.rs_quakeForce * falloff;
+        en.vx += nx * force;
+        en.vy += ny * force;
+        // Close-range damage (within 160px)
+        if (dist < 160) {
+          en.takeDamage(ball.rs_quakeDmg, ball.x, ball.y, false, ball);
+          spawnDamageNumber(en.x, en.y - en.radius - 14, `🌍 -${ball.rs_quakeDmg}`, '#bb8833');
+        }
+        // Tag for wall slam (60 frame window ~1s)
+        en.quakeSlamFrames = 60;
+        en.quakeSlamGiant  = ball;
+      }
+      spawnSparks(ball.x, ball.y, 20);
+    }
+    if (ball.rs_quakeTimer <= 0) ball.rs_quakeActive = false;
+  }
+
+  // ── DWARF: Master Forge ───────────────────────────────────────
+  if (race === 'dwarf' && ball.raceSkillDef) {
+    if (ball.rs_forgeFlash > 0) ball.rs_forgeFlash -= speedMul;
+    if (ball.rs_cooldown <= 0) {
+      _dwarfForge(ball);
+      ball.rs_cooldown = ball.rs_maxCooldown;
     }
   }
 
@@ -855,6 +994,24 @@ function drawRaceSkillEffects(ctx, rstate) {
     }
     ctx.restore();
   });
+
+  // Giant Quake: expanding shockwave ring from each giant ball
+  for (const ball of (rstate.players || [])) {
+    if (ball.charRace !== 'giant' || !ball.rs_quakeActive || ball.rs_quakeTimer <= 0) continue;
+    const waveR = ball.rs_quakeWaveR || 0;
+    if (waveR <= 0) continue;
+    const alpha = (ball.rs_quakeTimer / 30) * 0.7;   // fades as timer counts down
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = '#cc9944'; ctx.shadowBlur = 18;
+    ctx.strokeStyle = '#ddbb44'; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, waveR, 0, Math.PI * 2); ctx.stroke();
+    // Second fainter outer ring
+    ctx.globalAlpha = alpha * 0.35;
+    ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, waveR + 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
 
   // Smite: telegraph warning ring + lightning bolt (tracks target)
   (rstate.smiteEffects || []).forEach(s => {
@@ -1081,6 +1238,51 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.restore();
   }
 
+  // Orc: bloodlust stack badge + burst-ready crimson ring
+  if (race === 'orc') {
+    if (ball.rs_burstReady) {
+      // Pulsing crimson ring — burst armed
+      const pulse = 0.4 + 0.35 * Math.sin(t * 0.7);
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.shadowColor = '#cc2222'; ctx.shadowBlur = 22;
+      ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = pulse * 0.35;
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 12, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    const stacks = ball.rs_stacks || 0;
+    if (stacks > 0 || ball.rs_burstReady) {
+      ctx.save();
+      ctx.font = 'bold 11px Arial';
+      ctx.fillStyle = ball.rs_burstReady ? '#ff4444' : '#cc8888';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(ball.rs_burstReady ? '🩸 BURST' : `🩸×${stacks}`, cx, cy - r - 4);
+      ctx.restore();
+    }
+  }
+
+  // Giant: ready glow when quake cooldown is 0
+  if (race === 'giant' && ball.rs_cooldown === 0 && ball.rs_maxCooldown > 0) {
+    const pulse = 0.3 + 0.25 * Math.sin(t * 0.5);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = '#cc9944'; ctx.shadowBlur = 20;
+    ctx.strokeStyle = '#ddbb55'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = pulse * 0.3;
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ddbb55';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('🌍 READY', cx, cy - r - 4);
+    ctx.restore();
+  }
+
   // Human: golden limit break glow + stack counter
   if (race === 'human' && ball.rs_active) {
     const pulse = 0.3 + 0.25 * Math.sin(t * 0.65);
@@ -1115,6 +1317,29 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.arc(cx, cy, r+3, -Math.PI/2, -Math.PI/2 + pct*Math.PI*2);
     ctx.stroke();
     ctx.restore();
+  }
+
+  // Dwarf: forge flash (golden ring burst when upgrade fires) + persistent level badge
+  if (race === 'dwarf') {
+    if (ball.rs_forgeFlash > 0) {
+      const flashAlpha = Math.min(1, ball.rs_forgeFlash / 20) * 0.9;
+      ctx.save();
+      ctx.globalAlpha = flashAlpha;
+      ctx.strokeStyle = '#f0c040'; ctx.lineWidth = 3.5;
+      ctx.shadowColor = '#f0c040'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = flashAlpha * 0.4;
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 14, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    if ((ball.rs_forgeLevel || 0) > 0) {
+      ctx.save();
+      ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#f0c040';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(`⚒️×${ball.rs_forgeLevel}`, cx, cy - r - 4);
+      ctx.restore();
+    }
   }
 
   // Stun indicator
