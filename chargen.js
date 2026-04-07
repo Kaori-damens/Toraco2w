@@ -546,7 +546,12 @@ function openDebugRadoser() {
 
   // Populate weapon dropdown
   const weaponEl = document.getElementById('dbg-weapon');
-  const allWeapons = [...CG_WEAPONS_ARMED, { id:'fists', label:'✊ Fists (Unarmed)' }];
+  const allWeapons = [
+    ...CG_WEAPONS_ARMED,
+    { id:'fists',  label:'✊ Fists (Unarmed)' },
+    { id:'rapier', label:'🤺 Rapier [FORBIDDEN]' },
+    { id:'katana', label:'⚔️ Katana [FORBIDDEN]' },
+  ];
   weaponEl.innerHTML = allWeapons.map(w => `<option value="${w.id}">${w.label}</option>`).join('');
 
   // Populate skills checkboxes

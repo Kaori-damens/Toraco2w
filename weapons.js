@@ -474,6 +474,144 @@ const WEAPON_DEFS = [
       w.shurikenCount = Math.min((w.shurikenCount||1) + this.scaling.amount, this.scaling.max);
       sfxScale();
     }
+  },
+
+  // ─── FORBIDDEN WEAPONS ──────────────────────────────────────────────────────
+  {
+    id: 'rapier', name: 'Rapier', icon: '🤺', color: '#aae0ff',
+    desc: 'Riposte',
+    aiType: 'melee',
+    baseLength: 40, baseSpeed: 0.072, baseDamage: 0.8,
+    baseKnockback: 2, hitRadius: 6, attackCooldown: 18,
+    reverseOnHit: true,
+    scaling: { type: 'riposte' }, scalingLabel: 'Riposte Dmg',
+    draw(ctx, ball) {
+      const w   = ball.weapon;
+      const len = ball.radius + this.baseLength;
+      const bx  = ball.x + Math.cos(w.angle) * ball.radius;
+      const by  = ball.y + Math.sin(w.angle) * ball.radius;
+      const ex  = ball.x + Math.cos(w.angle) * len;
+      const ey  = ball.y + Math.sin(w.angle) * len;
+      const riposteActive = w.riposteWindow > 0;
+      ctx.save();
+      // Blade: thin silver-blue
+      ctx.strokeStyle = riposteActive ? '#ffe066' : '#aae0ff';
+      ctx.lineWidth = riposteActive ? 3 : 2;
+      ctx.lineCap = 'round';
+      if (riposteActive) {
+        ctx.shadowColor = '#ffe066';
+        ctx.shadowBlur = 10;
+      }
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      // Spine highlight
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      // Tip glow when riposte window open
+      if (riposteActive) {
+        ctx.shadowColor = '#ffe066';
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = '#ffe066';
+        ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.fillStyle = '#ddeeff';
+        ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fill();
+      }
+      // Guard — small crossbar
+      const guardDist = ball.radius + 6;
+      const gx = ball.x + Math.cos(w.angle) * guardDist;
+      const gy = ball.y + Math.sin(w.angle) * guardDist;
+      const perp = w.angle + Math.PI / 2;
+      ctx.strokeStyle = '#88bbdd';
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(gx + Math.cos(perp)*8, gy + Math.sin(perp)*8);
+      ctx.lineTo(gx - Math.cos(perp)*8, gy - Math.sin(perp)*8);
+      ctx.stroke();
+      ctx.restore();
+    },
+    getHitPoints(ball) {
+      const w   = ball.weapon;
+      const len = ball.radius + this.baseLength;
+      return [{ x: ball.x + Math.cos(w.angle) * len, y: ball.y + Math.sin(w.angle) * len, r: 6 }];
+    },
+    onHit(w) {
+      w.hits++;
+      if (w.riposteWindow > 0) {
+        w.riposteWindow = 0; // consumed — multiplier already applied in getDamage
+      }
+    }
+  },
+  {
+    id: 'katana', name: 'Katana', icon: '⚔️', color: '#e8e8ff',
+    desc: 'Momentum',
+    aiType: 'melee',
+    baseLength: 62, baseSpeed: 0.038, baseDamage: 1.5,
+    baseKnockback: 7, hitRadius: 8, attackCooldown: 42,
+    reverseOnHit: true,
+    scaling: { type: 'momentum', max: 5 }, scalingLabel: 'Momentum',
+    draw(ctx, ball) {
+      const w     = ball.weapon;
+      const stacks = w.momentumStacks || 0;
+      const iai   = !!w.iaiReady;
+      const len   = ball.radius + this.baseLength;
+      const bx    = ball.x + Math.cos(w.angle) * ball.radius;
+      const by    = ball.y + Math.sin(w.angle) * ball.radius;
+      const ex    = ball.x + Math.cos(w.angle) * len;
+      const ey    = ball.y + Math.sin(w.angle) * len;
+      ctx.save();
+      // Aura rings for each momentum stack
+      for (let i = 0; i < stacks; i++) {
+        const ringR = ball.radius + 4 + i * 5;
+        ctx.strokeStyle = iai ? `rgba(255,255,200,${0.5 - i * 0.05})` : `rgba(200,200,255,${0.35 - i * 0.04})`;
+        ctx.lineWidth = iai ? 2.5 : 1.5;
+        ctx.shadowColor = iai ? '#ffffaa' : '#aaaaff';
+        ctx.shadowBlur = iai ? 8 : 4;
+        ctx.beginPath(); ctx.arc(ball.x, ball.y, ringR, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      // Blade: long, white-bright
+      const bladeColor = iai ? '#ffffee' : '#e8e8ff';
+      ctx.strokeStyle = bladeColor;
+      ctx.lineWidth = iai ? 4 : 3;
+      ctx.lineCap = 'round';
+      if (iai) { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 14; }
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      // Spine fuller (center groove line) — subtle darker streak
+      ctx.strokeStyle = 'rgba(160,160,220,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.restore();
+    },
+    getHitPoints(ball) {
+      const w   = ball.weapon;
+      const mid = ball.radius + this.baseLength * 0.6;
+      const tip = ball.radius + this.baseLength;
+      return [
+        { x: ball.x + Math.cos(w.angle) * tip, y: ball.y + Math.sin(w.angle) * tip, r: 8 },
+        { x: ball.x + Math.cos(w.angle) * mid, y: ball.y + Math.sin(w.angle) * mid, r: 7 },
+      ];
+    },
+    onHit(w) {
+      w.hits++;
+      if (w.iaiReady) {
+        // IAI STRIKE: multiplier already applied in getDamage; reset here
+        w.momentumStacks = 0;
+        w.iaiReady = false;
+        w.momentumTimer = 0;
+      } else {
+        w.momentumStacks = Math.min(5, (w.momentumStacks || 0) + 1);
+        w.momentumTimer = 180;
+        if (w.momentumStacks >= 5) w.iaiReady = true;
+      }
+    }
   }
 ];
 

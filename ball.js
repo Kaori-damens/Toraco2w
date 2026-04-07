@@ -80,6 +80,8 @@ class Ball {
     else if (def.id === 'spear')   ac = Math.max(2, 38 - spd);
     else if (def.id === 'scythe')  ac = Math.max(2, 34 - spd);
     else if (def.id === 'hammer')  ac = Math.max(2, 48 - spd);
+    else if (def.id === 'rapier')  ac = Math.max(2, 18 - spd);
+    else if (def.id === 'katana')  ac = Math.max(2, 42 - spd);
     // Ranged: fireInterval overridden per-ball via weapon.fireInterval
     let fi = def.fireInterval || null;
     if (def.id === 'bow')      fi = Math.max(5, 140 - spd * 2);
@@ -105,7 +107,13 @@ class Ball {
       burstQueue: 0,
       burstTimer: 0,
       parried: false,
-      parryCooldown: 0
+      parryCooldown: 0,
+      // Rapier — Riposte
+      riposteWindow: 0,
+      // Katana — Momentum
+      momentumStacks: 0,
+      momentumTimer: 0,
+      iaiReady: false,
     };
   }
 
@@ -141,6 +149,17 @@ class Ball {
     if (this.rs_forgeSharpness > 0) dmg *= (1 + this.rs_forgeSharpness * 0.05);
     // Orc Blood Price: burst hit deals bonus damage (STR-scaled)
     if (this.charRace === 'orc' && this.rs_burstReady) dmg *= (1 + (this.charSTR ?? 5) * 0.15);
+    // Rapier — Riposte multiplier (IQ-scaled): IQ5→×2.25, IQ10→×3.0
+    if (def.id === 'rapier' && this.weapon.riposteWindow > 0) {
+      const iq = this.charIQ ?? 0;
+      dmg *= (1.5 + iq * 0.15);
+      spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ RIPOSTE!', '#ffdd00');
+    }
+    // Katana — Iai Strike multiplier ×3
+    if (def.id === 'katana' && this.weapon.iaiReady) {
+      dmg *= 3.0;
+      spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ IAI STRIKE!', '#ffffff');
+    }
     return dmg;
   }
 
@@ -243,6 +262,14 @@ class Ball {
     if (this.weapon.spinBoostTimer  > 0) this.weapon.spinBoostTimer--;
     if (this.weapon.cooldown > 0) this.weapon.cooldown--;
     if (this.weapon.parryCooldown > 0) this.weapon.parryCooldown--;
+    // Rapier: tick down riposte window
+    if (this.weapon.riposteWindow > 0) this.weapon.riposteWindow--;
+    // Katana: tick down momentum decay timer; lose stacks if expired
+    if (this.weapon.momentumTimer > 0) {
+      this.weapon.momentumTimer--;
+    } else if (this.weapon.momentumStacks > 0 && !this.weapon.iaiReady) {
+      this.weapon.momentumStacks = 0;
+    }
     if (this.immunityFrames     > 0) this.immunityFrames--;
     if (this.projImmunityFrames > 0) this.projImmunityFrames--;
     if (this.hitFlash > 0) this.hitFlash--;
@@ -407,6 +434,17 @@ class Ball {
     // Flow State: reset stacks when hit
     if (this.skillState?.flowStateStacks > 0) {
       this.skillState.flowStateStacks = 0;
+    }
+    // Rapier: taking damage opens the Riposte window (BIQ-scaled frames)
+    if (this.weaponDef?.id === 'rapier') {
+      const biq = this.charBIQ ?? 0;
+      this.weapon.riposteWindow = Math.max(40, 10 + biq * 6);
+    }
+    // Katana: taking damage loses stacks (IAI READY → -1; otherwise → -2)
+    if (this.weaponDef?.id === 'katana' && this.weapon.momentumStacks > 0) {
+      const loss = this.weapon.iaiReady ? 1 : 2;
+      this.weapon.momentumStacks = Math.max(0, this.weapon.momentumStacks - loss);
+      if (this.weapon.momentumStacks < 5) this.weapon.iaiReady = false;
     }
 
     // Race: Orc Blood Price — accumulate stacks each time hit; at 5 stacks, arm burst
