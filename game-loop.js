@@ -178,6 +178,25 @@ function step() {
     spawnBigAnnouncement('RAGE MODE!', '#ff4400');
   }
 
+  // ── God Time Loss: after 1m46s (6360 frames), god auto-loses vs non-demon/non-god ──
+  if (!state.godTimeLoss && state.matchTime >= 106 * 60 && !state.pveMode) {
+    state.godTimeLoss = true;
+    let godFell = false;
+    for (const godBall of players) {
+      if (!godBall.alive || godBall.charRace !== 'god') continue;
+      const opponents = state.matchMode === '2v2'
+        ? players.filter(b => b.alive && b.teamId !== godBall.teamId)
+        : players.filter(b => b.alive && b !== godBall);
+      const hasNonExempt = opponents.some(b => b.charRace !== 'demon' && b.charRace !== 'god');
+      if (!hasNonExempt) continue;
+      godBall.alive = false;
+      godBall.hp    = 0;
+      spawnDamageNumber(godBall.x, godBall.y - godBall.radius - 28, '⏱️ Fell from grace!', '#ccaaff');
+      godFell = true;
+    }
+    if (godFell) spawnBigAnnouncement('GOD FALLS!', '#ccaaff');
+  }
+
 
   // Check game end
   const alive = players.filter(b => b.alive);

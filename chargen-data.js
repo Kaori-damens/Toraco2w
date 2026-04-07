@@ -84,15 +84,9 @@ const CG_SUBRACES = {
     { label:'Asmodeus',   weight:14.28, desc:'Skill "AIDS" (incurable). vs AIDS opponent: +1 starting point.' },
   ],
   godGift: [
-    { label:'Odin',   weight:1, desc:'' },
-    { label:'Týr',    weight:1, desc:'' },
-    { label:'Frigg',  weight:1, desc:'' },
-    { label:'Baldur', weight:1, desc:'' },
-    { label:'Loki',   weight:1, desc:'' },
-    { label:'Freyja', weight:1, desc:'' },
-    { label:'Eir',    weight:1, desc:'' },
-    { label:'Bragi',  weight:1, desc:'' },
-    { label:'Thor',   weight:1, desc:'' },
+    { label:'God of Strength', weight:1, desc:'Wheel STR: chắc chắn ≥10. Quay ra đúng 10 → STR nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'God of Speed',    weight:1, desc:'Wheel SPD: chắc chắn ≥10. Quay ra đúng 10 → SPD nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'???',             weight:1, desc:'TBD' },
   ],
   boneLineage: [
     { label:'Goblin Bones',           weight:6.5,  raceId:'goblin'     },

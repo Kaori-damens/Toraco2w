@@ -632,13 +632,42 @@
 
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">6 Apr 2026</span>
+          <span class="changelog-badge">Patch 48</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📐 <b>Responsive UI</b>: Thêm 3 breakpoint cho màn hình rộng. ≥1100px: menu/roster/bracket mở rộng đến ~1060px. ≥1440px: lên đến ~1380px (fighters grid hiển thị nhiều card hơn mỗi hàng). ≥1800px: ultrawide lên đến ~1720px. Không thay đổi game canvas.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">5 Apr 2026</span>
+          <span class="changelog-badge">Patch 47</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>✨ <b>God Subrace — God of Strength</b>: Wheel STR chắc chắn ≥10. Quay ra đúng 10 → STR nhân đôi lên 20.</li>
+          <li>✨ <b>God Subrace — God of Speed</b>: Wheel SPD chắc chắn ≥10. Quay ra đúng 10 → SPD nhân đôi lên 20.</li>
+          <li>⚖️ <b>God Time Loss</b>: Sau 1 phút 46 giây, God tự động thua nếu không thể dứt điểm đối thủ yếu hơn. Không áp dụng khi đối thủ là Demon hoặc God.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">4 Apr 2026</span>
-          <span class="changelog-badge">Patch 45</span>
+          <span class="changelog-badge">Patch 46</span>
           <span class="changelog-chevron">▼</span>
         </div>
         <div class="changelog-body"><div class="changelog-body-inner">
         <ul class="changelog-list">
           <li>🐛 <b>Bug Fix — Dwarf Forge làm đứng game</b>: <code>speedMul</code> bị khai báo trong block <code>if (netTrapped)</code> nhưng dùng bên ngoài để decrement <code>rs_forgeFlash</code> → <code>ReferenceError</code> sau lần forge đầu tiên → game loop dừng. Đã fix bằng cách chuyển <code>speedMul</code> lên function scope.</li>
+          <li>🐛 <b>Bug Fix — Resume Championship mất kết quả trận cũ</b>: Sau khi F5 và resume, bracket không hiển thị ai thắng ở các trận đã xong. Nguyên nhân: so sánh <code>winner === fighter</code> bằng object reference — sau khi <code>JSON.parse</code> từ localStorage, các object là instance mới nên luôn trả <code>false</code>. Đã fix bằng cách so sánh theo <code>charName + color</code>.</li>
         </ul>
         </div></div>
       </div>

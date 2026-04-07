@@ -137,6 +137,26 @@ function renderCgStep() {
       };
     }
 
+    // ── GOD OF STRENGTH: STR guaranteed ≥10; roll 10 → STR doubled (→20) ──
+    if (sk === 'strength' && race === 'god' && srLabel === 'God of Strength') {
+      statTransform = (_w, idx) => {
+        const raw = idx + 1;
+        if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
+        return `10 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw}, ✨ God's Gift)</span>`;
+      };
+      onStatResult = (_w, idx) => { cgState.stats.strength = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
+    }
+
+    // ── GOD OF SPEED: SPD guaranteed ≥10; roll 10 → SPD doubled (→20) ──
+    if (sk === 'speed' && race === 'god' && srLabel === 'God of Speed') {
+      statTransform = (_w, idx) => {
+        const raw = idx + 1;
+        if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
+        return `10 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw}, ✨ God's Gift)</span>`;
+      };
+      onStatResult = (_w, idx) => { cgState.stats.speed = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
+    }
+
     // ── LAST-STAT EFFECTS: Dragon Flame / Primordial Air/Water applied at MA ──
     if (sk === 'ma') {
       const hasLastEffect = (race === 'dragon' && srLabel === 'Flame') ||

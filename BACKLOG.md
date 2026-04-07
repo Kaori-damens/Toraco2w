@@ -65,6 +65,34 @@ Lưỡi dài trắng sáng. Mỗi Momentum stack thêm 1 vòng aura trắng. Iai
 
 ---
 
+## ⚖️ Championship DE8/DE16 — LB Consolation Bonus
+
+**Câu hỏi gốc**: LB players có cần PvP reward riêng để catch-up với WB không?
+
+### Phân tích reward count thực tế
+
+| Con đường đến Grand Final | Rewards trước GF |
+|---|---|
+| WB Finalist (win UB R1 → R2 → F) | **3** |
+| LB Finalist từ UB R1/R2 drop | **4** (nhiều hơn!) |
+| LB Finalist từ UB F drop | **3** (bằng) |
+
+→ LB về reward count đã cân bằng hoặc nhỉnh hơn WB. Không cần catch-up về rewards.
+
+### Vấn đề thực tế
+WB players có lợi thế "chất lượng" — undefeated → build/stats gốc mạnh hơn. LB players yếu hơn về stats ban đầu dù có nhiều rewards.
+
+### Idea: Consolation Bonus khi Drop vào LB (Narrative, không phải Balance)
+- Khi bị rớt WB → LB: nhận ngay **+2 stat thấp nhất** (guaranteed, không spin wheel)
+- Hiển thị: `"⚔️ Battle-Scarred: +2 [STAT]"`
+- Áp dụng cả DE8 lẫn DE16
+
+**Files cần sửa nếu implement:**
+- `championship.js` — `_deAdvance8` / `_deAdvance16`: mark `loser.droppedToLb = true` khi drop WB→LB
+- `result.js` — Sau `recordChampionshipMatchResult()`: nếu loser có flag, apply +2 lowest stat + show damage number
+
+---
+
 ## 📋 Ghi chú
 
 - Cả 2 vũ khí đều dùng `reverseOnHit: true` (xem thảo luận ngày 2 Apr 2026)

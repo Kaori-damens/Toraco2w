@@ -4158,3 +4158,50 @@ canvas#gameCanvas {
   font-size: 22px;
   font-weight: 900;
 }
+
+/* ================================================================
+   RESPONSIVE — MEDIUM DESKTOP (≥1100px)
+   Mở rộng dần các container vốn bị giới hạn ở 520–900px
+   ================================================================ */
+@media (min-width: 1100px) {
+  #menu               { max-width: 1060px; }
+  #fighters-panel     { max-width: 1010px; }
+  #chargen            { max-width: 680px;  }
+  .roster-section     { max-width: 1060px; }
+  .t-setup            { max-width: 800px;  }
+  .bracket-content    { max-width: 1060px; }
+  #bracket-phase-nav  { max-width: 1060px; }
+  .cs-bracket-view    { max-width: 1060px; }
+  #tournament-stats-box { max-width: 900px; }
+}
+
+/* ================================================================
+   RESPONSIVE — LARGE DESKTOP (≥1440px)
+   ================================================================ */
+@media (min-width: 1440px) {
+  #menu               { max-width: 1380px; }
+  #fighters-panel     { max-width: 1340px; }
+  #chargen            { max-width: 820px;  }
+  .roster-section     { max-width: 1380px; }
+  .t-setup            { max-width: 960px;  }
+  .bracket-content    { max-width: 1380px; }
+  #bracket-phase-nav  { max-width: 1380px; }
+  .cs-bracket-view    { max-width: 1380px; }
+  #tournament-stats-box { max-width: 1100px; }
+  .ts-charts-row      { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ================================================================
+   RESPONSIVE — ULTRAWIDE (≥1800px)
+   ================================================================ */
+@media (min-width: 1800px) {
+  #menu               { max-width: 1720px; }
+  #fighters-panel     { max-width: 1680px; }
+  #chargen            { max-width: 960px;  }
+  .roster-section     { max-width: 1720px; }
+  .t-setup            { max-width: 1100px; }
+  .bracket-content    { max-width: 1720px; }
+  #bracket-phase-nav  { max-width: 1720px; }
+  .cs-bracket-view    { max-width: 1720px; }
+  #tournament-stats-box { max-width: 1400px; }
+}
