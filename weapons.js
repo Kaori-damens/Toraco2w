@@ -541,7 +541,8 @@ const WEAPON_DEFS = [
     onHit(w) {
       w.hits++;
       if (w.riposteWindow > 0) {
-        w.riposteWindow = 0; // consumed — multiplier already applied in getDamage
+        w.riposteWindow  = 0; // consumed — multiplier already applied in getDamage
+        w.riposteStacks  = 0; // reset parry stacks after lunge fires
       }
     }
   },

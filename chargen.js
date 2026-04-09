@@ -157,6 +157,36 @@ function renderCgStep() {
       onStatResult = (_w, idx) => { cgState.stats.speed = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
     }
 
+    // ── GOD OF IQ: IQ guaranteed ≥10; roll 10 → IQ doubled (→20) ──
+    if (sk === 'iq' && race === 'god' && srLabel === 'God of IQ') {
+      statTransform = (_w, idx) => {
+        const raw = idx + 1;
+        if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
+        return `10 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw}, ✨ God's Gift)</span>`;
+      };
+      onStatResult = (_w, idx) => { cgState.stats.iq = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
+    }
+
+    // ── GOD OF BIQ: BIQ guaranteed ≥10; roll 10 → BIQ doubled (→20) ──
+    if (sk === 'battleiq' && race === 'god' && srLabel === 'God of BIQ') {
+      statTransform = (_w, idx) => {
+        const raw = idx + 1;
+        if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
+        return `10 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw}, ✨ God's Gift)</span>`;
+      };
+      onStatResult = (_w, idx) => { cgState.stats.battleiq = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
+    }
+
+    // ── GOD OF MA: MA guaranteed ≥10; roll 10 → MA doubled (→20) ──
+    if (sk === 'ma' && race === 'god' && srLabel === 'God of MA') {
+      statTransform = (_w, idx) => {
+        const raw = idx + 1;
+        if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
+        return `10 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw}, ✨ God's Gift)</span>`;
+      };
+      onStatResult = (_w, idx) => { cgState.stats.ma = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
+    }
+
     // ── LAST-STAT EFFECTS: Dragon Flame / Primordial Air/Water applied at MA ──
     if (sk === 'ma') {
       const hasLastEffect = (race === 'dragon' && srLabel === 'Flame') ||
@@ -204,6 +234,18 @@ function renderCgStep() {
     // Guaranteed weapon from certain subraces — skip wheel
     const sr = cgState.subrace?.label;
     const rid = cgState.race?.id;
+    // God of BIQ: always armed (Weapon Mastery — masters all weapons)
+    if (rid === 'god' && sr === 'God of BIQ') {
+      cgState.hasWeapon = true;
+      box.innerHTML = `<div class="cg-card">
+        <div class="cg-label">⚔️ Armed!</div>
+        <div class="cg-result-box" style="margin:16px auto">⚔️ Armed</div>
+        <div class="cg-trait">✨ God of BIQ — Weapon Mastery: always armed</div>
+      </div>`;
+      playTone(660, 'sine', 0.4, 0.15, 0.5);
+      setTimeout(() => advanceCg(), quickCreateMode ? 0 : 1200);
+      return;
+    }
     if ((rid === 'human' && sr === 'Trắng') || (rid === 'goblin' && sr === '×100,000') || rid === 'dwarf') {
       cgState.hasWeapon = true;
       box.innerHTML = `<div class="cg-card">
@@ -231,6 +273,20 @@ function renderCgStep() {
     return;
   }
   if (s === 'skillcount') {
+    // God of IQ: skip skill wheel, grant ceil(IQ × 1.7) skills (capped at pool size)
+    if (cgState.race?.id === 'god' && cgState.subrace?.label === 'God of IQ') {
+      const iq = cgState.stats.iq ?? 10;
+      const count = Math.min(Math.ceil(iq * 1.7), SKILL_DEFS.length);
+      cgState.skillCount = count;
+      box.innerHTML = `<div class="cg-card">
+        <div class="cg-label">🧠 Skill Mastery</div>
+        <div class="cg-result-box" style="margin:16px auto">${count} Skills</div>
+        <div class="cg-trait">✨ God of IQ — IQ ${iq} × 1.7 = ${count} skills (no wheel)</div>
+      </div>`;
+      playTone(880, 'sine', 0.5, 0.12, 0.6);
+      setTimeout(() => advanceCg(), quickCreateMode ? 0 : 1400);
+      return;
+    }
     const raceId = cgState.race?.id || 'human';
     const weights = CG_SKILL_COUNT_WEIGHTS[raceId] || [20, 20, 20, 20, 20];
     const items = weights.map((w, i) => ({
@@ -394,7 +450,9 @@ function cgRenderSkillPick(box) {
   const total    = cgState.skillCount;
   const picked   = cgState.skills;
   const pickedIds = new Set(picked.map(s => s.id));
-  const available = SKILL_DEFS.filter(s => !pickedIds.has(s.id));
+  // Only show universal skills + skills that match this character's weapon
+  const charWeapon = cgState.weapon || null;
+  const available = SKILL_DEFS.filter(s => !pickedIds.has(s.id) && (!s.weapon || s.weapon === charWeapon));
   const spinNum  = picked.length + 1;
 
   const pickedHtml = picked.length > 0

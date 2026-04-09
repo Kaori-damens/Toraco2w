@@ -119,27 +119,47 @@ function _deAdvance16(de, winner, loser) {
 // ── Create Championship ───────────────────────────────────────
 function createChampionship(size, roster) {
   const fighters = _csShuffle(_csPad(roster.map(rosterToFighter), size));
-  const ffaGroups = [];
-  for (let i=0; i<fighters.length; i+=4)
-    ffaGroups.push({fighters:fighters.slice(i,i+4), winner:null, done:false});
+  const phases = [];
 
-  const phases = [{
-    type:'ffa',
-    label: size===128 ? 'Phase 1 — Battle Royale  (128 → 32)' : 'Phase 1 — Battle Royale  (256 → 64)',
-    groups:ffaGroups, currentGroup:0, done:false,
-  }];
-
-  if (size===128) {
+  if (size === 32) {
+    // Phase 1: BO1 32→16 (no FFA — initialize matches immediately)
+    const p1matches = [];
+    const s1 = _csShuffle(fighters);
+    for (let i=0; i<s1.length; i+=2) p1matches.push(_csMatch(s1[i], s1[i+1]));
     phases.push(
+      {type:'1v1', bo:1, label:'Phase 1 — Last Stand  BO1  (32 → 16)', matches:p1matches, currentMatch:0, done:false},
+      {type:'1v1', bo:3, label:'Phase 2 — Playoff  BO3  (16 → 8)',      matches:[], currentMatch:0, done:false},
+      {type:'de',  bo:3, label:'Phase 3 — Double Elimination  BO3',     done:false, n:8}
+    );
+  } else if (size === 64) {
+    // Phase 1: FFA 64→16 (16 groups of 4)
+    const ffaGroups = [];
+    for (let i=0; i<fighters.length; i+=4)
+      ffaGroups.push({fighters:fighters.slice(i,i+4), winner:null, done:false});
+    phases.push(
+      {type:'ffa', label:'Phase 1 — Battle Royale  (64 → 16)', groups:ffaGroups, currentGroup:0, done:false},
+      {type:'1v1', bo:3, label:'Phase 2 — Playoff  BO3  (16 → 8)',      matches:[], currentMatch:0, done:false},
+      {type:'de',  bo:3, label:'Phase 3 — Double Elimination  BO3',     done:false, n:8}
+    );
+  } else if (size === 128) {
+    const ffaGroups = [];
+    for (let i=0; i<fighters.length; i+=4)
+      ffaGroups.push({fighters:fighters.slice(i,i+4), winner:null, done:false});
+    phases.push(
+      {type:'ffa', label:'Phase 1 — Battle Royale  (128 → 32)', groups:ffaGroups, currentGroup:0, done:false},
       {type:'1v1', bo:1, label:'Phase 2 — Last Stand  BO1  (32 → 16)', matches:[], currentMatch:0, done:false},
       {type:'1v1', bo:3, label:'Phase 3 — Playoff  BO3  (16 → 8)',     matches:[], currentMatch:0, done:false},
       {type:'de',  bo:3, label:'Phase 4 — Double Elimination  BO3',    done:false, n:8}
     );
-  } else {
+  } else { // 256
+    const ffaGroups = [];
+    for (let i=0; i<fighters.length; i+=4)
+      ffaGroups.push({fighters:fighters.slice(i,i+4), winner:null, done:false});
     phases.push(
+      {type:'ffa', label:'Phase 1 — Battle Royale  (256 → 64)', groups:ffaGroups, currentGroup:0, done:false},
       {type:'1v1', bo:1, label:'Phase 2 — Last Stand  BO1  (64 → 32)', matches:[], currentMatch:0, done:false},
       {type:'1v1', bo:3, label:'Phase 3 — Playoff  BO3  (32 → 16)',    matches:[], currentMatch:0, done:false},
-      {type:'de',  bo:3, label:'Phase 4 — Double Elimination  BO3',    done:false}
+      {type:'de',  bo:3, label:'Phase 4 — Double Elimination  BO3',    done:false, n:16}
     );
   }
   return {size, phases, currentPhaseIdx:0, completed:false, champion:null, viewPhaseIdx:0};
@@ -257,6 +277,9 @@ function launchNextChampionshipMatch() {
 }
 
 // ── Rendering ─────────────────────────────────────────────────
+// Compare fighters by identity-safe key (survives JSON round-trip)
+function _sameF(a, b) { return a && b && a.charName === b.charName && a.color === b.color; }
+
 function renderChampionshipBracket() {
   const cs=state.championship; if (!cs) return;
   const titleEl=document.getElementById('bracket-title');
@@ -306,7 +329,7 @@ function _renderCsFfa(content, phase, isActive) {
     const badge=document.createElement('div'); badge.className='cs-group-badge';
     badge.textContent='Group '+(gi+1); card.appendChild(badge);
     g.fighters.forEach(f=>{
-      const isW=g.done&&g.winner===f;
+      const isW=g.done&&_sameF(g.winner,f);
       const row=document.createElement('div');
       row.className='cs-fighter-row'+(isW?' winner':'')+' clickable';
       const dot=document.createElement('span'); dot.className='cs-dot'; dot.style.background=f.color; row.appendChild(dot);
@@ -333,7 +356,7 @@ function _renderCs1v1(content, phase, isActive) {
     [m.p1,m.p2].forEach(f=>{
       if (!f) return;
       const row=document.createElement('div');
-      row.className='bracket-player'+(m.winner===f?' winner':'')+' clickable';
+      row.className='bracket-player'+(_sameF(m.winner,f)?' winner':'')+' clickable';
       const dot=document.createElement('span'); dot.className='bp-dot'; dot.style.background=f.color;
       const nm=document.createElement('span'); nm.className='bp-name'; nm.textContent=(f.charEmoji||'')+' '+f.charName;
       row.appendChild(dot); row.appendChild(nm);
@@ -394,7 +417,7 @@ function _csDeCard(m, phase, isActive) {
       const dot=document.createElement('span'); dot.className='bp-dot'; dot.style.background='#333'; row.appendChild(dot);
       const nm=document.createElement('span'); nm.className='bp-name'; nm.style.color='#444'; nm.textContent='TBD'; row.appendChild(nm);
     } else {
-      row.className='bracket-player'+(m.winner===f?' winner':'')+' clickable';
+      row.className='bracket-player'+(_sameF(m.winner,f)?' winner':'')+' clickable';
       const dot=document.createElement('span'); dot.className='bp-dot'; dot.style.background=f.color;
       const nm=document.createElement('span'); nm.className='bp-name'; nm.textContent=(f.charEmoji||'')+' '+f.charName;
       row.appendChild(dot); row.appendChild(nm);

@@ -131,6 +131,18 @@ function resolveProjectiles(players, projectiles) {
       if (target === proj.owner || !target.alive) continue;
       if (proj.owner && proj.owner.teamId >= 0 && proj.owner.teamId === target.teamId) continue;
 
+      // God of Speed: projectile evasion when momentum stacks ≥ 10
+      if (target.charRace === 'god' && target.charSubrace?.label === 'God of Speed' && (target.rs_speedStacks || 0) >= 10) {
+        const stacks = target.rs_speedStacks;
+        // stack10=50%, stack15=75%, stack20+=100% (capped at 95 to keep fairness)
+        const evadeChance = Math.min(0.95, 0.50 + (stacks - 10) * 0.05);
+        if (Math.random() < evadeChance) {
+          spawnDamageNumber(target.x, target.y - target.radius - 12, '⚡ TOO FAST!', '#44ccff');
+          proj.alive = false;
+          break;
+        }
+      }
+
       // Check weapon deflect — skip if target's weapon is stuck (Void Grip)
       if (target.rs_weaponStuck <= 0) {
         const tpts = target.weaponDef.getHitPoints(target);
@@ -148,8 +160,13 @@ function resolveProjectiles(players, projectiles) {
           proj.owner = target;
           proj.immuneFrames = target.weaponDef.id === 'fists' ? 20 : 8;
           if (target.weaponDef.id === 'fists') {
-            // Fists parry ranged: take 50% damage, projectile bounces as normal
-            target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner, false, true);
+            // Fists parry ranged: take 50% damage — unless God of MA (Martial God: no damage on parry)
+            const isGodMA = target.charRace === 'god' && target.charSubrace?.label === 'God of MA' && target.rs_maTransformed;
+            if (!isGodMA) {
+              target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner, false, true);
+            } else {
+              spawnDamageNumber(target.x, target.y - target.radius - 12, '🥋 NO DMG!', '#ff88ff');
+            }
           }
           spawnSparks(proj.x, proj.y, 5);
           sfxParry();
@@ -164,7 +181,31 @@ function resolveProjectiles(players, projectiles) {
         const baseProjDmg = proj.damage * rageMult;
         // Skill: Predator — +15% if target has less HP
         const predMult = proj.owner.skillState?.predatorActive ? 1.15 : 1;
-        const dmg = baseProjDmg * (isCrit ? proj.owner.critMult : 1) * predMult;
+        // Weapon skills: projectile damage multipliers
+        let wSkillProjMult = 1;
+        if (proj.sniperBoost) {
+          wSkillProjMult *= 1.55;
+          spawnDamageNumber(target.x, target.y - target.radius - 18, '🎯 SNIPE! ×1.55', '#ffdd44');
+          if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['sniper']);
+        }
+        if (proj.volleyBoost) {
+          wSkillProjMult *= 2.0;
+          spawnDamageNumber(target.x, target.y - target.radius - 18, '🏹 VOLLEY! ×2', '#ffaa33');
+          if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['volley']);
+        }
+        if (proj.type === 'shuriken' && (proj.bounces || 0) > 0) {
+          // Bounce Damage: +15% per bounce
+          if (proj.owner?.skills?.includes('bounce_damage')) {
+            wSkillProjMult *= (1 + proj.bounces * 0.15);
+          }
+          // Ricochet Kill: +100% after 2+ bounces
+          if (proj.owner?.skills?.includes('ricochet_kill') && proj.bounces >= 2) {
+            wSkillProjMult *= 2.0;
+            spawnDamageNumber(target.x, target.y - target.radius - 18, '⭐ RICOCHET! ×2', '#ffdd44');
+            if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['ricochet_kill']);
+          }
+        }
+        const dmg = baseProjDmg * (isCrit ? proj.owner.critMult : 1) * predMult * wSkillProjMult;
         const projHit = target.takeDamage(dmg, proj.x, proj.y, isCrit, proj.owner, false, true);
         if (projHit) {
           // log
@@ -184,6 +225,11 @@ function resolveProjectiles(players, projectiles) {
           skillOnHit(proj.owner, target, dmg);
         } else {
           addBattleLog('proj_evade', { attacker: getBallLabel(proj.owner), defender: getBallLabel(target), aColor: proj.owner.color, dColor: target.color });
+        }
+        // Piercing Shot: don't kill arrow, give target brief immunity, continue to next target
+        if (proj.piercing) {
+          target.projImmunityFrames = 6; // prevent double-hit same frame
+          continue;
         }
         proj.alive = false;
         break;
@@ -205,7 +251,9 @@ function _checkWeaponHit(attacker, defender) {
   for (const p of pts) {
     const threshold = p.r + forgeSizeBonus + defender.radius;
     if (dist2(p.x, p.y, defender.x, defender.y) < threshold*threshold) {
-      const isCrit = Math.random() < attacker.critChance;
+      // Shadow Strike (Dagger): guaranteed crit override
+      const isShadowCrit = attacker.skills?.includes('shadow_strike') && def.id === 'dagger' && attacker.skillState?.shadowStrikeCrit;
+      const isCrit = isShadowCrit || Math.random() < attacker.critChance;
       const isHammer = def.id === 'hammer';
       // Hammer: final damage += knockback / 2
       const kbBonus = isHammer
@@ -218,16 +266,34 @@ function _checkWeaponHit(attacker, defender) {
       const exploitChance = attacker.skills?.includes('exploit')
         ? ((attacker.charIQ || 0) + (attacker.charBIQ || 0)) * 0.01 : 0;
       const isExploit = exploitChance > 0 && Math.random() < exploitChance;
-      const dmg = baseDmgNoCrit * (isCrit ? attacker.critMult : 1) * predMult * (isExploit ? 2 : 1);
+      // Reaper's Mark (Scythe): +80% dmg vs enemies below 30% HP
+      const reaperMult = (attacker.skills?.includes('reapers_mark') && def.id === 'scythe'
+        && defender.hp / defender.maxHp < 0.30) ? 1.80 : 1.0;
+      if (reaperMult > 1) {
+        spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '💀 EXECUTE! ×1.8', '#ff2222');
+        if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['reapers_mark']);
+      }
+      const dmg = baseDmgNoCrit * (isCrit ? attacker.critMult : 1) * predMult * (isExploit ? 2 : 1) * reaperMult;
       const hitResult = defender.takeDamage(dmg, attacker.x, attacker.y, isCrit, attacker);
       if (hitResult) {
-        const rageCDMult = (state.matchTime >= 80 * 60) ? 0.7 : 1.0;
-        attacker.weapon.cooldown = Math.max(1, Math.floor(attacker.weapon.attackCooldown * rageCDMult));
+        const rageCDMult     = (state.matchTime >= 80 * 60) ? 0.7 : 1.0;
+        // Rage Fists: below 50% HP → 35% faster attacks (cooldown × 0.65)
+        const rageFistsMult  = (attacker.skills?.includes('rage_fists') && def.id === 'fists'
+          && attacker.hp / attacker.maxHp < 0.50) ? 0.65 : 1.0;
+        // Grim Presence: within 80px of a scythe-grim-presence user → 12% longer cooldown
+        const grimSlowMult   = (attacker.sk_grimAura || 0) > 0 ? 1.12 : 1.0;
+        attacker.weapon.cooldown = Math.max(1, Math.floor(attacker.weapon.attackCooldown * rageCDMult * rageFistsMult * grimSlowMult));
         attacker.stats.hits++;
         attacker.stats.damageDone += dmg;
         sfxHit();
-        // Battle log: hit or crit
-        if (isCrit) {
+        // Battle log: hit or crit (with special types for lunge/iai)
+        if (attacker.weapon?.iaiHit) {
+          addBattleLog('iai', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), damage: dmg, aColor: attacker.color, dColor: defender.color, defHp: +Math.max(0, defender.hp).toFixed(1) });
+          attacker.weapon.iaiHit = false;
+        } else if (attacker.weapon?.lungeHit) {
+          addBattleLog('lunge_hit', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), damage: dmg, aColor: attacker.color, dColor: defender.color, defHp: +Math.max(0, defender.hp).toFixed(1) });
+          attacker.weapon.lungeHit = false;
+        } else if (isCrit) {
           addBattleLog('crit', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), damage: dmg, baseDmg: +baseDmgNoCrit.toFixed(2), critMult: attacker.critMult, aColor: attacker.color, dColor: defender.color, defHp: +Math.max(0, defender.hp).toFixed(1) });
         } else {
           addBattleLog('hit', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), damage: dmg, aColor: attacker.color, dColor: defender.color, defHp: +Math.max(0, defender.hp).toFixed(1) });
@@ -254,6 +320,19 @@ function _checkWeaponHit(attacker, defender) {
         // Scaling
         def.onHit(attacker.weapon);
         skillOnHit(attacker, defender, dmg);
+        // God of BIQ: Combo Chain — BIQ×5% chance to instantly reset attack cooldown
+        if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'God of BIQ') {
+          const biq = attacker.charBIQ ?? 5;
+          if (Math.random() < biq * 0.05) {
+            attacker.weapon.cooldown = 0;
+            spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '⚔️ CHAIN!', '#aaffaa');
+          }
+        }
+        // God of Speed: landing a melee hit resets momentum stacks
+        if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'God of Speed' && (attacker.rs_speedStacks || 0) > 0) {
+          attacker.rs_speedStacks = 0;
+          attacker.maxSpd = attacker.baseMaxSpd;
+        }
       } else {
         // Evaded
         addBattleLog('evade', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), aColor: attacker.color, dColor: defender.color });

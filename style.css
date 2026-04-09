@@ -1702,13 +1702,11 @@ canvas#gameCanvas {
 
 /* Battle cards */
 .battle-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   width: 100%;
-  align-items: start;
 }
-@media (max-width: 700px) { .battle-cards { grid-template-columns: 1fr; } }
 .battle-card {
   background: #0e0e1e;
   border: 1px solid #2a2a4a;

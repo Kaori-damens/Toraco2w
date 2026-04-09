@@ -86,7 +86,9 @@ const CG_SUBRACES = {
   godGift: [
     { label:'God of Strength', weight:1, desc:'Wheel STR: chắc chắn ≥10. Quay ra đúng 10 → STR nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
     { label:'God of Speed',    weight:1, desc:'Wheel SPD: chắc chắn ≥10. Quay ra đúng 10 → SPD nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
-    { label:'???',             weight:1, desc:'TBD' },
+    { label:'God of IQ',       weight:1, desc:'Wheel IQ: chắc chắn ≥10. Quay ra đúng 10 → IQ nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'God of BIQ',      weight:1, desc:'Wheel BIQ: chắc chắn ≥10. Quay ra đúng 10 → BIQ nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'God of MA',       weight:1, desc:'Wheel MA: chắc chắn ≥10. Quay ra đúng 10 → MA nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
   ],
   boneLineage: [
     { label:'Goblin Bones',           weight:6.5,  raceId:'goblin'     },

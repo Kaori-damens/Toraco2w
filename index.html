@@ -201,6 +201,19 @@
   <div class="menu-tab-pane" id="tab-battle">
     <div class="battle-cards">
 
+      <!-- Toraco Championship -->
+      <div class="battle-card tournament-battle-card" id="championship-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">🏆</div>
+          <div class="battle-card-title">Toraco Championship</div>
+        </div>
+        <div class="battle-card-desc">128 or 256-player mega tournament. Battle Royale → Last Stand → Double Elimination. BO3 Grand Finals.</div>
+        <button class="t-btn" id="championshipBtn">🏆 Enter Championship</button>
+        <div style="margin-top:8px">
+          <button class="t-btn t-btn-resume" id="cs-resume-btn" style="display:none">▶ Resume Championship</button>
+        </div>
+      </div>
+
       <!-- Quick Match -->
       <div class="battle-card" id="quick-match-card">
         <div class="battle-card-header">
@@ -267,19 +280,6 @@
         <div id="tournament-resume-wrap" style="display:none;margin-top:8px">
           <div id="tournament-resume-info" style="font-size:11px;color:#778;margin-bottom:6px;text-align:center"></div>
           <button class="t-btn t-btn-resume" id="tournamentResumeBtn">▶ Resume Tournament</button>
-        </div>
-      </div>
-
-      <!-- Toraco Championship -->
-      <div class="battle-card tournament-battle-card" id="championship-card">
-        <div class="battle-card-header">
-          <div class="battle-card-icon">🏆</div>
-          <div class="battle-card-title">Toraco Championship</div>
-        </div>
-        <div class="battle-card-desc">128 or 256-player mega tournament. Battle Royale → Last Stand → Double Elimination. BO3 Grand Finals.</div>
-        <button class="t-btn" id="championshipBtn">🏆 Enter Championship</button>
-        <div style="margin-top:8px">
-          <button class="t-btn t-btn-resume" id="cs-resume-btn" style="display:none">▶ Resume Championship</button>
         </div>
       </div>
 
@@ -631,6 +631,89 @@
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">9 Apr 2026</span>
+          <span class="changelog-badge">Patch 54</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🗡️ <b>Weapon Skills</b>: Thêm 26 skills độc quyền theo vũ khí (chỉ xuất hiện trên skill wheel nếu dùng đúng weapon).</li>
+          <li>👊 <b>Fists</b>: Iron Knuckles (tích dmg mỗi hit), Brawler's Rhythm (×2.5 hit thứ 5), Combo Breaker (phản đòn khi bị hit lúc combo ≥3), Rage Fists (+35% attack speed &lt;50% HP).</li>
+          <li>⚔️ <b>Sword</b>: Guard Stance (giảm dmg nhận khi cooldown, scale BIQ), Duel Instinct (+30% dmg khi chỉ còn 1 địch), Parry Punish (×2 dmg 3s sau khi parry).</li>
+          <li>🗡️ <b>Dagger</b>: Poison Blade (mỗi 5 hit → poison 1.5dmg/3s × 12s), Flurry Finisher (×2.5 hit liên tiếp thứ 5), Shadow Strike (mỗi 10s → crit guaranteed).</li>
+          <li>🔱 <b>Spear</b>: Long Reach (+20px tầm), Skewer (pin weapon địch 30f), Zone Control (0.5 dmg/s aura 150px).</li>
+          <li>🌙 <b>Scythe</b>: Reaper's Mark (+80% dmg khi địch &lt;30% HP), Soul Harvest (+10 HP mỗi kill), Grim Presence (-12% attack speed địch trong 80px).</li>
+          <li>🔨 <b>Hammer</b>: Seismic Slam (AoE slow 120px khi hit), Heavy Momentum (+20%/hit cùng mục tiêu max 3 stacks), Ground Pound (stun 25f khi nảy tường).</li>
+          <li>🏹 <b>Bow</b>: Sniper (+55% dmg khi target >300px), Volley (3 arrow đầu ×2), Piercing Shot (mỗi 8 arrow xuyên qua target).</li>
+          <li>🌟 <b>Shuriken</b>: Bounce Damage (+15%/bounce tối đa 3), Ricochet Kill (+100% dmg sau 2+ bounce), Fan Throw (mỗi 5 lần ném → 3 shuriken fan spread).</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">8 Apr 2026</span>
+          <span class="changelog-badge">Patch 53</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>📖 <b>Mô tả skill</b>: Viết lại toàn bộ mô tả của 32 skills thường + 9 race skills — bỏ công thức toán học, thay bằng ngôn ngữ dễ hiểu (ví dụ "BIQ×3%" → "scales with BIQ").</li>
+          <li>🐛 <b>Fix mô tả Human Limit Break</b>: Sửa sai "dưới 80% HP" → đúng là "dưới 20% HP".</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">8 Apr 2026</span>
+          <span class="changelog-badge">Patch 52</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>✨ <b>God Race Skills</b>: Mỗi God sub-race giờ có passive/skill riêng biệt trong battle.</li>
+          <li>✊ <b>God of Strength — Divine Slam</b>: Sau 70s, đập tay xuống đất — shockwave vàng xóa toàn bộ trap, knockback mọi đối thủ; đối thủ gần nhận damage và bị gắn cờ "wall slam" (chạm tường gây thêm damage).</li>
+          <li>⚡ <b>God of Speed — Momentum</b>: Mỗi lần nảy tường tăng speed cap +10% (stacks vô hạn). Khi trúng đòn hoặc bị parry → reset stacks. Từ 10 stacks: bắt đầu né projectile (50%→95% ở 20+ stacks). Aura xanh khi immunity active.</li>
+          <li>🥋 <b>God of MA — Martial God</b>: Sau 70s, bỏ vũ khí → đánh tay không (fists). Đặc quyền: parry projectile không nhận damage (bình thường fists parry ranged nhận 50%). Aura tím khi đã transform.</li>
+          <li>🧠 <b>God of IQ — Skill Mastery</b>: Bỏ qua vòng quay đếm skill. Tự động nhận ceil(IQ × 1.7) skills (IQ10→17, IQ20→34). Giới hạn tối đa = kích thước pool skill.</li>
+          <li>⚔️ <b>God of BIQ — Weapon Mastery</b>: Chargen: luôn nhận vũ khí. Ranged (bow/shuriken): mỗi projectile có 40%+BIQ×2% auto-aim vào đối thủ gần nhất. Melee: BIQ×5% chance "Combo Chain" — reset attack cooldown về 0 ngay sau hit thành công.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">8 Apr 2026</span>
+          <span class="changelog-badge">Patch 51</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>✨ <b>God of IQ</b>: Sub-race mới — Wheel IQ chắc chắn ≥10. Quay đúng 10 → IQ nhân đôi (→20).</li>
+          <li>✨ <b>God of BIQ</b>: Sub-race mới — Wheel BIQ chắc chắn ≥10. Quay đúng 10 → BIQ nhân đôi (→20).</li>
+          <li>✨ <b>God of MA</b>: Sub-race mới — Wheel MA chắc chắn ≥10. Quay đúng 10 → MA nhân đôi (→20).</li>
+          <li>🗑️ <b>Placeholder xóa</b>: Thay thế entry "???" trong godGift bằng 3 sub-race hoàn chỉnh trên.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">8 Apr 2026</span>
+          <span class="changelog-badge">Patch 50</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🏆 <b>Championship 32 & 64 Players</b>: Thêm 2 mode mới vào Toraco Championship. 32 players: 3 phases (BO1 32→16, BO3 16→8, DE8). 64 players: 3 phases (FFA 64→16, BO3 16→8, DE8). UI size selector cập nhật 4 lựa chọn.</li>
+          <li>🎨 <b>Battle UI</b>: Đổi thứ tự cards từ trên xuống (Championship → Quick Match → Tournament → Boss Raid). Layout từ 2×2 grid sang 1 cột dọc.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">7 Apr 2026</span>
           <span class="changelog-badge">Patch 49</span>
@@ -1544,6 +1627,8 @@
   <div class="t-setup">
     <div class="t-section-label">Size</div>
     <div class="t-size-row">
+      <button class="t-size-btn" data-cssize="32">32 Players</button>
+      <button class="t-size-btn" data-cssize="64">64 Players</button>
       <button class="t-size-btn sel" data-cssize="128">128 Players</button>
       <button class="t-size-btn" data-cssize="256">256 Players</button>
     </div>

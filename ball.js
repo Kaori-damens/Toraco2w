@@ -108,12 +108,16 @@ class Ball {
       burstTimer: 0,
       parried: false,
       parryCooldown: 0,
-      // Rapier — Riposte
+      // Rapier — Riposte + Lunge + Parry stacks
       riposteWindow: 0,
+      riposteStacks: 0,
+      lungeFired: false,
+      lungeHit: false,
       // Katana — Momentum
       momentumStacks: 0,
       momentumTimer: 0,
       iaiReady: false,
+      iaiHit: false,
     };
   }
 
@@ -149,16 +153,35 @@ class Ball {
     if (this.rs_forgeSharpness > 0) dmg *= (1 + this.rs_forgeSharpness * 0.05);
     // Orc Blood Price: burst hit deals bonus damage (STR-scaled)
     if (this.charRace === 'orc' && this.rs_burstReady) dmg *= (1 + (this.charSTR ?? 5) * 0.15);
-    // Rapier — Riposte multiplier (IQ-scaled): IQ5→×2.25, IQ10→×3.0
+    // Rapier — Riposte multiplier (IQ-scaled + parry stacks)
+    // Base: ×(1.5 + IQ×0.15), each parry stack adds ×0.5
     if (def.id === 'rapier' && this.weapon.riposteWindow > 0) {
-      const iq = this.charIQ ?? 0;
-      dmg *= (1.5 + iq * 0.15);
+      const iq     = this.charIQ ?? 0;
+      const stacks = this.weapon.riposteStacks || 0;
+      dmg *= (1.5 + iq * 0.15 + stacks * 0.5);
       spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ RIPOSTE!', '#ffdd00');
     }
     // Katana — Iai Strike multiplier ×3
     if (def.id === 'katana' && this.weapon.iaiReady) {
       dmg *= 3.0;
+      this.weapon.iaiHit = true; // flag for collision.js battle log
       spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ IAI STRIKE!', '#ffffff');
+    }
+    // ── Weapon skill outgoing modifiers ───────────────────────
+    // Duel Instinct (Sword): +30% when only 1 enemy alive
+    if (this.skills.includes('duel_instinct') && def.id === 'sword' && typeof state !== 'undefined') {
+      const enemiesAlive = state.players.filter(p => p !== this && p.alive);
+      if (enemiesAlive.length <= 1) dmg *= 1.30;
+    }
+    // Parry Punish (Sword): ×2 for 3s after parry
+    if (this.skillState?.parryPunishActive && def.id === 'sword') dmg *= 2.0;
+    // Brawler's Rhythm (Fists): every 5th hit ×2.5
+    if (this.skillState?.brawlerReady && def.id === 'fists') dmg *= 2.5;
+    // Flurry Finisher (Dagger): every 5th consecutive hit ×2.5
+    if (this.skillState?.flurryReady && def.id === 'dagger') dmg *= 2.5;
+    // Heavy Momentum (Hammer): +20% per same-target stack (max 3 = +60%)
+    if (this.skills.includes('heavy_momentum') && def.id === 'hammer' && (this.skillState?.hammerStacks || 0) > 0) {
+      dmg *= (1 + this.skillState.hammerStacks * 0.20);
     }
     return dmg;
   }
@@ -214,6 +237,24 @@ class Ball {
       this.vy *= 1.1;
       this.wallBoostFactor = 1.1;
 
+      // Ground Pound (Hammer): wall bounce → lock nearest enemy weapon for 25 frames
+      if (this.skills.includes('ground_pound') && this.weaponDef?.id === 'hammer' && typeof state !== 'undefined') {
+        const enemies = state.players.filter(p => p !== this && p.alive);
+        if (enemies.length > 0) {
+          const target = enemies.reduce((a, b) =>
+            Math.hypot(b.x-this.x, b.y-this.y) < Math.hypot(a.x-this.x, a.y-this.y) ? b : a);
+          target.stunTimer = Math.max(target.stunTimer || 0, 25);
+          spawnDamageNumber(target.x, target.y - target.radius - 16, '🔨 STUNNED!', '#ff9933');
+          if (typeof flashSkillHUD === 'function') flashSkillHUD(this, SKILL_MAP['ground_pound']);
+        }
+      }
+      // God of Speed: each wall bounce adds a permanent momentum stack
+      if (this.charRace === 'god' && this.charSubrace?.label === 'God of Speed') {
+        this.rs_speedStacks = (this.rs_speedStacks || 0) + 1;
+        // Raise speed cap so stacks persist beyond normal maxSpd
+        this.maxSpd = this.baseMaxSpd * (1 + this.rs_speedStacks * 0.10);
+      }
+
       // Quake wall slam: nếu bị Giant Quake đẩy và đang còn trong window → deal wall damage
       if (this.quakeSlamFrames > 0 && spd >= 4) {
         const wallDmg = Math.round(spd * 1.8);
@@ -233,13 +274,15 @@ class Ball {
 
     // Decay wall boost về 1.0 trong 3 giây (180 frames)
     // 0.9747^180 ≈ 0.01 → boost gần như tan hết sau 3s
-    if (this.wallBoostFactor > 1.0005) {
+    // God of Speed: skip decay — momentum is permanent until hit/parried
+    const isGodSpeed = this.charRace === 'god' && this.charSubrace?.label === 'God of Speed';
+    if (!isGodSpeed && this.wallBoostFactor > 1.0005) {
       const prev = this.wallBoostFactor;
       this.wallBoostFactor = 1.0 + (prev - 1.0) * 0.9747;
       const ratio = this.wallBoostFactor / prev;  // hệ số giảm tốc frame này
       this.vx *= ratio;
       this.vy *= ratio;
-    } else {
+    } else if (!isGodSpeed) {
       this.wallBoostFactor = 1.0;
     }
 
@@ -262,8 +305,41 @@ class Ball {
     if (this.weapon.spinBoostTimer  > 0) this.weapon.spinBoostTimer--;
     if (this.weapon.cooldown > 0) this.weapon.cooldown--;
     if (this.weapon.parryCooldown > 0) this.weapon.parryCooldown--;
-    // Rapier: tick down riposte window
-    if (this.weapon.riposteWindow > 0) this.weapon.riposteWindow--;
+    // Rapier: tick down riposte window; reset flags when window closes
+    if (this.weapon.riposteWindow > 0) {
+      this.weapon.riposteWindow--;
+      if (this.weapon.riposteWindow === 0) {
+        this.weapon.lungeFired = false;
+        this.weapon.lungeHit   = false;
+      }
+    }
+    // Rapier Lunge: riposte window open + weapon angle facing enemy + in range + not yet fired
+    if (this.weaponDef?.id === 'rapier' && this.weapon.riposteWindow > 0
+        && !this.weapon.lungeFired
+        && typeof state !== 'undefined' && state.players) {
+      const enemies = state.players.filter(b => b.alive && b !== this &&
+        (state.matchMode === '2v2' ? b.teamId !== this.teamId : true));
+      if (enemies.length > 0) {
+        const target = enemies.reduce((best, b) =>
+          Math.hypot(b.x - this.x, b.y - this.y) < Math.hypot(best.x - this.x, best.y - this.y) ? b : best);
+        const dist = Math.hypot(target.x - this.x, target.y - this.y);
+        const LUNGE_RANGE = 220;
+        const ANGLE_TOL   = 0.35; // ~20°
+        const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
+        let angleDiff = this.weapon.angle - angleToTarget;
+        while (angleDiff >  Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        if (dist <= LUNGE_RANGE && Math.abs(angleDiff) <= ANGLE_TOL) {
+          // LUNGE — fire once per riposte window
+          this.vx += Math.cos(angleToTarget) * 13;
+          this.vy += Math.sin(angleToTarget) * 13;
+          this.weapon.lungeFired = true;
+          this.weapon.lungeHit   = true; // flag for collision.js battle log
+          addBattleLog('lunge_trigger', { attacker: this.charName ?? 'Unknown', aColor: this.color });
+          spawnDamageNumber(this.x, this.y - this.radius - 16, '🤺 Lunge!', '#aae0ff');
+        }
+      }
+    }
     // Katana: tick down momentum decay timer; lose stacks if expired
     if (this.weapon.momentumTimer > 0) {
       this.weapon.momentumTimer--;
@@ -278,6 +354,62 @@ class Ball {
     // Squash recovery
     this.squashX += (1 - this.squashX) * 0.15;
     this.squashY += (1 - this.squashY) * 0.15;
+
+    // ── Weapon skill per-frame ticks ───────────────────────────
+    // Shadow Strike (Dagger): 10s timer → guaranteed crit
+    if (this.skills.includes('shadow_strike') && this.weaponDef?.id === 'dagger' && this.skillState) {
+      if (!this.skillState.shadowStrikeCrit) {
+        this.skillState.sk_shadowTimer = (this.skillState.sk_shadowTimer || 0) + 1;
+        if (this.skillState.sk_shadowTimer >= 600) {
+          this.skillState.shadowStrikeCrit = true;
+          this.skillState.sk_shadowTimer   = 0;
+          spawnDamageNumber(this.x, this.y - this.radius - 14, '🌑 SHADOW READY', '#aa44ff');
+          if (typeof flashSkillHUD === 'function') flashSkillHUD(this, SKILL_MAP['shadow_strike']);
+        }
+      }
+    }
+    // Parry Punish (Sword): tick down active window
+    if ((this.skillState?.parryPunishTimer || 0) > 0) {
+      this.skillState.parryPunishTimer--;
+      if (this.skillState.parryPunishTimer <= 0) {
+        this.skillState.parryPunishActive = false;
+      }
+    }
+    // Zone Control (Spear): deal 0.5 dmg to enemies within 150px every 30 frames
+    if (this.skills.includes('zone_control') && this.weaponDef?.id === 'spear' && this.skillState && typeof state !== 'undefined') {
+      this.skillState.sk_zoneTimer = (this.skillState.sk_zoneTimer || 0) + 1;
+      if (this.skillState.sk_zoneTimer >= 30) {
+        this.skillState.sk_zoneTimer = 0;
+        for (const en of state.players) {
+          if (en === this || !en.alive) continue;
+          if (Math.hypot(en.x - this.x, en.y - this.y) < 150) {
+            en.takeDamage(0.5, this.x, this.y, false, this, false, true);
+            spawnDamageNumber(en.x, en.y - en.radius - 10, '💫 -0.5', '#9966ff');
+          }
+        }
+      }
+    }
+    // Grim Presence (Scythe): mark nearby enemies with aura debuff (refreshed each frame)
+    if (this.skills.includes('grim_presence') && this.weaponDef?.id === 'scythe' && typeof state !== 'undefined') {
+      for (const en of state.players) {
+        if (en === this || !en.alive) continue;
+        if (Math.hypot(en.x - this.x, en.y - this.y) < 80) {
+          en.sk_grimAura = 3; // refresh each frame while in aura range
+        }
+      }
+    }
+    if ((this.sk_grimAura || 0) > 0) this.sk_grimAura--;
+    // Poison tick (from Poison Blade)
+    if ((this.sk_poisonDuration || 0) > 0) {
+      this.sk_poisonDuration--;
+      this.sk_poisonTick = (this.sk_poisonTick || 0) + 1;
+      if (this.sk_poisonTick >= 180) { // 3 seconds
+        this.sk_poisonTick = 0;
+        const poisonDmg = this.sk_poisonDmg || 1.5;
+        this.takeDamage(poisonDmg, this.x, this.y, false, this.sk_poisonOwner || null, false, true);
+        spawnDamageNumber(this.x, this.y - this.radius - 12, `🐍 -${poisonDmg}`, '#44cc44');
+      }
+    }
 
     // Projectile firing — burst system
     const def = this.weaponDef;
@@ -348,6 +480,21 @@ class Ball {
     const a       = this.weapon.angle; // current weapon spin angle — changes each frame naturally
     const spdStat = this.charSPD ?? 5;
     const iqStat  = this.charIQ  ?? 5;
+    // God of BIQ: auto-aim helper — returns auto-aimed vx/vy if triggered, else null
+    const godBiqAutoAim = (origVx, origVy) => {
+      if (this.charRace !== 'god' || this.charSubrace?.label !== 'God of BIQ') return null;
+      const biq = this.charBIQ ?? 5;
+      const chance = 0.20 + biq * 0.02; // BIQ10=40%, BIQ20=60%
+      if (Math.random() >= chance) return null;
+      const allBalls = typeof state !== 'undefined' ? state.players : [];
+      const enemies = allBalls.filter(b => b !== this && b.alive);
+      if (!enemies.length) return null;
+      const target = enemies.reduce((a,b) => Math.hypot(this.x-a.x,this.y-a.y) < Math.hypot(this.x-b.x,this.y-b.y) ? a : b);
+      const dx = target.x - this.x, dy = target.y - this.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const speed = Math.sqrt(origVx*origVx + origVy*origVy);
+      return { vx: (dx/dist)*speed, vy: (dy/dist)*speed };
+    };
     sfxShoot();
     if (def.id === 'bow') {
       // Arrow speed scales with SPD (arm strength) and IQ (technique)
@@ -375,6 +522,33 @@ class Ball {
           this, 'arrow', (this.charSTR ?? 1)
         );
         if (this.rs_forgeProjSizeBonus) arrow.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
+        // God of BIQ: auto-aim this arrow
+        const aaArrow = godBiqAutoAim(arrow.vx, arrow.vy);
+        if (aaArrow) { arrow.vx = aaArrow.vx; arrow.vy = aaArrow.vy; }
+        // Sniper: tag arrow if nearest enemy is > 300px away
+        if (this.skills.includes('sniper') && this.skillState && typeof state !== 'undefined') {
+          const sniperEnemies = state.players.filter(b => b !== this && b.alive);
+          if (sniperEnemies.length > 0) {
+            const nearest = sniperEnemies.reduce((best, cur) =>
+              Math.hypot(this.x-best.x, this.y-best.y) < Math.hypot(this.x-cur.x, this.y-cur.y) ? best : cur);
+            if (Math.hypot(nearest.x - this.x, nearest.y - this.y) > 300) {
+              arrow.sniperBoost = true;
+            }
+          }
+        }
+        // Volley: first 3 arrows ×2
+        if (this.skillState && (this.skillState.sk_volleyCount || 0) > 0) {
+          arrow.volleyBoost = true;
+          this.skillState.sk_volleyCount--;
+        }
+        // Piercing Shot: every 8th arrow pierces
+        if (this.skills.includes('piercing_shot') && this.skillState) {
+          this.skillState.sk_bowShotCount = (this.skillState.sk_bowShotCount || 0) + 1;
+          if (this.skillState.sk_bowShotCount % 8 === 0) {
+            arrow.piercing = true;
+            spawnDamageNumber(this.x, this.y - this.radius - 16, '💥 PIERCE!', '#ffdd44');
+          }
+        }
         projectiles.push(arrow);
       }
     } else if (def.id === 'shuriken') {
@@ -388,7 +562,29 @@ class Ball {
         this, 'shuriken', (this.charSTR ?? 1)
       );
       if (this.rs_forgeProjSizeBonus) star.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
+      // God of BIQ: auto-aim this shuriken
+      const aaStar = godBiqAutoAim(star.vx, star.vy);
+      if (aaStar) { star.vx = aaStar.vx; star.vy = aaStar.vy; }
       projectiles.push(star);
+      // Fan Throw: every 5th throw → fire 2 extra shurikens at ±20°
+      if (this.skills.includes('fan_throw') && this.skillState) {
+        this.skillState.sk_fanCount = (this.skillState.sk_fanCount || 0) + 1;
+        if (this.skillState.sk_fanCount % 5 === 0) {
+          const fanAngles = [-20 * Math.PI / 180, 20 * Math.PI / 180];
+          for (const offset of fanAngles) {
+            const fa = a + offset;
+            const extra = new Projectile(
+              this.x + Math.cos(fa) * this.radius,
+              this.y + Math.sin(fa) * this.radius,
+              Math.cos(fa) * spd, Math.sin(fa) * spd,
+              this, 'shuriken', (this.charSTR ?? 1)
+            );
+            projectiles.push(extra);
+          }
+          spawnDamageNumber(this.x, this.y - this.radius - 16, '🌟 FAN THROW!', '#ffdd44');
+          if (typeof flashSkillHUD === 'function') flashSkillHUD(this, SKILL_MAP['fan_throw']);
+        }
+      }
     }
   }
 
@@ -427,6 +623,11 @@ class Ball {
     if (this.skills.includes('thick_hide')) dmg *= 0.9;
     // Skill: Adaptation — -20% from the specific weapon type that killed you before
     if (this.adaptResist && attacker?.weaponDef?.id === this.adaptResist) dmg *= 0.8;
+    // Guard Stance (Sword): during cooldown → BIQ×3% dmg reduction (max 30%)
+    if (this.skills.includes('guard_stance') && this.weaponDef?.id === 'sword' && this.weapon.cooldown > 0) {
+      const reduction = Math.min(0.30, (this.charBIQ || 0) * 0.03);
+      dmg *= (1 - reduction);
+    }
 
     const hpBefore = this.hp;
     this.hp -= dmg;
@@ -445,6 +646,11 @@ class Ball {
       const loss = this.weapon.iaiReady ? 1 : 2;
       this.weapon.momentumStacks = Math.max(0, this.weapon.momentumStacks - loss);
       if (this.weapon.momentumStacks < 5) this.weapon.iaiReady = false;
+    }
+    // God of Speed: taking a hit resets momentum stacks + restores base max speed
+    if (this.charRace === 'god' && this.charSubrace?.label === 'God of Speed' && (this.rs_speedStacks || 0) > 0) {
+      this.rs_speedStacks = 0;
+      this.maxSpd = this.baseMaxSpd;
     }
 
     // Race: Orc Blood Price — accumulate stacks each time hit; at 5 stacks, arm burst
@@ -488,6 +694,29 @@ class Ball {
     }
     this.squashX = 1.3;
     this.squashY = 0.75;
+
+    // Weapon skill: chain resets on taking damage
+    if (this.skillState) {
+      if (this.weaponDef?.id === 'fists') {
+        this.skillState.brawlerChain = 0;
+        this.skillState.brawlerReady = false;
+      }
+      if (this.weaponDef?.id === 'dagger') {
+        this.skillState.flurryChain = 0;
+        this.skillState.flurryReady = false;
+      }
+    }
+    // Combo Breaker (Fists): hit while chain ≥ 3 → auto counter-attack
+    if (!isReactCounter && this.skills.includes('combo_breaker') && this.weaponDef?.id === 'fists' && attacker?.alive) {
+      const chain = this.skillState?.brawlerChain || 0;
+      if (chain >= 3) {
+        const str = this.charSTR ?? 5;
+        const cbDmg = 1.5 + str * 0.3;
+        attacker.takeDamage(cbDmg, this.x, this.y, false, this, true);
+        spawnDamageNumber(this.x, this.y - this.radius - 18, '💢 COMBO BREAK!', '#ff4400');
+        if (typeof flashSkillHUD === 'function') flashSkillHUD(this, SKILL_MAP['combo_breaker']);
+      }
+    }
 
     // Skill: Read & React — BIQ×3% chance to instantly counter-attack after being hit
     if (!isReactCounter && this.skills.includes('read_react') && attacker?.alive) {

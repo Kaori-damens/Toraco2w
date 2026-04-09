@@ -4,40 +4,107 @@
 const SKILL_DEFS = [
   // ── PASSIVE (always active) ──────────────────────────────
   { id: 'iron_body',          name: 'Iron Body',          icon: '🛡️', type: 'passive',    desc: '+20 max HP' },
-  { id: 'thick_hide',         name: 'Thick Hide',         icon: '🦏', type: 'passive',    desc: '-10% damage received' },
-  { id: 'swift',              name: 'Swift',              icon: '💨', type: 'passive',    desc: '+15% movement speed cap' },
-  { id: 'sharp_eye',          name: 'Sharp Eye',          icon: '👁️', type: 'passive',    desc: '+10% crit chance' },
-  { id: 'extended_immunity',  name: 'Extended Immunity',  icon: '✨', type: 'passive',    desc: 'Hit immunity: 18 → 30 frames' },
-  { id: 'heavy_mass',         name: 'Heavy Mass',         icon: '⚓', type: 'passive',    desc: '+30% mass (less knockback)' },
+  { id: 'thick_hide',         name: 'Thick Hide',         icon: '🦏', type: 'passive',    desc: 'Take 10% less damage from all sources' },
+  { id: 'swift',              name: 'Swift',              icon: '💨', type: 'passive',    desc: 'Move 15% faster' },
+  { id: 'sharp_eye',          name: 'Sharp Eye',          icon: '👁️', type: 'passive',    desc: 'Critical hit chance +10%' },
+  { id: 'extended_immunity',  name: 'Extended Immunity',  icon: '✨', type: 'passive',    desc: 'Invincibility window after being hit lasts much longer' },
+  { id: 'heavy_mass',         name: 'Heavy Mass',         icon: '⚓', type: 'passive',    desc: 'Much harder to knock back' },
   // ── PRE-COMBAT (triggers once at round start) ────────────
-  { id: 'war_cry',    name: 'War Cry',    icon: '📢', type: 'pre_combat', desc: 'First hit this round deals 2× damage' },
-  { id: 'fortify',    name: 'Fortify',    icon: '🏰', type: 'pre_combat', desc: 'Start with a 1-hit absorption shield' },
-  { id: 'adrenaline', name: 'Adrenaline', icon: '⚡', type: 'pre_combat', desc: 'First 5s: +50% movement speed' },
-  { id: 'predator',   name: 'Predator',   icon: '🦅', type: 'pre_combat', desc: '+15% damage when target has less HP' },
-  { id: 'first_blood',name: 'First Blood',icon: '🩸', type: 'pre_combat', desc: 'First hit of round stuns opponent 30 frames' },
+  { id: 'war_cry',    name: 'War Cry',    icon: '📢', type: 'pre_combat', desc: 'First hit of the round deals double damage' },
+  { id: 'fortify',    name: 'Fortify',    icon: '🏰', type: 'pre_combat', desc: 'Begin each round with a shield that blocks one hit entirely' },
+  { id: 'adrenaline', name: 'Adrenaline', icon: '⚡', type: 'pre_combat', desc: 'Move 50% faster for the first 5 seconds of each round' },
+  { id: 'predator',   name: 'Predator',   icon: '🦅', type: 'pre_combat', desc: 'Deal 15% more damage when the enemy has less HP than you' },
+  { id: 'first_blood',name: 'First Blood',icon: '🩸', type: 'pre_combat', desc: 'First hit of the round briefly stuns the opponent' },
   // ── IN-COMBAT (reactive event hooks) ────────────────────
-  { id: 'berserker',   name: 'Berserker',   icon: '😤', type: 'in_combat', desc: '+50% damage while HP < 30%' },
-  { id: 'phoenix',     name: 'Phoenix',     icon: '🔥', type: 'in_combat', desc: 'Survive one lethal hit with 1 HP (once/round)' },
-  { id: 'counter',     name: 'Counter',     icon: '↩️', type: 'in_combat', desc: 'After being parried: next hit deals 2× damage' },
-  { id: 'vampiric',    name: 'Vampiric',    icon: '🧛', type: 'in_combat', desc: 'On hit: heal 5% of damage dealt' },
-  { id: 'parry_master',name: 'Parry Master',icon: '🗡️', type: 'in_combat', desc: 'On parry: no knockback + weapon spin ×2 for 1.5s' },
-  { id: 'momentum',    name: 'Momentum',    icon: '🌀', type: 'in_combat', desc: 'On kill (FFA): +10% speed stack (max 5×)' },
-  { id: 'shadow_step', name: 'Shadow Step', icon: '👻', type: 'in_combat', desc: 'On evade: teleport to a random safe spot' },
-  { id: 'blood_frenzy',name: 'Blood Frenzy',icon: '💉', type: 'in_combat', desc: 'On kill: heal 25 HP' },
-  { id: 'flow_state',  name: 'Flow State',  icon: '🌊', type: 'in_combat', desc: 'On hit: +MA×1% speed per stack (reset when hit)' },
-  { id: 'read_react',  name: 'Read & React',icon: '⚡', type: 'in_combat', desc: 'On being hit: BIQ×3% chance to instantly counter-attack' },
-  { id: 'exploit',     name: 'Exploit',     icon: '💡', type: 'in_combat', desc: 'On hit: (IQ+BIQ)×1% chance double damage' },
-  { id: 'deflection',  name: 'Deflection',  icon: '🪞', type: 'passive',   desc: 'MA×2% chance to completely negate a hit' },
-  { id: 'mind_break',  name: 'Mind Break',  icon: '🧿', type: 'pre_combat', desc: 'If IQ > target: -(IQ gap × 3%) to their final damage' },
+  { id: 'berserker',   name: 'Berserker',   icon: '😤', type: 'in_combat',  desc: 'Deal 50% more damage when below 30% HP' },
+  { id: 'phoenix',     name: 'Phoenix',     icon: '🔥', type: 'in_combat',  desc: 'Once per round, survive a killing blow with 1 HP remaining' },
+  { id: 'counter',     name: 'Counter',     icon: '↩️', type: 'in_combat',  desc: 'After your attack is parried, your next hit deals double damage' },
+  { id: 'vampiric',    name: 'Vampiric',    icon: '🧛', type: 'in_combat',  desc: 'Each hit heals you for 5% of the damage you deal' },
+  { id: 'parry_master',name: 'Parry Master',icon: '🗡️', type: 'in_combat',  desc: 'On successful parry: no knockback + weapon spins much faster briefly' },
+  { id: 'momentum',    name: 'Momentum',    icon: '🌀', type: 'in_combat',  desc: 'Each kill in FFA increases your speed by 10%, up to 5 kills' },
+  { id: 'shadow_step', name: 'Shadow Step', icon: '👻', type: 'in_combat',  desc: 'When you dodge a hit, instantly teleport to a random safe position' },
+  { id: 'blood_frenzy',name: 'Blood Frenzy',icon: '💉', type: 'in_combat',  desc: 'Restore 25 HP each time you defeat an opponent' },
+  { id: 'flow_state',  name: 'Flow State',  icon: '🌊', type: 'in_combat',  desc: 'Each hit builds speed (scales with MA). Taking damage resets all stacks' },
+  { id: 'read_react',  name: 'Read & React',icon: '⚡', type: 'in_combat',  desc: 'When hit, chance to instantly counter-attack (scales with BIQ)' },
+  { id: 'exploit',     name: 'Exploit',     icon: '💡', type: 'in_combat',  desc: 'Each hit has a chance to deal double damage (scales with IQ and BIQ)' },
+  { id: 'deflection',  name: 'Deflection',  icon: '🪞', type: 'passive',    desc: 'Passive chance to completely negate an incoming hit (scales with MA)' },
+  { id: 'mind_break',  name: 'Mind Break',  icon: '🧿', type: 'pre_combat', desc: 'If your IQ is higher than the enemy, they deal less damage. Bigger IQ gap = bigger reduction' },
   // ── POST-COMBAT (triggers after round ends) ──────────────
-  { id: 'learning',      name: 'Learning',      icon: '📚', type: 'post_combat', desc: 'Thua: +5% damage round sau' },
-  { id: 'adaptation',    name: 'Adaptation',    icon: '🧬', type: 'post_combat', desc: 'Thua: +20% resist với weapon type đã giết mình' },
-  { id: 'survivor',     name: 'Survivor',     icon: '🩹', type: 'post_combat', desc: 'Thắng với HP<20%: +10 max HP vĩnh viễn' },
-  { id: 'veteran',      name: 'Veteran',      icon: '🏅', type: 'post_combat', desc: 'Thắng: +1 stat ngẫu nhiên (không giới hạn)' },
-  { id: 'mastery',      name: 'Mastery',      icon: '🌙', type: 'post_combat', desc: 'Thắng HP<50%: MA×3% chance +1 dmg/proj vũ khí' },
-  { id: 'perfectionist',name: 'Perfectionist',icon: '💎', type: 'post_combat', desc: 'Thắng >80% HP: +15% dmg. Thắng ≤80% HP: -10% dmg' },
-  { id: 'blood_mark',   name: 'Blood Mark',   icon: '🩸', type: 'post_combat', desc: 'Thua: gắn debuff lên đối thủ — trận sau họ ra sân với 80% HP' },
-  { id: 'copycat',      name: 'Copycat',      icon: '🎭', type: 'post_combat', desc: 'Thắng: BIQ×3.5% chance học 1 skill ngẫu nhiên của đối thủ' },
+  { id: 'learning',      name: 'Learning',      icon: '📚', type: 'post_combat', desc: 'On loss: deal 5% more damage next round' },
+  { id: 'adaptation',    name: 'Adaptation',    icon: '🧬', type: 'post_combat', desc: 'On loss: take 20% less damage from the weapon type that killed you' },
+  { id: 'survivor',      name: 'Survivor',      icon: '🩹', type: 'post_combat', desc: 'Win at very low HP: permanently gain +10 max HP' },
+  { id: 'veteran',       name: 'Veteran',       icon: '🏅', type: 'post_combat', desc: 'On win: permanently gain +1 to a random stat' },
+  { id: 'mastery',       name: 'Mastery',       icon: '🌙', type: 'post_combat', desc: 'Win while injured: chance to permanently boost your weapon\'s damage (scales with MA)' },
+  { id: 'perfectionist', name: 'Perfectionist', icon: '💎', type: 'post_combat', desc: 'Win at high HP: +15% damage next round. Win while injured: -10% damage instead' },
+  { id: 'blood_mark',    name: 'Blood Mark',    icon: '🩸', type: 'post_combat', desc: 'On loss: curse the winner — they start their next match at only 80% HP' },
+  { id: 'copycat',       name: 'Copycat',       icon: '🎭', type: 'post_combat', desc: 'On win: chance to copy a random skill from the opponent (scales with BIQ)' },
+
+  // ── WEAPON SKILLS (only available if ball has matching weapon) ──
+  // 🥊 Fists
+  { id: 'iron_knuckles',   name: 'Iron Knuckles',    icon: '👊', type: 'in_combat',  weapon: 'fists',
+    desc: 'Each hit permanently stacks +0.1 base damage for this round (cap scales with STR)' },
+  { id: 'brawler_rhythm',  name: "Brawler's Rhythm",  icon: '🥊', type: 'in_combat',  weapon: 'fists',
+    desc: 'Every 5th hit deals ×2.5 damage. Being hit resets the chain' },
+  { id: 'combo_breaker',   name: 'Combo Breaker',     icon: '💢', type: 'in_combat',  weapon: 'fists',
+    desc: 'When hit while you have 3+ combo stacks, automatically counter-attack for free (scales with STR)' },
+  { id: 'rage_fists',      name: 'Rage Fists',        icon: '🔥', type: 'in_combat',  weapon: 'fists',
+    desc: 'Below 50% HP: attack 35% faster' },
+
+  // ⚔️ Sword
+  { id: 'guard_stance',    name: 'Guard Stance',      icon: '🛡️', type: 'passive',    weapon: 'sword',
+    desc: 'While your sword is on cooldown, take less damage (scales with BIQ, up to 30% reduction)' },
+  { id: 'duel_instinct',   name: 'Duel Instinct',     icon: '⚔️', type: 'passive',    weapon: 'sword',
+    desc: 'When only one enemy remains, deal 30% more damage' },
+  { id: 'parry_punish',    name: 'Parry Punish',      icon: '🗡️', type: 'in_combat',  weapon: 'sword',
+    desc: 'After a successful parry, your next 3 seconds of attacks deal double damage' },
+
+  // 🗡️ Dagger
+  { id: 'poison_blade',    name: 'Poison Blade',      icon: '🐍', type: 'in_combat',  weapon: 'dagger',
+    desc: 'Every 5th hit applies poison: 1.5 damage every 3 seconds for 12 seconds' },
+  { id: 'flurry_finisher', name: 'Flurry Finisher',   icon: '💨', type: 'in_combat',  weapon: 'dagger',
+    desc: 'Every 5th consecutive hit deals ×2.5 damage. Being hit resets the chain' },
+  { id: 'shadow_strike',   name: 'Shadow Strike',     icon: '🌑', type: 'in_combat',  weapon: 'dagger',
+    desc: 'Every 10 seconds, your next hit is a guaranteed critical strike' },
+
+  // 🔱 Spear
+  { id: 'long_reach',      name: 'Long Reach',        icon: '🔱', type: 'passive',    weapon: 'spear',
+    desc: 'Start every round with +20px extra spear reach' },
+  { id: 'skewer',          name: 'Skewer',            icon: '📌', type: 'in_combat',  weapon: 'spear',
+    desc: "On hit: pin the enemy's weapon for 30 frames — they cannot swing while pinned" },
+  { id: 'zone_control',    name: 'Zone Control',      icon: '💫', type: 'passive',    weapon: 'spear',
+    desc: 'Enemies that stay within 150px of your spear tip take 0.5 damage per second' },
+
+  // 🌙 Scythe
+  { id: 'reapers_mark',    name: "Reaper's Mark",     icon: '💀', type: 'in_combat',  weapon: 'scythe',
+    desc: 'Deal 80% more damage to enemies below 30% HP — execute the wounded' },
+  { id: 'soul_harvest',    name: 'Soul Harvest',      icon: '✨', type: 'in_combat',  weapon: 'scythe',
+    desc: 'Each kill restores 10 HP (stacks freely in FFA)' },
+  { id: 'grim_presence',   name: 'Grim Presence',     icon: '☠️', type: 'passive',    weapon: 'scythe',
+    desc: 'Enemies within 80px of you swing 12% slower (passive aura)' },
+
+  // 🔨 Hammer
+  { id: 'seismic_slam',    name: 'Seismic Slam',      icon: '🌍', type: 'in_combat',  weapon: 'hammer',
+    desc: 'On hit: release a shockwave that slows all enemies within 120px for 30 frames' },
+  { id: 'heavy_momentum',  name: 'Heavy Momentum',    icon: '⚡', type: 'in_combat',  weapon: 'hammer',
+    desc: 'Each consecutive hit on the same enemy adds 20% damage (max 3 stacks). Switching target resets stacks' },
+  { id: 'ground_pound',    name: 'Ground Pound',      icon: '🔨', type: 'in_combat',  weapon: 'hammer',
+    desc: "Every time you bounce off a wall, the nearest enemy's weapon locks for 25 frames" },
+
+  // 🏹 Bow
+  { id: 'sniper',          name: 'Sniper',            icon: '🎯', type: 'in_combat',  weapon: 'bow',
+    desc: 'Arrows shot at targets over 300px away deal 55% more damage' },
+  { id: 'volley',          name: 'Volley',            icon: '🏹', type: 'pre_combat', weapon: 'bow',
+    desc: 'The first 3 arrows of the round deal double damage' },
+  { id: 'piercing_shot',   name: 'Piercing Shot',     icon: '💥', type: 'in_combat',  weapon: 'bow',
+    desc: 'Every 8th arrow pierces through the target and can hit enemies behind them' },
+
+  // 🌟 Shuriken
+  { id: 'bounce_damage',   name: 'Bounce Damage',     icon: '🌀', type: 'passive',    weapon: 'shuriken',
+    desc: 'Each wall bounce charges your shuriken with +15% damage (up to 3 bounces = +45%)' },
+  { id: 'ricochet_kill',   name: 'Ricochet Kill',     icon: '⭐', type: 'passive',    weapon: 'shuriken',
+    desc: 'Shurikens that hit after 2 or more wall bounces deal +100% damage' },
+  { id: 'fan_throw',       name: 'Fan Throw',         icon: '🌟', type: 'in_combat',  weapon: 'shuriken',
+    desc: 'Every 5th throw fires 3 shurikens in a fan spread instead of 1' },
 ];
 
 const SKILL_MAP = Object.fromEntries(SKILL_DEFS.map(s => [s.id, s]));
@@ -52,6 +119,10 @@ function applySkillPassives(ball, fighter) {
   if (sk.includes('swift'))       { ball.maxSpd *= 1.15; ball.baseMaxSpd = ball.maxSpd; }
   if (sk.includes('sharp_eye'))   { ball.critChance += 0.10; }
   if (sk.includes('heavy_mass'))  { ball.mass *= 1.30; }
+  // Weapon passives applied at match start
+  if (sk.includes('long_reach') && ball.weaponDef?.id === 'spear') {
+    ball.weapon.bonusLength = (ball.weapon.bonusLength || 0) + 20;
+  }
 
   // Cross-round bonuses from previous rounds (Learning + Perfectionist stacked)
   ball.skillLearningMult  = 1 + (fighter.learningBonus || 0);
@@ -115,6 +186,22 @@ function initRoundSkillState(ball) {
     momentumStacks:  0,
     flowStateStacks: 0,
     predatorActive:  false,  // set at round start in skillOnPreCombat
+    // ── Weapon skill states ──────────────────────────────
+    brawlerChain:      0,
+    brawlerReady:      false,
+    flurryChain:       0,
+    flurryReady:       false,
+    sk_dagHitCount:    0,
+    sk_shadowTimer:    0,
+    shadowStrikeCrit:  false,
+    parryPunishActive: false,
+    parryPunishTimer:  0,
+    hammerStacks:      0,
+    hammerTarget:      null,
+    sk_fanCount:       0,
+    sk_bowShotCount:   0,
+    sk_volleyCount:    ball.skills.includes('volley') ? 3 : 0,
+    sk_zoneTimer:      0,
   };
 }
 
@@ -253,6 +340,111 @@ function skillOnHit(attacker, defender, dmg) {
 
   // ── Race: Primordial Void Grip ────────────────────────────────
   if (typeof raceSkillOnHitDefending === 'function') raceSkillOnHitDefending(attacker, defender);
+  // ── Weapon-specific skills ────────────────────────────────────
+  weaponSkillOnHit(attacker, defender, dmg);
+}
+
+// ── WEAPON SKILL ON-HIT ────────────────────────────────────────
+function weaponSkillOnHit(attacker, defender, dmg) {
+  const sk = attacker.skillState;
+  if (!sk) return;
+  const wid = attacker.weaponDef?.id;
+
+  // Shadow Strike (Dagger): consume guaranteed crit flag
+  if (sk.shadowStrikeCrit && wid === 'dagger') {
+    sk.shadowStrikeCrit = false;
+    sk.sk_shadowTimer   = 0;
+    spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '🌑 SHADOW CRIT!', '#aa44ff');
+    if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['shadow_strike']);
+  }
+
+  // Iron Knuckles (Fists): each hit +0.1 base dmg, capped at STR×0.1
+  if (attacker.skills.includes('iron_knuckles') && wid === 'fists') {
+    const maxBonus = (attacker.charSTR || 5) * 0.1;
+    attacker.weapon.bonusDamage = Math.min((attacker.weapon.bonusDamage || 0) + 0.1, maxBonus);
+    spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 14,
+      `👊 +${attacker.weapon.bonusDamage.toFixed(1)}`, '#ffaa33');
+    if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['iron_knuckles']);
+  }
+
+  // Brawler's Rhythm (Fists): 5-hit chain → ×2.5 (hit already applied via getDamage brawlerReady flag)
+  if (attacker.skills.includes('brawler_rhythm') && wid === 'fists') {
+    if (sk.brawlerReady) {
+      sk.brawlerReady = false;
+      sk.brawlerChain = 0;
+      spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 20, '🥊 RHYTHM! ×2.5', '#ffaa33');
+      if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['brawler_rhythm']);
+    } else {
+      sk.brawlerChain = (sk.brawlerChain || 0) + 1;
+      if (sk.brawlerChain >= 4) {
+        sk.brawlerReady = true;
+        spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 14, '🥊 NEXT HITS ×2.5!', '#ff8833');
+      }
+    }
+  }
+
+  // Flurry Finisher (Dagger): 5-hit consecutive chain → ×2.5
+  if (attacker.skills.includes('flurry_finisher') && wid === 'dagger') {
+    if (sk.flurryReady) {
+      sk.flurryReady = false;
+      sk.flurryChain = 0;
+      spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 20, '💨 FLURRY! ×2.5', '#44ddff');
+      if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['flurry_finisher']);
+    } else {
+      sk.flurryChain = (sk.flurryChain || 0) + 1;
+      if (sk.flurryChain >= 4) {
+        sk.flurryReady = true;
+        spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 14, '💨 NEXT HITS ×2.5!', '#44aaff');
+      }
+    }
+  }
+
+  // Poison Blade (Dagger): every 5th hit → apply poison
+  if (attacker.skills.includes('poison_blade') && wid === 'dagger') {
+    sk.sk_dagHitCount = (sk.sk_dagHitCount || 0) + 1;
+    if (sk.sk_dagHitCount % 5 === 0) {
+      defender.sk_poisonDuration = 12 * 60;
+      defender.sk_poisonTick     = 0;
+      defender.sk_poisonDmg      = 1.5;
+      defender.sk_poisonOwner    = attacker;
+      spawnDamageNumber(defender.x, defender.y - defender.radius - 16, '🐍 POISONED!', '#44cc44');
+      if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['poison_blade']);
+    }
+  }
+
+  // Skewer (Spear): pin enemy weapon for 30 frames
+  if (attacker.skills.includes('skewer') && wid === 'spear') {
+    defender.stunTimer = Math.max(defender.stunTimer || 0, 30);
+    spawnDamageNumber(defender.x, defender.y - defender.radius - 16, '📌 SKEWERED!', '#ffaa33');
+    if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['skewer']);
+  }
+
+  // Seismic Slam (Hammer): AoE shockwave slow to nearby enemies
+  if (attacker.skills.includes('seismic_slam') && wid === 'hammer' && typeof state !== 'undefined') {
+    let shockHit = false;
+    for (const en of state.players) {
+      if (en === attacker || !en.alive || en === defender) continue;
+      if (Math.hypot(en.x - defender.x, en.y - defender.y) < 120) {
+        en.weapon.spinSlowTimer = Math.max(en.weapon.spinSlowTimer || 0, 30);
+        spawnDamageNumber(en.x, en.y - en.radius - 14, '🌍 SHOCKWAVE', '#ff9933');
+        shockHit = true;
+      }
+    }
+    if (shockHit && typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['seismic_slam']);
+  }
+
+  // Heavy Momentum (Hammer): same-target stacking +20% dmg (max 3 stacks)
+  if (attacker.skills.includes('heavy_momentum') && wid === 'hammer') {
+    if (sk.hammerTarget === defender) {
+      sk.hammerStacks = Math.min(3, (sk.hammerStacks || 0) + 1);
+    } else {
+      sk.hammerStacks = 1;
+      sk.hammerTarget = defender;
+    }
+    spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 14,
+      `⚡ MOMENTUM ×${sk.hammerStacks}`, '#ffdd44');
+    if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['heavy_momentum']);
+  }
 }
 
 // ── ON-PARRY hook ──────────────────────────────────────────
@@ -271,6 +463,27 @@ function skillOnParry(b1, b2) {
       ball.weapon.spinBoostTimer = 90;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '⚡ SPIN UP!', '#cc88ff');
       flashSkillHUD(ball, SKILL_MAP['parry_master']);
+    }
+    // Rapier: parry → +1 riposte stack (max 3) + open riposte window
+    if (ball.weaponDef?.id === 'rapier') {
+      const biq = ball.charBIQ ?? 0;
+      ball.weapon.riposteStacks  = Math.min(3, (ball.weapon.riposteStacks || 0) + 1);
+      ball.weapon.riposteWindow  = Math.max(40, 10 + biq * 6);
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 16,
+        `🛡️ PARRY! (${ball.weapon.riposteStacks}✦)`, '#aae0ff');
+    }
+    // God of Speed: being parried resets momentum stacks
+    if (ball.charRace === 'god' && ball.charSubrace?.label === 'God of Speed' && (ball.rs_speedStacks || 0) > 0) {
+      ball.rs_speedStacks = 0;
+      ball.maxSpd = ball.baseMaxSpd;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 16, '⚡ PARRIED!', '#aaddff');
+    }
+    // Parry Punish (Sword): after parry → ×2 dmg for 3 seconds (180 frames)
+    if (ball.skills?.includes('parry_punish') && ball.weaponDef?.id === 'sword') {
+      ball.skillState.parryPunishActive = true;
+      ball.skillState.parryPunishTimer  = 180;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '🗡️ PUNISH!', '#ffdd00');
+      if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['parry_punish']);
     }
   }
 }
@@ -310,6 +523,13 @@ function skillOnKill(killer, victim) {
     spawnDamageNumber(killer.x, killer.y - killer.radius, '+25 HP', '#ff4466');
     addBattleLog('heal', { attacker: getBallLabel(killer), aColor: killer.color, heal: 25, hpAfter: +killer.hp.toFixed(1), source: 'Blood Frenzy' });
     flashSkillHUD(killer, SKILL_MAP['blood_frenzy']);
+  }
+  // Soul Harvest (Scythe): on kill → +10 HP
+  if (killer.skills?.includes('soul_harvest') && killer.weaponDef?.id === 'scythe') {
+    killer.hp = Math.min(killer.maxHp, killer.hp + 10);
+    spawnDamageNumber(killer.x, killer.y - killer.radius, '✨ +10 HP', '#88ff88');
+    addBattleLog('heal', { attacker: getBallLabel(killer), aColor: killer.color, heal: 10, hpAfter: +killer.hp.toFixed(1), source: 'Soul Harvest' });
+    if (typeof flashSkillHUD === 'function') flashSkillHUD(killer, SKILL_MAP['soul_harvest']);
   }
 
   // Momentum: +10% speed per kill (FFA only, max 5 stacks)
@@ -448,21 +668,23 @@ function skillOnPostCombat(ball, won, fighter) {
 
 const RACE_SKILL_DEFS = {
   dragon:     { id:'race_flame_breath', name:'Flame Breath', icon:'🔥',
-                desc:'Breathes a wide fire cone for 3s. Damage scales with STR, cone width with MA, cooldown reduced by SPD.' },
+                desc:'Unleashes a wide fire cone that burns nearby enemies. Damage scales with STR, cone width with MA. Recharges faster with higher SPD.' },
   troll:      { id:'race_net_throw',    name:'Net Throw',    icon:'🕸️',
-                desc:'Hurls a net at the nearest foe. Cooldown 6–10s by SPD (miss = 70% cooldown). Trap duration 2–3.5s scales with BIQ.' },
+                desc:'Throws a net that traps the nearest enemy in place. Trap lasts longer with higher BIQ. Recharges faster with higher SPD.' },
   primordial: { id:'race_void_grip',    name:'Void Grip',    icon:'🌌',
-                desc:'Melee weapons that strike this Primordial may get stuck in the void. Chance scales with BIQ, duration with MA.' },
+                desc:'When struck by a melee weapon, it may get stuck — freezing the attacker\'s weapon temporarily. More likely with high BIQ, lasts longer with high MA.' },
   human:      { id:'race_limit_break',  name:'Limit Break',  icon:'⚡',
-                desc:'Triggers once when HP drops below 80%. Lasts until end of match. Each hit stacks +15% damage. Charge mode — no retreat.' },
+                desc:'Triggers once when HP drops below 20%. From that point on, each hit you land permanently stacks up your damage for the rest of the match.' },
   angel:      { id:'race_smite',        name:'Smite',        icon:'✨',
-                desc:'Calls divine lightning on the nearest foe every 15s. Deals damage + stuns. Scales with IQ & MA.' },
-  dwarf:      { id:'race_master_forge', name:'FORGE!', icon:'⚒️',
-                desc:'Passive: every 10s, weapon is forged with a random upgrade. Upgrades stack across rounds. Forge speed scales with DUR.' },
-  orc:        { id:'race_blood_price',  name:'Blood Price', icon:'🩸',
-                desc:'Passive: each hit taken adds 1 Bloodlust stack (max 5). At 5 stacks, next attack bursts for bonus damage and heals. Burst damage scales with STR, heal with DUR.' },
-  giant:      { id:'race_quake',        name:'Quake', icon:'🌍',
-                desc:'Every ~25s, stomps the ground — shockwave pushes ALL enemies away with massive knockback. Close enemies also take damage. Force and damage scale with STR, cooldown reduced by DUR.' },
+                desc:'Periodically calls down lightning on the nearest enemy, dealing damage and stunning them. Scales with IQ and MA.' },
+  dwarf:      { id:'race_master_forge', name:'FORGE!',       icon:'⚒️',
+                desc:'Every few seconds, your weapon gets a random upgrade — sharper, harder-hitting, or faster-firing. Upgrades carry over between rounds. Forges faster with higher DUR.' },
+  orc:        { id:'race_blood_price',  name:'Blood Price',  icon:'🩸',
+                desc:'Each hit you take builds Bloodlust, up to 5 stacks. At 5 stacks, your next attack deals burst damage and heals you. Damage scales with STR, healing with DUR.' },
+  giant:      { id:'race_quake',        name:'Quake',        icon:'🌍',
+                desc:'Periodically slams the ground, pushing all enemies away with a shockwave. Enemies caught close also take damage. Power scales with STR, recharges faster with DUR.' },
+  god:        { id:'race_god_gift',     name:'God Gift',     icon:'✨',
+                desc:'Unique passive based on your God sub-race. Strength: ground slam at 70s. Speed: gain speed with each wall bounce. MA: switch to pure fists at 70s. IQ/BIQ: bonuses applied at character creation.' },
 };
 
 function getRaceSkillDef(race) { return RACE_SKILL_DEFS[race] ?? null; }
@@ -480,7 +702,7 @@ function initRaceSkillState(ball) {
 
   if (race === 'dragon') {
     ball.rs_maxCooldown = Math.max(600, 1800 - spd * 40);
-    ball.rs_cooldown    = 0;                              // start ready
+    ball.rs_cooldown    = ball.rs_maxCooldown;            // start on full cooldown
     ball.rs_active      = false;
     ball.rs_timer       = 0;
     ball.rs_duration    = Math.round((120 + ma * 12) * 1.12); // +12% duration
@@ -494,7 +716,7 @@ function initRaceSkillState(ball) {
   if (race === 'troll') {
     // Cooldown: SPD=5→600f(10s), SPD=10→360f(6s) — floor 360f
     ball.rs_maxCooldown = Math.max(360, 840 - spd * 48);
-    ball.rs_cooldown    = 0;
+    ball.rs_cooldown    = ball.rs_maxCooldown; // start on full cooldown
     // Trap duration: BIQ=5→120f(2s), BIQ=10→210f(3.5s) — floor 60f
     ball.rs_trapDur     = Math.max(60, 30 + biq * 18);
   }
@@ -513,7 +735,7 @@ function initRaceSkillState(ball) {
   }
   if (race === 'angel') {
     ball.rs_maxCooldown = Math.max(600, 900 - spd * 40);
-    ball.rs_cooldown    = 0;
+    ball.rs_cooldown    = ball.rs_maxCooldown; // start on full cooldown
     ball.rs_smiteDmg    = 8 + iq * 2;
     ball.rs_smiteStun   = 60 + ma * 12;
   }
@@ -543,6 +765,28 @@ function initRaceSkillState(ball) {
     ball.rs_forgeProjSizeBonus  = 0; // ranged: extra projectile radius
     ball.rs_forgeProjSpeedBonus = 0; // ranged: extra projectile speed
     ball.rs_forgeFlash        = 0;   // visual flash timer after each forge
+  }
+  if (race === 'god') {
+    const srLabel = ball.charSubrace?.label || '';
+    ball.rs_god70done   = false;   // one-shot 70s trigger flag
+    ball.rs_maxCooldown = 0;       // no cooldown arc (time-based, not cooldown-based)
+    // God of Strength
+    if (srLabel === 'God of Strength') {
+      ball.rs_godForce   = 5 + str * 1.5;       // STR10→20, STR20→35
+      ball.rs_godDmg     = Math.round(str * 2); // STR10→20, STR20→40
+      ball.rs_slamActive = false;
+      ball.rs_slamTimer  = 0;
+      ball.rs_slamWaveR  = 0;
+    }
+    // God of Speed
+    if (srLabel === 'God of Speed') {
+      ball.rs_speedStacks = 0;       // bounce stacks since last hit/parry
+    }
+    // God of MA
+    if (srLabel === 'God of MA') {
+      ball.rs_maTransformed = false; // true after 70s weapon swap
+    }
+    // God of IQ + God of BIQ: no runtime state needed in battle
   }
 }
 
@@ -830,6 +1074,67 @@ function updateRaceSkills(ball, players, rstate) {
     addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
       text: `✨ Smite → ${getBallLabel(nearest)}` });
   }
+
+  // ── GOD: Sub-race Passives ────────────────────────────────────
+  if (race === 'god' && ball.raceSkillDef) {
+    const srLabel = ball.charSubrace?.label || '';
+    const mTime   = rstate.matchTime || 0;
+
+    // ─ God of Strength: Divine Slam at 70s ─
+    if (srLabel === 'God of Strength') {
+      if (!ball.rs_god70done && mTime >= 70 * 60) {
+        ball.rs_god70done  = true;
+        ball.rs_slamActive = true;
+        ball.rs_slamTimer  = 30;   // 30 frame wave expand
+        ball.rs_slamWaveR  = 0;
+        // Clear all traps
+        if (rstate.trapObjects) rstate.trapObjects.length = 0;
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 28, '✊ DIVINE SLAM!', '#ffdd00');
+        spawnSparks(ball.x, ball.y, 24);
+        addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
+          text: '✊ Divine Slam! All traps cleared — enemies scattered!' });
+        // Knockback all enemies, tag for wall slam
+        for (const en of players) {
+          if (!en.alive || en === ball) continue;
+          const dx = en.x - ball.x, dy = en.y - ball.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const nx = dx / dist, ny = dy / dist;
+          const falloff = Math.max(0.15, 1 - dist / 380);
+          en.vx += nx * ball.rs_godForce * falloff;
+          en.vy += ny * ball.rs_godForce * falloff;
+          // Close-range damage (within 160px)
+          if (dist < 160) {
+            en.takeDamage(ball.rs_godDmg, ball.x, ball.y, false, ball);
+            spawnDamageNumber(en.x, en.y - en.radius - 14, `✊ -${ball.rs_godDmg}`, '#ffbb33');
+          }
+          // Tag for wall slam — reuse quake slam window
+          en.quakeSlamFrames = 60;
+          en.quakeSlamGiant  = ball;
+        }
+      }
+      if (ball.rs_slamTimer > 0) {
+        ball.rs_slamTimer--;
+        ball.rs_slamWaveR = (1 - ball.rs_slamTimer / 30) * 380;
+      }
+      if (ball.rs_slamTimer <= 0) ball.rs_slamActive = false;
+    }
+
+    // ─ God of MA: Martial God at 70s — switch to fists ─
+    if (srLabel === 'God of MA' && !ball.rs_god70done && mTime >= 70 * 60) {
+      ball.rs_god70done     = true;
+      ball.rs_maTransformed = true;
+      ball.weaponId  = 'fists';
+      ball.weaponDef = WEAPON_MAP['fists'];
+      ball.weapon    = ball._initWeapon('fists');
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 28, '🥋 MARTIAL GOD!', '#ff88ff');
+      spawnSparks(ball.x, ball.y, 16);
+      addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
+        text: '🥋 Martial God! Weapon discarded — pure martial arts!' });
+    }
+
+    // ─ God of Speed: show 70s unlock notice (speed stacks tracked in ball.js) ─
+    // No tick logic needed here — stacks are managed in ball.js wall bounce code
+  }
 }
 
 // Called once per step() to update troll nets + smite effects
@@ -994,6 +1299,23 @@ function drawRaceSkillEffects(ctx, rstate) {
     }
     ctx.restore();
   });
+
+  // God of Strength: Divine Slam shockwave ring
+  for (const ball of (rstate.players || [])) {
+    if (ball.charRace !== 'god' || !ball.rs_slamActive || ball.rs_slamTimer <= 0) continue;
+    const waveR = ball.rs_slamWaveR || 0;
+    if (waveR <= 0) continue;
+    const alpha = (ball.rs_slamTimer / 30) * 0.75;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = '#ffdd00'; ctx.shadowBlur = 22;
+    ctx.strokeStyle = '#ffe033'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, waveR, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, waveR + 14, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
 
   // Giant Quake: expanding shockwave ring from each giant ball
   for (const ball of (rstate.players || [])) {
@@ -1348,6 +1670,74 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.globalAlpha = 0.5 + 0.3*Math.sin(t*0.6);
     ctx.strokeStyle = '#ffffaa'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(cx, cy, r+5, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // God of Speed: speed stack counter badge + blue aura at high stacks
+  if (race === 'god' && ball.charSubrace?.label === 'God of Speed') {
+    const stacks = ball.rs_speedStacks || 0;
+    if (stacks > 0) {
+      ctx.save();
+      ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#66ddff';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(`⚡×${stacks}`, cx, cy - r - 4);
+      ctx.restore();
+    }
+    if (stacks >= 10) {
+      // Glowing blue aura — projectile immunity active
+      const pulse = 0.3 + 0.25 * Math.sin(t * 0.7);
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.shadowColor = '#00aaff'; ctx.shadowBlur = 22;
+      ctx.strokeStyle = '#44ccff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = pulse * 0.3;
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 13, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // God of MA: magenta aura after 70s transformation
+  if (race === 'god' && ball.charSubrace?.label === 'God of MA' && ball.rs_maTransformed) {
+    const pulse = 0.25 + 0.2 * Math.sin(t * 0.5);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = '#ff44ff'; ctx.shadowBlur = 20;
+    ctx.strokeStyle = '#ff88ff'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 5, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ff88ff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('🥋 MARTIAL', cx, cy - r - 4);
+    ctx.restore();
+  }
+
+  // God of Strength: golden aura while slam is active (just fired)
+  if (race === 'god' && ball.charSubrace?.label === 'God of Strength' && ball.rs_slamActive) {
+    const pulse = 0.4 + 0.3 * Math.sin(t * 0.8);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = '#ffdd00'; ctx.shadowBlur = 26;
+    ctx.strokeStyle = '#ffee44'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 7, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // God of Strength: "READY" glow when at 70s but not yet triggered
+  if (race === 'god' && ball.charSubrace?.label === 'God of Strength' && !ball.rs_god70done && (state.matchTime || 0) >= 70 * 60) {
+    const pulse = 0.3 + 0.25 * Math.sin(t * 0.5);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = '#ffdd00'; ctx.shadowBlur = 20;
+    ctx.strokeStyle = '#ffe033'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ffee44';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('✊ READY', cx, cy - r - 4);
     ctx.restore();
   }
 }
