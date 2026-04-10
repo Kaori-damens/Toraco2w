@@ -67,6 +67,13 @@ function renderCgStep() {
       ? cgState.subrace.raceId
       : cgState.race.id;
     let weights = [...(CG_STAT_WEIGHTS[sk][raceId] || Array(10).fill(10))];
+    // God sub-race override: each sub-race has its own stat distribution
+    if (raceId === 'god' && cgState.subrace?.label) {
+      const godProfile = (typeof CG_GOD_SUBRACE_WEIGHTS !== 'undefined')
+        ? CG_GOD_SUBRACE_WEIGHTS[cgState.subrace.label]
+        : null;
+      if (godProfile && godProfile[sk]) weights = [...godProfile[sk]];
+    }
     // Human Vàng: IQ cannot be below 5 → zero out weights 1-4
     if (cgState.race.id === 'human' && cgState.subrace?.label === 'Vàng' && sk === 'iq') {
       for (let i = 0; i < 4; i++) weights[i] = 0;
@@ -138,7 +145,7 @@ function renderCgStep() {
     }
 
     // ── GOD OF STRENGTH: STR guaranteed ≥10; roll 10 → STR doubled (→20) ──
-    if (sk === 'strength' && race === 'god' && srLabel === 'God of Strength') {
+    if (sk === 'strength' && race === 'god' && srLabel === 'Blessed by Surtr') {
       statTransform = (_w, idx) => {
         const raw = idx + 1;
         if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
@@ -148,7 +155,7 @@ function renderCgStep() {
     }
 
     // ── GOD OF SPEED: SPD guaranteed ≥10; roll 10 → SPD doubled (→20) ──
-    if (sk === 'speed' && race === 'god' && srLabel === 'God of Speed') {
+    if (sk === 'speed' && race === 'god' && srLabel === 'Blessed by Raijin') {
       statTransform = (_w, idx) => {
         const raw = idx + 1;
         if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
@@ -158,7 +165,7 @@ function renderCgStep() {
     }
 
     // ── GOD OF IQ: IQ guaranteed ≥10; roll 10 → IQ doubled (→20) ──
-    if (sk === 'iq' && race === 'god' && srLabel === 'God of IQ') {
+    if (sk === 'iq' && race === 'god' && srLabel === 'Blessed by Thoth') {
       statTransform = (_w, idx) => {
         const raw = idx + 1;
         if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
@@ -168,7 +175,7 @@ function renderCgStep() {
     }
 
     // ── GOD OF BIQ: BIQ guaranteed ≥10; roll 10 → BIQ doubled (→20) ──
-    if (sk === 'battleiq' && race === 'god' && srLabel === 'God of BIQ') {
+    if (sk === 'battleiq' && race === 'god' && srLabel === 'Blessed by Athena') {
       statTransform = (_w, idx) => {
         const raw = idx + 1;
         if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
@@ -178,13 +185,23 @@ function renderCgStep() {
     }
 
     // ── GOD OF MA: MA guaranteed ≥10; roll 10 → MA doubled (→20) ──
-    if (sk === 'ma' && race === 'god' && srLabel === 'God of MA') {
+    if (sk === 'ma' && race === 'god' && srLabel === 'Blessed by Shiva') {
       statTransform = (_w, idx) => {
         const raw = idx + 1;
         if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
         return `10 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw}, ✨ God's Gift)</span>`;
       };
       onStatResult = (_w, idx) => { cgState.stats.ma = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
+    }
+
+    // ── GOD OF DUR: DUR guaranteed ≥10; roll 10 → DUR doubled (→20) ──
+    if (sk === 'durability' && race === 'god' && srLabel === 'Blessed by Atlas') {
+      statTransform = (_w, idx) => {
+        const raw = idx + 1;
+        if (raw >= 10) return `20 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw} ⚡ DOUBLED!)</span>`;
+        return `10 <span style="opacity:0.6;font-size:0.8em">(rolled ${raw}, ✨ God's Gift)</span>`;
+      };
+      onStatResult = (_w, idx) => { cgState.stats.durability = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
     }
 
     // ── LAST-STAT EFFECTS: Dragon Flame / Primordial Air/Water applied at MA ──
@@ -234,13 +251,13 @@ function renderCgStep() {
     // Guaranteed weapon from certain subraces — skip wheel
     const sr = cgState.subrace?.label;
     const rid = cgState.race?.id;
-    // God of BIQ: always armed (Weapon Mastery — masters all weapons)
-    if (rid === 'god' && sr === 'God of BIQ') {
+    // Blessed by Athena: always armed (Weapon Mastery — masters all weapons)
+    if (rid === 'god' && sr === 'Blessed by Athena') {
       cgState.hasWeapon = true;
       box.innerHTML = `<div class="cg-card">
         <div class="cg-label">⚔️ Armed!</div>
         <div class="cg-result-box" style="margin:16px auto">⚔️ Armed</div>
-        <div class="cg-trait">✨ God of BIQ — Weapon Mastery: always armed</div>
+        <div class="cg-trait">✨ Blessed by Athena — Weapon Mastery: always armed</div>
       </div>`;
       playTone(660, 'sine', 0.4, 0.15, 0.5);
       setTimeout(() => advanceCg(), quickCreateMode ? 0 : 1200);
@@ -273,15 +290,18 @@ function renderCgStep() {
     return;
   }
   if (s === 'skillcount') {
-    // God of IQ: skip skill wheel, grant ceil(IQ × 1.7) skills (capped at pool size)
-    if (cgState.race?.id === 'god' && cgState.subrace?.label === 'God of IQ') {
+    // Blessed by Thoth: skip skill wheel, grant ceil(IQ × 1.7) skills (capped at pool size)
+    if (cgState.race?.id === 'god' && cgState.subrace?.label === 'Blessed by Thoth') {
       const iq = cgState.stats.iq ?? 10;
-      const count = Math.min(Math.ceil(iq * 1.7), SKILL_DEFS.length);
+      // Cap by filtered pool (skills matching this character's weapon), not total SKILL_DEFS
+      const charWeapon = cgState.weapon || null;
+      const poolSize = SKILL_DEFS.filter(s => !s.weapon || s.weapon === charWeapon).length;
+      const count = Math.min(Math.ceil(iq * 1.7), poolSize);
       cgState.skillCount = count;
       box.innerHTML = `<div class="cg-card">
         <div class="cg-label">🧠 Skill Mastery</div>
         <div class="cg-result-box" style="margin:16px auto">${count} Skills</div>
-        <div class="cg-trait">✨ God of IQ — IQ ${iq} × 1.7 = ${count} skills (no wheel)</div>
+        <div class="cg-trait">✨ Blessed by Thoth — IQ ${iq} × 1.7 = ${count} skills (no wheel)</div>
       </div>`;
       playTone(880, 'sine', 0.5, 0.12, 0.6);
       setTimeout(() => advanceCg(), quickCreateMode ? 0 : 1400);

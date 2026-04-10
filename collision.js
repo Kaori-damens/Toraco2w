@@ -131,8 +131,8 @@ function resolveProjectiles(players, projectiles) {
       if (target === proj.owner || !target.alive) continue;
       if (proj.owner && proj.owner.teamId >= 0 && proj.owner.teamId === target.teamId) continue;
 
-      // God of Speed: projectile evasion when momentum stacks ≥ 10
-      if (target.charRace === 'god' && target.charSubrace?.label === 'God of Speed' && (target.rs_speedStacks || 0) >= 10) {
+      // Blessed by Raijin: projectile evasion when momentum stacks ≥ 10
+      if (target.charRace === 'god' && target.charSubrace?.label === 'Blessed by Raijin' && (target.rs_speedStacks || 0) >= 10) {
         const stacks = target.rs_speedStacks;
         // stack10=50%, stack15=75%, stack20+=100% (capped at 95 to keep fairness)
         const evadeChance = Math.min(0.95, 0.50 + (stacks - 10) * 0.05);
@@ -160,8 +160,8 @@ function resolveProjectiles(players, projectiles) {
           proj.owner = target;
           proj.immuneFrames = target.weaponDef.id === 'fists' ? 20 : 8;
           if (target.weaponDef.id === 'fists') {
-            // Fists parry ranged: take 50% damage — unless God of MA (Martial God: no damage on parry)
-            const isGodMA = target.charRace === 'god' && target.charSubrace?.label === 'God of MA' && target.rs_maTransformed;
+            // Fists parry ranged: take 50% damage — unless Blessed by Shiva (Martial God: no damage on parry)
+            const isGodMA = target.charRace === 'god' && target.charSubrace?.label === 'Blessed by Shiva' && target.rs_maTransformed;
             if (!isGodMA) {
               target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner, false, true);
             } else {
@@ -320,16 +320,16 @@ function _checkWeaponHit(attacker, defender) {
         // Scaling
         def.onHit(attacker.weapon);
         skillOnHit(attacker, defender, dmg);
-        // God of BIQ: Combo Chain — BIQ×5% chance to instantly reset attack cooldown
-        if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'God of BIQ') {
+        // Blessed by Athena: Combo Chain — BIQ×5% chance to instantly reset attack cooldown
+        if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'Blessed by Athena') {
           const biq = attacker.charBIQ ?? 5;
           if (Math.random() < biq * 0.05) {
             attacker.weapon.cooldown = 0;
             spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '⚔️ CHAIN!', '#aaffaa');
           }
         }
-        // God of Speed: landing a melee hit resets momentum stacks
-        if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'God of Speed' && (attacker.rs_speedStacks || 0) > 0) {
+        // Blessed by Raijin: landing a melee hit resets momentum stacks
+        if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'Blessed by Raijin' && (attacker.rs_speedStacks || 0) > 0) {
           attacker.rs_speedStacks = 0;
           attacker.maxSpd = attacker.baseMaxSpd;
         }

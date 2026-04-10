@@ -416,7 +416,8 @@
             </div>
             <div class="wiki-race-card">
               <div class="wiki-race-title">⛏️ Dwarf <span class="wiki-rarity common">Common</span></div>
-              <div class="wiki-race-trait">High DUR/STR bias. No special trait.</div>
+              <div class="wiki-race-trait">High DUR/STR bias.</div>
+              <span class="wiki-race-skill-tag">⚒️ Race Skill: FORGE!</span>
             </div>
             <div class="wiki-race-card">
               <div class="wiki-race-title">💀 Skeleton <span class="wiki-rarity uncommon">Uncommon</span></div>
@@ -430,10 +431,12 @@
             <div class="wiki-race-card">
               <div class="wiki-race-title">🗡️ Orc <span class="wiki-rarity uncommon">Uncommon</span></div>
               <div class="wiki-race-trait">Win → +2 lowest stat. Lose → −3 highest stat. High STR/BIQ bias.</div>
+              <span class="wiki-race-skill-tag">🩸 Race Skill: Blood Price</span>
             </div>
             <div class="wiki-race-card">
               <div class="wiki-race-title">🏔️ Giant <span class="wiki-rarity rare">Rare</span></div>
               <div class="wiki-race-trait">After stats: IQ&gt;STR → +5IQ/−5STR; STR&gt;IQ → +5STR/−5IQ; equal → +3 both.</div>
+              <span class="wiki-race-skill-tag">🌍 Race Skill: Quake</span>
             </div>
             <div class="wiki-race-card">
               <div class="wiki-race-title">🐉 Dragon <span class="wiki-rarity rare">Rare</span></div>
@@ -456,7 +459,8 @@
             </div>
             <div class="wiki-race-card">
               <div class="wiki-race-title">✨ God <span class="wiki-rarity legendary">Legendary</span></div>
-              <div class="wiki-race-trait">9 Norse gods (equal weight): Odin · Týr · Frigg · Baldur · Loki · Freyja · Eir · Bragi · Thor.</div>
+              <div class="wiki-race-trait">6 sub-races (spin "Blessed by"): <b>Surtr</b> — Berserker (STR focus, BIQ/MA cao) · <b>Raijin</b> — Durable Speedster (SPD focus, DUR/BIQ cao) · <b>Thoth</b> — Scholar (IQ focus) · <b>Athena</b> — Tactical Master (BIQ focus) · <b>Shiva</b> — All-Rounder (MA focus, stats đồng đều) · <b>Atlas</b> — Tank (DUR focus, HP regen).</div>
+              <span class="wiki-race-skill-tag">✨ Race Skill: God Gift</span>
             </div>
           </div>
         </div>
@@ -471,17 +475,19 @@
           <table class="wiki-table">
             <thead><tr><th>Weapon</th><th>Base Dmg</th><th>Cooldown</th><th>Scaling (per hit)</th></tr></thead>
             <tbody>
-              <tr><td class="wk">🥊 Fists</td><td>2</td><td><code>max(2, 13−SPD)</code></td><td>−0.5f cooldown (min 8f / 0.13s)</td></tr>
+              <tr><td class="wk">🥊 Fists</td><td>2 + MA×0.2</td><td><code>max(2, 13−SPD)</code></td><td>−0.5f cooldown (min 8f) — chỉ hoạt động nếu AC &gt; 8</td></tr>
               <tr><td class="wk">⚔️ Sword</td><td>1</td><td><code>max(2, 28−SPD)</code></td><td>+1 bonus damage</td></tr>
-              <tr><td class="wk">🗡️ Dagger</td><td>1</td><td><code>max(2, 18−SPD)</code></td><td>+0.012 spin speed (max 0.55)</td></tr>
+              <tr><td class="wk">🗡️ Dagger</td><td>1 + MA×0.15</td><td><code>max(2, 18−SPD)</code></td><td>+0.012 spin speed (max 0.55)</td></tr>
               <tr><td class="wk">🔱 Spear</td><td>1</td><td><code>max(2, 38−SPD)</code></td><td>+4 px length, +0.5 damage</td></tr>
               <tr><td class="wk">🌙 Scythe</td><td>1</td><td><code>max(2, 34−SPD)</code></td><td>Dual blade unlocks at 5 hits</td></tr>
               <tr><td class="wk">🔨 Hammer</td><td>1</td><td><code>max(2, 48−SPD)</code></td><td>+0.8 knockback</td></tr>
               <tr><td class="wk">🏹 Bow</td><td>1/arrow</td><td><code>max(5, 140−SPD×2)</code></td><td>+1 arrow · starting arrows = SPD · size = STR · soft auto-aim (MA track, IQ cone)</td></tr>
               <tr><td class="wk">⭐ Shuriken</td><td>1/star</td><td><code>max(5, 250−SPD×2)</code></td><td>+1 star · bounces ×2</td></tr>
+              <tr><td class="wk">🤺 Rapier</td><td>0.8</td><td><code>max(2, 18−SPD)</code></td><td>Riposte — khi bị đánh: mở cửa sổ phản đòn (IQ+parry stacks × damage). Forbidden Weapon only.</td></tr>
+              <tr><td class="wk">⚔️ Katana</td><td>1.5</td><td><code>max(2, 42−SPD)</code></td><td>Momentum — 5 hits → Iai Strike (×3 damage). Bị đánh reset stacks. Forbidden Weapon only.</td></tr>
             </tbody>
           </table>
-          <div class="wiki-note">Projectile immunity: 8 frames. Melee immunity: 4 frames (independent counters).</div>
+          <div class="wiki-note">Projectile immunity: 8 frames. Melee immunity: 4 frames (independent counters). · 🚫 <b>Forbidden Weapons</b> (Rapier, Katana): không thể quay ra khi tạo nhân vật — chỉ nhận qua PvP Reward "Forbidden Weapon" (~4.4% chance). Hiệu lực từ trận tiếp theo.</div>
         </div>
       </div>
 
@@ -531,6 +537,57 @@
               <span class="wiki-skill-stat"><code>Stick chance: min(60%, BIQ×6%)</code></span>
               <span class="wiki-skill-stat"><code>Stuck duration: 60+MA×15f (1.25–3.5s)</code></span>
               <span class="wiki-skill-stat"><code>No cooldown (passive)</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">🌍</span>
+              <div><div class="wiki-skill-name">Quake</div><div class="wiki-skill-race">🏔️ Giant</div></div>
+            </div>
+            <div class="wiki-skill-desc">Tự động đập đất định kỳ, tạo sóng xung kích đẩy tất cả kẻ địch ra xa. Kẻ địch đứng gần còn nhận sát thương. STR tăng lực đẩy và damage, DUR giảm cooldown.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Force: 6 + STR×1.5 (STR10→21)</code></span>
+              <span class="wiki-skill-stat"><code>Dmg (close): STR×2</code></span>
+              <span class="wiki-skill-stat"><code>CD: max(1200, 1800−STR×50−DUR×30)f (~20–30s)</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">⚒️</span>
+              <div><div class="wiki-skill-name">FORGE!</div><div class="wiki-skill-race">⛏️ Dwarf</div></div>
+            </div>
+            <div class="wiki-skill-desc">Định kỳ nâng cấp vũ khí ngẫu nhiên — melee nhận bonus hit radius, parry radius hoặc +5% dmg/stack; ranged nhận +proj size, +proj speed hoặc +5% dmg/stack. Upgrades tích lũy qua các round.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Interval: max(420, 720−DUR×24)f (7–12s)</code></span>
+              <span class="wiki-skill-stat"><code>Dmg stack: +5% per Sharpness level (no cap)</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">🩸</span>
+              <div><div class="wiki-skill-name">Blood Price</div><div class="wiki-skill-race">🗡️ Orc</div></div>
+            </div>
+            <div class="wiki-skill-desc">Mỗi đòn nhận vào tích 1 Bloodlust stack (tối đa 5). Khi đủ 5 stack: đòn tấn công tiếp theo trở thành Burst — gây thêm sát thương và hồi máu. STR tăng damage, DUR tăng lượng hồi.</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Trigger: 5 Bloodlust stacks (passive, no cooldown)</code></span>
+              <span class="wiki-skill-stat"><code>Burst dmg: bonus scales with STR</code></span>
+              <span class="wiki-skill-stat"><code>Heal: scales with DUR</code></span>
+            </div>
+          </div>
+
+          <div class="wiki-skill-card">
+            <div class="wiki-skill-header">
+              <span class="wiki-skill-icon">✨</span>
+              <div><div class="wiki-skill-name">God Gift</div><div class="wiki-skill-race">✨ God</div></div>
+            </div>
+            <div class="wiki-skill-desc">Passive độc nhất theo sub-race. <b>Surtr:</b> ground slam tại giây 70. <b>Raijin:</b> mỗi lần chạm tường +SPD vĩnh viễn. <b>Shiva:</b> chuyển sang Fists tại giây 70. <b>Atlas:</b> hồi HP mỗi 1.5s (DUR scale). <b>Thoth/Athena:</b> bonus áp dụng ngay lúc tạo nhân vật (không có visual in-combat).</div>
+            <div class="wiki-skill-stats">
+              <span class="wiki-skill-stat"><code>Surtr/Shiva: kích hoạt một lần tại t=70s</code></span>
+              <span class="wiki-skill-stat"><code>Raijin: +SPD mỗi wall bounce (stack vô hạn)</code></span>
+              <span class="wiki-skill-stat"><code>Atlas: HP regen mỗi 90f, scale DUR</code></span>
             </div>
           </div>
 
@@ -609,6 +666,35 @@
           </div>
 
           <div class="wiki-skill-group">
+            <div class="wiki-skill-group-label">Weapon Skills — chỉ khả dụng khi dùng đúng vũ khí</div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">👊</span><div><div class="wiki-skill-row-name">Iron Knuckles <span style="font-size:0.8em;opacity:0.6">🥊 Fists</span></div><div class="wiki-skill-row-desc">Mỗi hit +0.1 base damage (cap = STR×0.1). Tích lũy trong round.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🥊</span><div><div class="wiki-skill-row-name">Brawler's Rhythm <span style="font-size:0.8em;opacity:0.6">🥊 Fists</span></div><div class="wiki-skill-row-desc">Hit thứ 5 mỗi chuỗi ×2.5 damage. Bị đánh reset chuỗi.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💢</span><div><div class="wiki-skill-row-name">Combo Breaker <span style="font-size:0.8em;opacity:0.6">🥊 Fists</span></div><div class="wiki-skill-row-desc">Khi bị đánh lúc có ≥3 combo stacks: tự phản đòn miễn phí (STR scale).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🔥</span><div><div class="wiki-skill-row-name">Rage Fists <span style="font-size:0.8em;opacity:0.6">🥊 Fists</span></div><div class="wiki-skill-row-desc">Dưới 50% HP: tấn công nhanh hơn 35% (cooldown ×0.65).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🛡️</span><div><div class="wiki-skill-row-name">Guard Stance <span style="font-size:0.8em;opacity:0.6">⚔️ Sword</span></div><div class="wiki-skill-row-desc">Khi sword đang hồi: giảm nhận sát thương theo BIQ (tối đa 30%).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚔️</span><div><div class="wiki-skill-row-name">Duel Instinct <span style="font-size:0.8em;opacity:0.6">⚔️ Sword</span></div><div class="wiki-skill-row-desc">Khi chỉ còn 1 kẻ địch: +30% damage.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🗡️</span><div><div class="wiki-skill-row-name">Parry Punish <span style="font-size:0.8em;opacity:0.6">⚔️ Sword</span></div><div class="wiki-skill-row-desc">Sau parry thành công: 3 giây tiếp theo gây ×2 damage.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🐍</span><div><div class="wiki-skill-row-name">Poison Blade <span style="font-size:0.8em;opacity:0.6">🗡️ Dagger</span></div><div class="wiki-skill-row-desc">Mỗi hit thứ 5: nhiễm độc 1.5 dmg/3s trong 12s.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💨</span><div><div class="wiki-skill-row-name">Flurry Finisher <span style="font-size:0.8em;opacity:0.6">🗡️ Dagger</span></div><div class="wiki-skill-row-desc">Hit thứ 5 liên tiếp ×2.5 damage. Bị đánh reset chuỗi.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌑</span><div><div class="wiki-skill-row-name">Shadow Strike <span style="font-size:0.8em;opacity:0.6">🗡️ Dagger</span></div><div class="wiki-skill-row-desc">Mỗi 10 giây: hit tiếp theo đảm bảo critical.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🔱</span><div><div class="wiki-skill-row-name">Long Reach <span style="font-size:0.8em;opacity:0.6">🔱 Spear</span></div><div class="wiki-skill-row-desc">Bắt đầu mỗi round với +20px tầm giáo.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">📌</span><div><div class="wiki-skill-row-name">Skewer <span style="font-size:0.8em;opacity:0.6">🔱 Spear</span></div><div class="wiki-skill-row-desc">Khi hit: ghim vũ khí kẻ địch 30 frames — không thể vung.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💫</span><div><div class="wiki-skill-row-name">Zone Control <span style="font-size:0.8em;opacity:0.6">🔱 Spear</span></div><div class="wiki-skill-row-desc">Kẻ địch trong 150px từ đầu giáo nhận 0.5 dmg/giây (passive aura).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💀</span><div><div class="wiki-skill-row-name">Reaper's Mark <span style="font-size:0.8em;opacity:0.6">🌙 Scythe</span></div><div class="wiki-skill-row-desc">Kẻ địch dưới 30% HP nhận +80% damage (execute the wounded).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">✨</span><div><div class="wiki-skill-row-name">Soul Harvest <span style="font-size:0.8em;opacity:0.6">🌙 Scythe</span></div><div class="wiki-skill-row-desc">Mỗi lần kill: hồi 10 HP (FFA stack tự do).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">☠️</span><div><div class="wiki-skill-row-name">Grim Presence <span style="font-size:0.8em;opacity:0.6">🌙 Scythe</span></div><div class="wiki-skill-row-desc">Kẻ địch trong 80px vung vũ khí chậm hơn 12% (passive aura).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌍</span><div><div class="wiki-skill-row-name">Seismic Slam <span style="font-size:0.8em;opacity:0.6">🔨 Hammer</span></div><div class="wiki-skill-row-desc">Khi hit: shockwave làm chậm tất cả kẻ địch trong 120px trong 30 frames.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚡</span><div><div class="wiki-skill-row-name">Heavy Momentum <span style="font-size:0.8em;opacity:0.6">🔨 Hammer</span></div><div class="wiki-skill-row-desc">Mỗi hit liên tiếp lên cùng mục tiêu +20% dmg (tối đa 3 stacks). Đổi mục tiêu reset.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🔨</span><div><div class="wiki-skill-row-name">Ground Pound <span style="font-size:0.8em;opacity:0.6">🔨 Hammer</span></div><div class="wiki-skill-row-desc">Mỗi lần chạm tường: vũ khí kẻ địch gần nhất bị khóa 25 frames.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🎯</span><div><div class="wiki-skill-row-name">Sniper <span style="font-size:0.8em;opacity:0.6">🏹 Bow</span></div><div class="wiki-skill-row-desc">Mũi tên bắn mục tiêu cách &gt;300px gây +55% dmg.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🏹</span><div><div class="wiki-skill-row-name">Volley <span style="font-size:0.8em;opacity:0.6">🏹 Bow</span></div><div class="wiki-skill-row-desc">3 mũi tên đầu mỗi round gây ×2 damage.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💥</span><div><div class="wiki-skill-row-name">Piercing Shot <span style="font-size:0.8em;opacity:0.6">🏹 Bow</span></div><div class="wiki-skill-row-desc">Mỗi mũi tên thứ 8 xuyên qua mục tiêu, có thể trúng kẻ đứng sau.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌀</span><div><div class="wiki-skill-row-name">Bounce Damage <span style="font-size:0.8em;opacity:0.6">⭐ Shuriken</span></div><div class="wiki-skill-row-desc">Mỗi lần shuriken nảy tường: +15% dmg (tối đa 3 lần = +45%).</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⭐</span><div><div class="wiki-skill-row-name">Ricochet Kill <span style="font-size:0.8em;opacity:0.6">⭐ Shuriken</span></div><div class="wiki-skill-row-desc">Shuriken trúng sau ≥2 lần nảy: +100% dmg.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌟</span><div><div class="wiki-skill-row-name">Fan Throw <span style="font-size:0.8em;opacity:0.6">⭐ Shuriken</span></div><div class="wiki-skill-row-desc">Mỗi lần ném thứ 5: bắn 3 shuriken theo hình quạt thay vì 1.</div></div></div>
+          </div>
+
+          <div class="wiki-skill-group">
             <div class="wiki-skill-group-label">Post-Combat — triggers after round ends</div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">📚</span><div><div class="wiki-skill-row-name">Learning</div><div class="wiki-skill-row-desc">After losing: +5% damage next round</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🧬</span><div><div class="wiki-skill-row-name">Adaptation</div><div class="wiki-skill-row-desc">After losing: +20% resist to killer's weapon type</div></div></div>
@@ -632,8 +718,74 @@
 
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">10 Apr 2026</span>
+          <span class="changelog-badge">Patch 61</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🐛 <b>Fix Fists on-hit scaling bug</b>: Trước đây công thức <code>onHit</code> tính lại AC từ gốc def (16f), khiến các ball SPD cao (AC khởi đầu 3f) bị nhảy lên 15f sau cú hit đầu tiên — ngược hoàn toàn với ý định. Nay fix thành: chỉ giảm từ giá trị hiện tại, không tăng. Ball SPD thấp vẫn scale nhanh dần lên (−0.5f/hit, sàn 8f); ball SPD cao (AC đã ≤ 8f) giữ nguyên tốc độ, không bị penalty.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">10 Apr 2026</span>
+          <span class="changelog-badge">Patch 60</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>🚀 <b>Entry Animation</b>: Đầu trận, các radoser không spawn trong đấu trường nữa — thay vào đó chúng "bắn" vào từ bên ngoài cạnh arena, trượt về vị trí chờ trong 3 giây countdown (ease-out), rồi đứng yên trong "FIGHT!" trước khi chiến đấu. Tránh được tình trạng bị stuck vào vật thể ngay từ đầu.</li>
+          <li>🎮 <b>Multi-mode support</b>: 1v1 bay từ 2 bên trái/phải; 2v2 mỗi team từ một bên; FFA mỗi ball bay từ hướng riêng quanh arena.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">10 Apr 2026</span>
+          <span class="changelog-badge">Patch 59</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>✨ <b>God Sub-race — đặt tên thần</b>: Concept "Blessed by ___" — mỗi sub-race god nay mang tên một vị thần từ các thần thoại khác nhau.</li>
+          <li>🔥 <b>Blessed by Surtr</b> (Norse): Berserker — STR focus, BIQ/MA cao, DUR thấp.</li>
+          <li>⚡ <b>Blessed by Raijin</b> (Nhật Bản): Durable Speedster — SPD focus, DUR/BIQ cao, MA rất thấp.</li>
+          <li>📜 <b>Blessed by Thoth</b> (Ai Cập): Scholar — IQ focus, BIQ cao, STR/MA rất thấp.</li>
+          <li>🦉 <b>Blessed by Athena</b> (Hi Lạp): Tactical Master — BIQ focus, đều tay, IQ mod-high.</li>
+          <li>🔱 <b>Blessed by Shiva</b> (Hindu): All-Rounder — MA focus, stats đồng đều nhất trong 6.</li>
+          <li>🌍 <b>Blessed by Atlas</b> (Hi Lạp): Tank — DUR focus + HP regen, STR/MA cao, SPD rất thấp.</li>
+          <li>🐛 <b>Fix God Gift desc</b>: Cập nhật mô tả race skill từ tên cũ (Strength/Speed/MA/DUR) sang tên thần mới (Surtr/Raijin/Shiva/Atlas).</li>
+          <li>🐛 <b>Fix Blessed by Thoth skill cap</b>: Trước đây cap bằng tổng SKILL_DEFS (58) thay vì pool thực tế theo weapon (~35). Nay cap đúng → không còn nguy cơ SpinWheel nhận items rỗng khi IQ=20.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">10 Apr 2026</span>
+          <span class="changelog-badge">Patch 57</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body"><div class="changelog-body-inner">
+        <ul class="changelog-list">
+          <li>⚖️ <b>Cân bằng God Sub-race Stat Weights</b>: Dùng God of IQ (non-focus ≈22.9) và God of MA (≈29.6) làm mũi neo — điều chỉnh 4 sub-race còn lại vào giữa khoảng này.</li>
+          <li>🛡️ <b>God of DUR</b>: Sub-race mới (6th God) — Wheel DUR chắc chắn ≥10. Quay đúng 10 → DUR nhân đôi (→20). STR/MA cao, SPD rất thấp, BIQ thấp. Non-focus ≈25.2.</li>
+          <li>💧 <b>Soul of Stone (God of DUR passive)</b>: Hồi phục HP mỗi 1.5 giây trong trận — DUR10→+0.5 HP, DUR20→+1.0 HP. Hiển thị số nổi màu xanh nhạt.</li>
+          <li>💪 <b>God of STR rebalance</b>: Berserker — BIQ/MA High (6.7), DUR thấp (4.25). Đánh rất mạnh nhưng dễ bị hạ. Non-focus tổng ≈24.25.</li>
+          <li>⚡ <b>God of SPD rebalance</b>: Durable speedster — DUR/BIQ High (6.7), MA Very Low (3.3), IQ thấp. Non-focus tổng ≈25.2.</li>
+          <li>🎯 <b>God of BIQ — custom weights mới</b>: Trước đây dùng chung bảng base god (~29.1). Nay có override riêng: jack-of-all-trades với STR thấp, SPD/DUR/MA moderate, IQ mod-high. Non-focus tổng ≈26.5.</li>
+        </ul>
+        </div></div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">9 Apr 2026</span>
-          <span class="changelog-badge">Patch 54</span>
+          <span class="changelog-badge">Patch 55</span>
           <span class="changelog-chevron">▼</span>
         </div>
         <div class="changelog-body"><div class="changelog-body-inner">

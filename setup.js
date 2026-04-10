@@ -55,7 +55,18 @@ function initGame() {
     const pos = positions[i];
     const side = i === 0 ? 'left' : 'right';
     const tId  = (state.matchMode === '2v2' && state.teamIds) ? (state.teamIds[i] ?? -1) : -1;
-    const ball = new Ball(pos.x, pos.y, fighter.color, fighter.weaponId, side, fighter.charStats || null, tId);
+
+    // Entry animation: spawn outside arena, animate inward during countdown
+    const entryAngle  = Math.atan2(pos.y - cy, pos.x - cx);
+    const ENTRY_OFFSET = 420;
+    const entrySpawnX = pos.x + Math.cos(entryAngle) * ENTRY_OFFSET;
+    const entrySpawnY = pos.y + Math.sin(entryAngle) * ENTRY_OFFSET;
+
+    const ball = new Ball(entrySpawnX, entrySpawnY, fighter.color, fighter.weaponId, side, fighter.charStats || null, tId);
+    ball._targetX     = pos.x;
+    ball._targetY     = pos.y;
+    ball._entrySpawnX = entrySpawnX;
+    ball._entrySpawnY = entrySpawnY;
     ball.charName  = fighter.charName  || null;
     ball.charEmoji = fighter.charEmoji || '';
 
@@ -85,7 +96,7 @@ function initGame() {
     ball._launchVy = Math.sin(launchAngle) * launchSpd;
     ball.vx = 0;
     ball.vy = 0;
-    ball.weapon.angle = launchAngle;
+    ball.weapon.angle = entryAngle + Math.PI; // face inward during entry
     return ball;
   });
 

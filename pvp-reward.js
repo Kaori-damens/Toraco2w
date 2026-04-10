@@ -135,16 +135,20 @@ function _pvpDrawWheel(rot) {
     if (sweep > 0.13) {
       const mid = angle + sweep / 2;
       ctx.save();
-      ctx.translate(_PCX + Math.cos(mid) * _PR * 0.70,
-                    _PCY + Math.sin(mid) * _PR * 0.70);
-      ctx.rotate(mid + Math.PI / 2);
+      ctx.translate(_PCX + Math.cos(mid) * _PR * 0.65,
+                    _PCY + Math.sin(mid) * _PR * 0.65);
+      // Radial orientation with left-half flip
+      const normMid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const flip = normMid > Math.PI / 2 && normMid < 3 * Math.PI / 2;
+      ctx.rotate(mid + (flip ? Math.PI : 0));
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 8.5px Arial';
+      ctx.font = 'bold 8px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowColor = '#000';
       ctx.shadowBlur  = 4;
-      ctx.fillText(rw.label, 0, 0);
+      const lbl = rw.label.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+      ctx.fillText(lbl.length > 14 ? lbl.slice(0, 13) + '…' : lbl, 0, 0);
       ctx.restore();
     }
 
@@ -323,12 +327,16 @@ function _ccDraw(rot, segs) {
     // Label
     const mid = start + sweep / 2;
     ctx.save();
-    ctx.translate(_CCCX + Math.cos(mid) * _CCR * 0.66, _CCCY + Math.sin(mid) * _CCR * 0.66);
-    ctx.rotate(mid + Math.PI / 2);
+    ctx.translate(_CCCX + Math.cos(mid) * _CCR * 0.62, _CCCY + Math.sin(mid) * _CCR * 0.62);
+    // Radial orientation with left-half flip
+    const normMid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const flip = normMid > Math.PI / 2 && normMid < 3 * Math.PI / 2;
+    ctx.rotate(mid + (flip ? Math.PI : 0));
     ctx.fillStyle = seg.id === 'miss' ? '#aa4444' : '#cceeff';
     ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
-    ctx.fillText(seg.icon + ' ' + (seg.label.length > 10 ? seg.label.slice(0, 10) + '…' : seg.label), 0, 0);
+    const ccLbl = (seg.icon + ' ' + seg.label).replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+    ctx.fillText(ccLbl.length > 12 ? ccLbl.slice(0, 11) + '…' : ccLbl, 0, 0);
     ctx.restore();
   });
 

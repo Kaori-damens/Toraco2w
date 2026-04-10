@@ -12,9 +12,26 @@ function gameLoop() {
   if (state.phase === 'countdown') {
     state.countdownFrame++;
     // 4 phases × 60f: "3" (0–59), "2" (60–119), "1" (120–179), "FIGHT!" (180–239)
-    if (state.countdownFrame >= 240) {
+    const cf = state.countdownFrame;
+    const ENTRY_FRAMES = 180; // balls travel during "3","2","1", then freeze at "FIGHT!"
+
+    // Animate entry: ease-out (sin curve)
+    for (const b of state.players) {
+      if (b._targetX == null) continue;
+      if (cf <= ENTRY_FRAMES) {
+        const t = Math.sin((cf / ENTRY_FRAMES) * Math.PI / 2); // 0→1 ease-out
+        b.x = b._entrySpawnX + (b._targetX - b._entrySpawnX) * t;
+        b.y = b._entrySpawnY + (b._targetY - b._entrySpawnY) * t;
+      } else {
+        b.x = b._targetX;
+        b.y = b._targetY;
+      }
+    }
+
+    if (cf >= 240) {
       state.phase = 'playing';
       for (const b of state.players) {
+        if (b._targetX != null) { b.x = b._targetX; b.y = b._targetY; }
         b.vx = b._launchVx || 0;
         b.vy = b._launchVy || 0;
         skillOnPreCombat(b);
@@ -426,8 +443,10 @@ function buildHUD() {
 
   state.players.forEach((ball, i) => {
     const def    = ball.weaponDef;
+    const subLabel = ball.charSubrace?.label ?? '';
     const name   = ball.charName
       ? `${ball.charEmoji ?? ''} ${ball.charName}`
+        + (subLabel ? ` <span style="font-size:0.72em;opacity:0.55;font-weight:normal">${subLabel}</span>` : '')
       : def.name;
     const wepSub = ball.charName ? `${def.icon} ${def.name}` : '';
     const maxHp  = Math.round(ball.maxHp);

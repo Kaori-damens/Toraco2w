@@ -36,9 +36,13 @@ function buildFightersPanel() {
     const name = document.createElement('div');
     name.className = 'fighter-name';
     name.style.color = fighter.color;
-    name.textContent = fighter.charName
-      ? `${fighter.charEmoji ?? ''} ${fighter.charName}`
-      : `Ball ${i + 1}`;
+    if (fighter.charName) {
+      const subLabel = fighter.charStats?.subrace?.label ?? '';
+      name.innerHTML = `${fighter.charEmoji ?? ''} ${fighter.charName}`
+        + (subLabel ? ` <span style="font-size:0.72em;opacity:0.6;font-weight:normal">${subLabel}</span>` : '');
+    } else {
+      name.textContent = `Ball ${i + 1}`;
+    }
     top.appendChild(dot);
     top.appendChild(name);
     card.appendChild(top);

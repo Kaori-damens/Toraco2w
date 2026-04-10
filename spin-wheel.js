@@ -21,16 +21,20 @@ class SpinWheel {
       ctx.arc(cx, cy, R, a, a + slice); ctx.closePath();
       ctx.fillStyle = it.color; ctx.fill();
       ctx.strokeStyle = '#080818'; ctx.lineWidth = 1.5; ctx.stroke();
-      const mid = a + slice / 2, lr = R * 0.68;
+      const mid = a + slice / 2, lr = R * 0.60;
       ctx.save();
       ctx.translate(cx + Math.cos(mid)*lr, cy + Math.sin(mid)*lr);
-      ctx.rotate(mid + Math.PI/2);
+      // Radial orientation: text runs along the radius (dọc theo slice)
+      // Flip slices on the left half so text always reads outward
+      const normMid = ((mid % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+      const flip = normMid > Math.PI/2 && normMid < 3*Math.PI/2;
+      ctx.rotate(mid + (flip ? Math.PI : 0));
       ctx.fillStyle = '#fff';
-      const fs = Math.max(9, Math.min(13, Math.floor(290 / this.items.length)));
+      const fs = Math.max(8, Math.min(11, Math.floor(290 / this.items.length)));
       ctx.font = `bold ${fs}px Arial`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       let lbl = it.label.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
-      if (lbl.length > 11) lbl = lbl.slice(0,10)+'…';
+      if (lbl.length > 20) lbl = lbl.slice(0,19)+'…';
       ctx.fillText(lbl, 0, 0); ctx.restore();
       a += slice;
     }

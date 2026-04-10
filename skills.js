@@ -472,8 +472,8 @@ function skillOnParry(b1, b2) {
       spawnDamageNumber(ball.x, ball.y - ball.radius - 16,
         `🛡️ PARRY! (${ball.weapon.riposteStacks}✦)`, '#aae0ff');
     }
-    // God of Speed: being parried resets momentum stacks
-    if (ball.charRace === 'god' && ball.charSubrace?.label === 'God of Speed' && (ball.rs_speedStacks || 0) > 0) {
+    // Blessed by Raijin: being parried resets momentum stacks
+    if (ball.charRace === 'god' && ball.charSubrace?.label === 'Blessed by Raijin' && (ball.rs_speedStacks || 0) > 0) {
       ball.rs_speedStacks = 0;
       ball.maxSpd = ball.baseMaxSpd;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 16, '⚡ PARRIED!', '#aaddff');
@@ -684,7 +684,7 @@ const RACE_SKILL_DEFS = {
   giant:      { id:'race_quake',        name:'Quake',        icon:'🌍',
                 desc:'Periodically slams the ground, pushing all enemies away with a shockwave. Enemies caught close also take damage. Power scales with STR, recharges faster with DUR.' },
   god:        { id:'race_god_gift',     name:'God Gift',     icon:'✨',
-                desc:'Unique passive based on your God sub-race. Strength: ground slam at 70s. Speed: gain speed with each wall bounce. MA: switch to pure fists at 70s. IQ/BIQ: bonuses applied at character creation.' },
+                desc:'Unique passive based on your blessing. Surtr: ground slam at 70s. Raijin: gain speed with each wall bounce. Shiva: switch to pure fists at 70s. Atlas: regenerate HP every 1.5s (scales with DUR). Thoth/Athena: bonuses applied at character creation.' },
 };
 
 function getRaceSkillDef(race) { return RACE_SKILL_DEFS[race] ?? null; }
@@ -770,23 +770,27 @@ function initRaceSkillState(ball) {
     const srLabel = ball.charSubrace?.label || '';
     ball.rs_god70done   = false;   // one-shot 70s trigger flag
     ball.rs_maxCooldown = 0;       // no cooldown arc (time-based, not cooldown-based)
-    // God of Strength
-    if (srLabel === 'God of Strength') {
+    // Blessed by Surtr
+    if (srLabel === 'Blessed by Surtr') {
       ball.rs_godForce   = 5 + str * 1.5;       // STR10→20, STR20→35
       ball.rs_godDmg     = Math.round(str * 2); // STR10→20, STR20→40
       ball.rs_slamActive = false;
       ball.rs_slamTimer  = 0;
       ball.rs_slamWaveR  = 0;
     }
-    // God of Speed
-    if (srLabel === 'God of Speed') {
+    // Blessed by Raijin
+    if (srLabel === 'Blessed by Raijin') {
       ball.rs_speedStacks = 0;       // bounce stacks since last hit/parry
     }
-    // God of MA
-    if (srLabel === 'God of MA') {
+    // Blessed by Shiva
+    if (srLabel === 'Blessed by Shiva') {
       ball.rs_maTransformed = false; // true after 70s weapon swap
     }
-    // God of IQ + God of BIQ: no runtime state needed in battle
+    // Blessed by Atlas: Soul of Stone — passive HP regen every 90 frames (1.5s)
+    if (srLabel === 'Blessed by Atlas') {
+      ball.rs_durRegenTimer = 0;     // counts frames toward next regen tick
+    }
+    // Blessed by Thoth + Blessed by Athena: no runtime state needed in battle
   }
 }
 
@@ -1080,8 +1084,8 @@ function updateRaceSkills(ball, players, rstate) {
     const srLabel = ball.charSubrace?.label || '';
     const mTime   = rstate.matchTime || 0;
 
-    // ─ God of Strength: Divine Slam at 70s ─
-    if (srLabel === 'God of Strength') {
+    // ─ Blessed by Surtr: Divine Slam at 70s ─
+    if (srLabel === 'Blessed by Surtr') {
       if (!ball.rs_god70done && mTime >= 70 * 60) {
         ball.rs_god70done  = true;
         ball.rs_slamActive = true;
@@ -1119,8 +1123,8 @@ function updateRaceSkills(ball, players, rstate) {
       if (ball.rs_slamTimer <= 0) ball.rs_slamActive = false;
     }
 
-    // ─ God of MA: Martial God at 70s — switch to fists ─
-    if (srLabel === 'God of MA' && !ball.rs_god70done && mTime >= 70 * 60) {
+    // ─ Blessed by Shiva: Martial God at 70s — switch to fists ─
+    if (srLabel === 'Blessed by Shiva' && !ball.rs_god70done && mTime >= 70 * 60) {
       ball.rs_god70done     = true;
       ball.rs_maTransformed = true;
       ball.weaponId  = 'fists';
@@ -1132,8 +1136,20 @@ function updateRaceSkills(ball, players, rstate) {
         text: '🥋 Martial God! Weapon discarded — pure martial arts!' });
     }
 
-    // ─ God of Speed: show 70s unlock notice (speed stacks tracked in ball.js) ─
-    // No tick logic needed here — stacks are managed in ball.js wall bounce code
+    // ─ Blessed by Raijin: stacks tracked in ball.js wall bounce code ─
+
+    // ─ Blessed by Atlas: Soul of Stone — regen HP every 90 frames ─
+    if (srLabel === 'Blessed by Atlas') {
+      ball.rs_durRegenTimer = (ball.rs_durRegenTimer || 0) + 1;
+      if (ball.rs_durRegenTimer >= 90) {
+        ball.rs_durRegenTimer = 0;
+        const dur = ball.charDUR ?? 5;
+        const regen = Math.max(0.5, dur * 0.05); // DUR5→0.25, DUR10→0.5, DUR20→1.0 HP/tick
+        ball.hp = Math.min(ball.maxHp, ball.hp + regen);
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 12,
+          `🛡️ +${regen.toFixed(1)}`, '#88ddff');
+      }
+    }
   }
 }
 
@@ -1300,7 +1316,7 @@ function drawRaceSkillEffects(ctx, rstate) {
     ctx.restore();
   });
 
-  // God of Strength: Divine Slam shockwave ring
+  // Blessed by Surtr: Divine Slam shockwave ring
   for (const ball of (rstate.players || [])) {
     if (ball.charRace !== 'god' || !ball.rs_slamActive || ball.rs_slamTimer <= 0) continue;
     const waveR = ball.rs_slamWaveR || 0;
@@ -1673,8 +1689,8 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.restore();
   }
 
-  // God of Speed: speed stack counter badge + blue aura at high stacks
-  if (race === 'god' && ball.charSubrace?.label === 'God of Speed') {
+  // Blessed by Raijin: speed stack counter badge + blue aura at high stacks
+  if (race === 'god' && ball.charSubrace?.label === 'Blessed by Raijin') {
     const stacks = ball.rs_speedStacks || 0;
     if (stacks > 0) {
       ctx.save();
@@ -1698,8 +1714,8 @@ function drawRaceSkillUI(ctx, ball) {
     }
   }
 
-  // God of MA: magenta aura after 70s transformation
-  if (race === 'god' && ball.charSubrace?.label === 'God of MA' && ball.rs_maTransformed) {
+  // Blessed by Shiva: magenta aura after 70s transformation
+  if (race === 'god' && ball.charSubrace?.label === 'Blessed by Shiva' && ball.rs_maTransformed) {
     const pulse = 0.25 + 0.2 * Math.sin(t * 0.5);
     ctx.save();
     ctx.globalAlpha = pulse;
@@ -1714,8 +1730,8 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.restore();
   }
 
-  // God of Strength: golden aura while slam is active (just fired)
-  if (race === 'god' && ball.charSubrace?.label === 'God of Strength' && ball.rs_slamActive) {
+  // Blessed by Surtr: golden aura while slam is active (just fired)
+  if (race === 'god' && ball.charSubrace?.label === 'Blessed by Surtr' && ball.rs_slamActive) {
     const pulse = 0.4 + 0.3 * Math.sin(t * 0.8);
     ctx.save();
     ctx.globalAlpha = pulse;
@@ -1725,8 +1741,8 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.restore();
   }
 
-  // God of Strength: "READY" glow when at 70s but not yet triggered
-  if (race === 'god' && ball.charSubrace?.label === 'God of Strength' && !ball.rs_god70done && (state.matchTime || 0) >= 70 * 60) {
+  // Blessed by Surtr: "READY" glow when at 70s but not yet triggered
+  if (race === 'god' && ball.charSubrace?.label === 'Blessed by Surtr' && !ball.rs_god70done && (state.matchTime || 0) >= 70 * 60) {
     const pulse = 0.3 + 0.25 * Math.sin(t * 0.5);
     ctx.save();
     ctx.globalAlpha = pulse;

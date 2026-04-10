@@ -53,8 +53,10 @@ const WEAPON_DEFS = [
     },
     onHit(w) {
       w.hits++;
-      const cd = Math.max(this.scaling.min, this.attackCooldown + w.hits * this.scaling.amount);
-      w.attackCooldown = cd;
+      // Only reduce if current cooldown is above the floor (avoids jumping UP for high-SPD balls)
+      if (w.attackCooldown > this.scaling.min) {
+        w.attackCooldown = Math.max(this.scaling.min, w.attackCooldown + this.scaling.amount);
+      }
       sfxScale();
     }
   },

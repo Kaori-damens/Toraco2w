@@ -248,8 +248,8 @@ class Ball {
           if (typeof flashSkillHUD === 'function') flashSkillHUD(this, SKILL_MAP['ground_pound']);
         }
       }
-      // God of Speed: each wall bounce adds a permanent momentum stack
-      if (this.charRace === 'god' && this.charSubrace?.label === 'God of Speed') {
+      // Blessed by Raijin: each wall bounce adds a permanent momentum stack
+      if (this.charRace === 'god' && this.charSubrace?.label === 'Blessed by Raijin') {
         this.rs_speedStacks = (this.rs_speedStacks || 0) + 1;
         // Raise speed cap so stacks persist beyond normal maxSpd
         this.maxSpd = this.baseMaxSpd * (1 + this.rs_speedStacks * 0.10);
@@ -274,8 +274,8 @@ class Ball {
 
     // Decay wall boost về 1.0 trong 3 giây (180 frames)
     // 0.9747^180 ≈ 0.01 → boost gần như tan hết sau 3s
-    // God of Speed: skip decay — momentum is permanent until hit/parried
-    const isGodSpeed = this.charRace === 'god' && this.charSubrace?.label === 'God of Speed';
+    // Blessed by Raijin: skip decay — momentum is permanent until hit/parried
+    const isGodSpeed = this.charRace === 'god' && this.charSubrace?.label === 'Blessed by Raijin';
     if (!isGodSpeed && this.wallBoostFactor > 1.0005) {
       const prev = this.wallBoostFactor;
       this.wallBoostFactor = 1.0 + (prev - 1.0) * 0.9747;
@@ -480,9 +480,9 @@ class Ball {
     const a       = this.weapon.angle; // current weapon spin angle — changes each frame naturally
     const spdStat = this.charSPD ?? 5;
     const iqStat  = this.charIQ  ?? 5;
-    // God of BIQ: auto-aim helper — returns auto-aimed vx/vy if triggered, else null
+    // Blessed by Athena: auto-aim helper — returns auto-aimed vx/vy if triggered, else null
     const godBiqAutoAim = (origVx, origVy) => {
-      if (this.charRace !== 'god' || this.charSubrace?.label !== 'God of BIQ') return null;
+      if (this.charRace !== 'god' || this.charSubrace?.label !== 'Blessed by Athena') return null;
       const biq = this.charBIQ ?? 5;
       const chance = 0.20 + biq * 0.02; // BIQ10=40%, BIQ20=60%
       if (Math.random() >= chance) return null;
@@ -522,7 +522,7 @@ class Ball {
           this, 'arrow', (this.charSTR ?? 1)
         );
         if (this.rs_forgeProjSizeBonus) arrow.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
-        // God of BIQ: auto-aim this arrow
+        // Blessed by Athena: auto-aim this arrow
         const aaArrow = godBiqAutoAim(arrow.vx, arrow.vy);
         if (aaArrow) { arrow.vx = aaArrow.vx; arrow.vy = aaArrow.vy; }
         // Sniper: tag arrow if nearest enemy is > 300px away
@@ -562,7 +562,7 @@ class Ball {
         this, 'shuriken', (this.charSTR ?? 1)
       );
       if (this.rs_forgeProjSizeBonus) star.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
-      // God of BIQ: auto-aim this shuriken
+      // Blessed by Athena: auto-aim this shuriken
       const aaStar = godBiqAutoAim(star.vx, star.vy);
       if (aaStar) { star.vx = aaStar.vx; star.vy = aaStar.vy; }
       projectiles.push(star);
@@ -647,8 +647,8 @@ class Ball {
       this.weapon.momentumStacks = Math.max(0, this.weapon.momentumStacks - loss);
       if (this.weapon.momentumStacks < 5) this.weapon.iaiReady = false;
     }
-    // God of Speed: taking a hit resets momentum stacks + restores base max speed
-    if (this.charRace === 'god' && this.charSubrace?.label === 'God of Speed' && (this.rs_speedStacks || 0) > 0) {
+    // Blessed by Raijin: taking a hit resets momentum stacks + restores base max speed
+    if (this.charRace === 'god' && this.charSubrace?.label === 'Blessed by Raijin' && (this.rs_speedStacks || 0) > 0) {
       this.rs_speedStacks = 0;
       this.maxSpd = this.baseMaxSpd;
     }

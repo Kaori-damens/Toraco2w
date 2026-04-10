@@ -84,11 +84,12 @@ const CG_SUBRACES = {
     { label:'Asmodeus',   weight:14.28, desc:'Skill "AIDS" (incurable). vs AIDS opponent: +1 starting point.' },
   ],
   godGift: [
-    { label:'God of Strength', weight:1, desc:'Wheel STR: chắc chắn ≥10. Quay ra đúng 10 → STR nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
-    { label:'God of Speed',    weight:1, desc:'Wheel SPD: chắc chắn ≥10. Quay ra đúng 10 → SPD nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
-    { label:'God of IQ',       weight:1, desc:'Wheel IQ: chắc chắn ≥10. Quay ra đúng 10 → IQ nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
-    { label:'God of BIQ',      weight:1, desc:'Wheel BIQ: chắc chắn ≥10. Quay ra đúng 10 → BIQ nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
-    { label:'God of MA',       weight:1, desc:'Wheel MA: chắc chắn ≥10. Quay ra đúng 10 → MA nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'Blessed by Surtr', weight:1, desc:'Wheel STR: chắc chắn ≥10. Quay ra đúng 10 → STR nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'Blessed by Raijin',    weight:1, desc:'Wheel SPD: chắc chắn ≥10. Quay ra đúng 10 → SPD nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'Blessed by Thoth',       weight:1, desc:'Wheel IQ: chắc chắn ≥10. Quay ra đúng 10 → IQ nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'Blessed by Athena',      weight:1, desc:'Wheel BIQ: chắc chắn ≥10. Quay ra đúng 10 → BIQ nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'Blessed by Shiva',       weight:1, desc:'Wheel MA: chắc chắn ≥10. Quay ra đúng 10 → MA nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
+    { label:'Blessed by Atlas',      weight:1, desc:'Wheel DUR: chắc chắn ≥10. Quay ra đúng 10 → DUR nhân đôi (→20). Hồi phục HP mỗi 1.5 giây trong trận (scale DUR). Thua sau 1m46s nếu đối thủ không phải demon/god.' },
   ],
   boneLineage: [
     { label:'Goblin Bones',           weight:6.5,  raceId:'goblin'     },
@@ -163,6 +164,72 @@ const CG_STAT_WEIGHTS = {
     primordial:[20,5,5,5,20,10,10,5,5,15], demon:[15,5,5,5,15,25,5,5,5,15],
     god:[20,5,5,5,25,5,5,5,5,20]
   }
+};
+
+// ── Per-sub-race stat weights for God ─────────────────────────
+// Balance anchors: Blessed by Thoth (non-focus total ≈22.9) and Blessed by Shiva (≈29.6).
+// God of STR/SPD/BIQ/DUR adjusted to fit thematically within this range.
+// Blessed by Shiva uses CG_STAT_WEIGHTS.god as-is (no override needed).
+// Weight templates used:
+//   FOCUS      [5,2,3,3,3,4,10,15,35,20]  avg≈7.7
+//   High       [10,5,5,5,5,5,15,15,15,20] avg≈6.7
+//   Mod-High   [10,5,5,5,10,10,20,15,10,10] avg≈6.2
+//   Moderate   [15,10,10,10,10,5,10,10,10,10] avg≈5.35
+//   Low        [25,15,10,10,10,5,5,5,5,10] avg≈4.25
+//   Very Low   [35,15,15,10,5,5,5,3,4,3]  avg≈3.3
+const CG_GOD_SUBRACE_WEIGHTS = {
+  // Berserker: huge STR, deadly instincts (BIQ/MA high), fragile (DUR low), dumb and slow
+  // Non-focus total ≈24.25
+  'Blessed by Surtr': {
+    strength:   [5,2,3,3,3,4,10,15,35,20],    // FOCUS — avg≈7.7, 20% for 10
+    speed:      [35,15,15,10,5,5,5,3,4,3],    // very low — avg≈3.3
+    durability: [25,15,10,10,10,5,5,5,5,10],  // low — avg≈4.25
+    iq:         [35,15,15,10,5,5,5,3,4,3],    // very low — avg≈3.3
+    battleiq:   [10,5,5,5,5,5,15,15,15,20],   // high — avg≈6.7
+    ma:         [10,5,5,5,5,5,15,15,15,20],   // high — avg≈6.7
+  },
+  // Lightning reflexes: huge SPD, durable speedster (DUR/BIQ high), poor technique (MA/IQ low)
+  // Non-focus total ≈25.2
+  'Blessed by Raijin': {
+    strength:   [25,15,10,10,10,5,5,5,5,10],  // low — avg≈4.25
+    speed:      [5,2,3,3,3,4,10,15,35,20],    // FOCUS — avg≈7.7, 20% for 10
+    durability: [10,5,5,5,5,5,15,15,15,20],   // high — avg≈6.7
+    iq:         [25,15,10,10,10,5,5,5,5,10],  // low — avg≈4.25
+    battleiq:   [10,5,5,5,5,5,15,15,15,20],   // high — avg≈6.7
+    ma:         [35,15,15,10,5,5,5,3,4,3],    // very low — avg≈3.3
+  },
+  // Genius scholar: huge IQ, weak body and no combat technique
+  // Non-focus total ≈22.9  ← ANCHOR (unchanged)
+  'Blessed by Thoth': {
+    strength:   [35,15,15,10,5,5,5,3,4,3],    // very low — avg≈3.3
+    speed:      [25,15,10,10,10,5,5,5,5,10],  // low — avg≈4.25
+    durability: [15,10,10,10,10,5,10,10,10,10], // moderate — avg≈5.35
+    iq:         [5,2,3,3,3,4,10,15,35,20],    // FOCUS — avg≈7.7, 20% for 10
+    battleiq:   [10,5,5,5,5,5,15,15,15,20],   // high — avg≈6.7
+    ma:         [35,15,15,10,5,5,5,3,4,3],    // very low — avg≈3.3
+  },
+  // Tactical master: huge BIQ, well-rounded fighter, slight STR weakness
+  // Non-focus total ≈26.5
+  'Blessed by Athena': {
+    strength:   [25,15,10,10,10,5,5,5,5,10],  // low — avg≈4.25
+    speed:      [15,10,10,10,10,5,10,10,10,10], // moderate — avg≈5.35
+    durability: [15,10,10,10,10,5,10,10,10,10], // moderate — avg≈5.35
+    battleiq:   [5,2,3,3,3,4,10,15,35,20],    // FOCUS — avg≈7.7, 20% for 10
+    iq:         [10,5,5,5,10,10,20,15,10,10],  // mod-high — avg≈6.2
+    ma:         [15,10,10,10,10,5,10,10,10,10], // moderate — avg≈5.35
+  },
+  // Unkillable tank: huge DUR, strong body & trained, slow and tactically limited
+  // Non-focus total ≈25.2
+  'Blessed by Atlas': {
+    strength:   [10,5,5,5,5,5,15,15,15,20],   // high — avg≈6.7
+    speed:      [35,15,15,10,5,5,5,3,4,3],    // very low — avg≈3.3
+    durability: [5,2,3,3,3,4,10,15,35,20],    // FOCUS — avg≈7.7, 20% for 10
+    iq:         [25,15,10,10,10,5,5,5,5,10],  // low — avg≈4.25
+    battleiq:   [25,15,10,10,10,5,5,5,5,10],  // low — avg≈4.25
+    ma:         [10,5,5,5,5,5,15,15,15,20],   // high — avg≈6.7
+  },
+  // Blessed by Shiva → uses CG_STAT_WEIGHTS.god as-is (no override needed)
+  // Non-focus total ≈29.6  ← ANCHOR (unchanged)
 };
 
 const STAT_DISPLAY = [
