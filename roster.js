@@ -184,6 +184,7 @@ function renderRoster() {
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <div class="rc-weapon">${wepLabel(ch.weapon)}</div>
         <span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44">${t.title}</span>
+        ${ch.championshipTag ? `<span class="rc-guild-tag" title="${ch.championshipName||''}">[${ch.championshipTag}]</span>` : ''}
       </div>
       <div class="rc-total">
         <span>Total Stats</span>
@@ -250,7 +251,8 @@ function showCharStats(idx) {
   const t = getRadoserTitle(ch.stats);
   document.getElementById('smo-name').innerHTML =
     `<span style="color:${ch.color}">${ch.raceEmoji} ${ch.name}</span>
-     <span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44;font-size:12px">${t.title}</span>`;
+     <span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44;font-size:12px">${t.title}</span>
+     ${ch.championshipTag ? `<span class="rc-guild-tag" title="${ch.championshipName||''}">[${ch.championshipTag}]</span>` : ''}`;
   document.getElementById('smo-race').textContent =
     ch.raceName + (ch.subrace ? ' · ' + ch.subrace.label : '');
 
@@ -555,6 +557,7 @@ function renderHeroShowcase() {
           <div class="sc-race-line">${ch.raceName ?? ''}${subText}</div>
           <div class="sc-title-wrap">
             <span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44">${t.title}</span>
+            ${ch.championshipTag ? `<span class="rc-guild-tag" title="${ch.championshipName||''}">[${ch.championshipTag}]</span>` : ''}
           </div>
         </div>
       </div>

@@ -486,15 +486,6 @@ function drawRaceDecoration(ctx, ball) {
       const dc = ({ Crimson:'#dd2200',Stone:'#888',Amethyst:'#9922bb',Ancient:'#887722',
                     Undead:'#558855',Zephyrian:'#33aacc',Tideborn:'#1155bb',Thunder:'#cccc00',
                     Flame:'#ff5500',Ice:'#99ddff',Chaos:'#ee22ee' })[srLabel] ?? '#cc3300';
-      // Curved horns on sides (±Y)
-      ctx.fillStyle = dc; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.5;
-      for (const s of [-1, 1]) {
-        ctx.beginPath();
-        ctx.moveTo( r*0.15, s*r*0.78);
-        ctx.bezierCurveTo(r*0.50, s*r*1.30, r*0.30, s*r*1.82, r*0.00, s*r*1.88);
-        ctx.bezierCurveTo(-r*0.20, s*r*1.70, -r*0.05, s*r*1.22, r*0.10, s*r*0.82);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
-      }
       // Wagging tail at back (-X)
       const wag = Math.sin(Date.now()*0.004) * r*0.32;
       ctx.strokeStyle = dc; ctx.lineWidth = 3.5;

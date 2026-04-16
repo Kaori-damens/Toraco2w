@@ -323,7 +323,48 @@ Skills acquired during chargen via spin wheels. Count determined first (0–4 ba
 - Persists between sessions — refresh does not delete roster
 - **Search bar:** smart query syntax — `race=orc`, `str>5`, `weapon=bow`, `total>=40`, `iq!=1`, plain text searches name/race
 - **Filter panel:** filter chips by Race and Weapon (single-select each, stacks with search)
-- Each Radoser record contains: name · color · race · subrace · 6 stats · weapon · skills
+- Each Radoser record contains: name · color · race · subrace · 6 stats · weapon · skills · `championshipTag` (optional)
+
+### 9a. Radoser Title Badges
+
+Each Radoser automatically receives a **Title Badge** based on their stat distribution. Evaluated in priority order:
+
+| Tier | Badge | Condition |
+|------|-------|-----------|
+| Perfect | 🐐 GOAT | All 6 stats = 10 (total = 60) |
+| Perfect | 🌟 Legend | Total ≥ 55 |
+| Multi-10 | ⚡ Demigod | ≥ 4 stats equal 10 |
+| Multi-10 | 🔥 Prodigy | ≥ 3 stats equal 10 |
+| Single-10 | 💨 Speedster | SPD = 10 |
+| Single-10 | 💪 Destroyer | STR = 10 |
+| Single-10 | 🛡️ Iron Wall | DUR = 10 |
+| Single-10 | 🧠 Mastermind | IQ = 10 |
+| Single-10 | 👻 Phantom | BIQ = 10 |
+| Single-10 | 🌪️ Whirlwind | MA = 10 |
+| Build | 🏋️ Tank | STR ≥ 8 AND DUR ≥ 8 |
+| Build | 💥 Glass Cannon | SPD ≥ 8 AND DUR ≤ 3 |
+| Build | 🐂 Berserker | STR ≥ 8 AND SPD ≤ 3 |
+| Build | 🐦 Trickster | SPD ≥ 8 AND STR ≤ 3 |
+| Build | 🎯 Tactician | IQ ≥ 8 AND BIQ ≥ 8 |
+| Build | 🎭 Dancer | MA ≥ 8 |
+| Build | ⚖️ All-Rounder | Every stat ≥ 7 |
+| Build | 🟢 Balanced | Every stat ≥ 5 |
+| Build | 🎪 One-Trick | maxStat ≥ 8 AND total ≤ 25 |
+| Total | ⚔️ Veteran | Total ≥ 45 |
+| Total | 🔥 Warrior | Total ≥ 35 |
+| Total | 📊 Average | Total ≥ 25 |
+| Total | 😐 Mid | Total ≥ 15 |
+| Total | 🌱 Rookie | Fallback |
+
+### 9b. Championship Tag Badge
+
+When a Radoser is created during a **Toraco Championship** draft, they receive a **`[TAG]`** badge:
+
+- Set once when entering Championship setup — **Name** (1–16 characters) + **Tag** (exactly 3 characters, uppercase, A–Z / 0–9)
+- Example: Championship name `Sunohana`, tag `SHN` → badge displays as **`[SHN]`**
+- Tag badge appears alongside the Title Badge on all roster cards and stat popups
+- All Radosers created via chargen draft, Quick Create, or Fill Remaining inherit the tag
+- Tag is stored as `championshipTag` + `championshipName` on the Radoser record in localStorage
 
 ---
 
@@ -745,8 +786,10 @@ Mega-tournament mode supporting 128 or 256 players across 3 sequential phases.
 ### Entry & Setup
 
 - Select from Main Menu → **Toraco Championship** card
+- **First-time setup:** enter Championship **Name** (1–16 chars) and **Tag** (3 chars, e.g. `SHN`) — identifies this championship instance
 - Choose size: **128** or **256** players
 - Select Radosers from roster (remaining slots filled by bots); selection capped at size
+- All Radosers drafted in this championship are auto-tagged `[TAG]` and saved to the global roster
 - Auto-save to `localStorage` — resumable via **Resume Championship** button
 
 ### Phase 1 — Battle Royale (FFA)

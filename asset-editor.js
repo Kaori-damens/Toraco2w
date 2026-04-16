@@ -146,7 +146,7 @@ window._raceAssetOverrides = {
   // ── Races with custom static shapes ────────────────────────────────
   skeleton:   AE_RACE_DEFAULTS.skeleton,
   orc:        AE_RACE_DEFAULTS.orc,
-  dragon:     AE_RACE_DEFAULTS.dragon.filter(s => s.label !== 'Horn L' && s.label !== 'Horn R'),
+  // dragon: NOT listed → falls through to switch case → animated wagging tail preserved
   demon:      AE_RACE_DEFAULTS.demon,
   // Angel: key present so switch-case is skipped; halo drawn via special code in override block
   angel:      [],

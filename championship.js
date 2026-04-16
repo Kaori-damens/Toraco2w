@@ -4,6 +4,95 @@
 
 const CS_SAVE_KEY = 'cgChampionshipSave';
 
+// ── Unique pool management ─────────────────────────────────────
+function initUniquePool() {
+  const weaponIds = WEAPON_DEFS.filter(w => w.unique).map(w => w.id);
+  const skillIds  = SKILL_DEFS.filter(s => s.unique).map(s => s.id);
+  state.championship.uniquePool = new Set([...weaponIds, ...skillIds]);
+}
+
+function claimUnique(id) {
+  state.championship?.uniquePool?.delete(id);
+}
+
+function isUniqueAvailable(id) {
+  if (!state.championship?.uniquePool) return false;
+  return state.championship.uniquePool.has(id);
+}
+
+// ── Draft phase callbacks ──────────────────────────────────────
+function onDraftPlayerCreated(char) {
+  const cs = state.championship;
+  if (!cs || !Array.isArray(cs.draftRoster)) return;
+  cs.draftRoster.push(char);
+  saveDraftProgress();   // persist draft so Resume works
+  showScreen('championship-setup');
+  buildChampionshipSetup();
+}
+
+function removeDraftPlayer(idx) {
+  const cs = state.championship;
+  if (!cs || !cs.draftRoster) return;
+  const ch = cs.draftRoster[idx];
+  if (!ch) return;
+  // Return unique weapon to pool
+  if (ch.weapon && cs.uniquePool) {
+    const wDef = WEAPON_DEFS.find(w => w.id === ch.weapon);
+    if (wDef?.unique) cs.uniquePool.add(ch.weapon);
+  }
+  // Return unique skills to pool
+  for (const sid of (ch.skills || [])) {
+    const sDef = SKILL_DEFS.find(s => s.id === sid);
+    if (sDef?.unique && cs.uniquePool) cs.uniquePool.add(sid);
+  }
+  cs.draftRoster.splice(idx, 1);
+  saveDraftProgress();   // persist after removal
+  buildChampionshipSetup();
+}
+
+// Save draft-phase state (size=32, no phases yet) to localStorage
+function saveDraftProgress() {
+  const cs = state.championship;
+  if (!cs || cs.phases) return; // only for draft phase
+  try {
+    // uniquePool is a Set — convert to Array for JSON
+    const toSave = { ...cs, uniquePool: cs.uniquePool ? [...cs.uniquePool] : null };
+    localStorage.setItem(CS_SAVE_KEY, JSON.stringify(toSave));
+  } catch(e) {}
+}
+
+function fillRemainingDraftSlots() {
+  const cs = state.championship;
+  if (!cs || !cs.draftRoster) return;
+  const needed = cs.size - cs.draftRoster.length;
+  if (needed <= 0) return;
+  // Headless create without unique pool access
+  const savedPool = cs.uniquePool;
+  cs.uniquePool = null;
+  for (let i = 0; i < needed; i++) {
+    const char = bulkCreateOne();
+    // Tag with championship identity
+    char.championshipTag  = cs.tag  ?? null;
+    char.championshipName = cs.name ?? null;
+    cs.draftRoster.push(char);
+    cgRoster.push(char);
+  }
+  localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
+  cs.uniquePool = savedPool;
+  saveDraftProgress();   // persist after fill
+  buildChampionshipSetup();
+}
+
+function startChampionship32() {
+  const cs = state.championship;
+  if (!cs || !cs.draftRoster || cs.draftRoster.length < 32) return;
+  // Build championship from draftRoster, then replace state.championship
+  state.championship = createChampionship(32, cs.draftRoster);
+  saveChampionshipProgress();
+  showScreen('bracket');
+  renderChampionshipBracket();
+}
+
 function _csShuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -251,13 +340,26 @@ function getChampionshipSaveInfo() {
   try {
     const raw=localStorage.getItem(CS_SAVE_KEY); if (!raw) return null;
     const cs=JSON.parse(raw);
+    // Draft phase (size=32, no phases yet)
+    if (!cs.phases && cs.draftRoster) {
+      return { size: cs.size, isDraft: true, draftCount: cs.draftRoster.length, completed: false };
+    }
     return {size:cs.size, currentPhase:cs.currentPhaseIdx+1, totalPhases:cs.phases.length, completed:cs.completed};
   } catch(e) { return null; }
 }
 function resumeChampionship() {
   try {
     const raw=localStorage.getItem(CS_SAVE_KEY); if (!raw) return false;
-    state.championship=JSON.parse(raw); showScreen('bracket'); renderChampionshipBracket(); return true;
+    const cs=JSON.parse(raw);
+    // Draft phase restore — uniquePool was serialized as Array, restore to Set
+    if (!cs.phases && cs.draftRoster) {
+      if (Array.isArray(cs.uniquePool)) cs.uniquePool = new Set(cs.uniquePool);
+      state.championship = cs;
+      buildChampionshipSetup();
+      showScreen('championship-setup');
+      return true;
+    }
+    state.championship=cs; showScreen('bracket'); renderChampionshipBracket(); return true;
   } catch(e) { return false; }
 }
 
@@ -434,70 +536,276 @@ function _csDeCard(m, phase, isActive) {
 
 // ── Setup screen ──────────────────────────────────────────────
 function buildChampionshipSetup() {
-  const roster=JSON.parse(localStorage.getItem('cgRoster')||'[]');
-  if (!state.championship||state.championship.phases) state.championship={size:128,selectedFighters:[]};
-  const cs=state.championship, size=cs.size||128, sel=cs.selectedFighters||[];
-  const full=sel.length>=size;
+  // Init state if entering fresh
+  if (!state.championship || state.championship.phases) {
+    state.championship = { size: 128, selectedFighters: [] };
+  }
+  const cs   = state.championship;
+  const size = cs.size || 128;
 
-  document.querySelectorAll('[data-cssize]').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.cssize)===size));
+  document.querySelectorAll('[data-cssize]').forEach(b =>
+    b.classList.toggle('sel', parseInt(b.dataset.cssize) === size));
 
-  const si=document.getElementById('cs-slot-info');
-  if (si) {
-    const bots=Math.max(0,size-sel.length);
-    si.textContent='('+sel.length+' / '+size+' selected'+(bots>0?' · '+bots+' bot'+(bots>1?'s':''):'')+')';
-    si.style.color=sel.length>=size?'#44bb77':'#556';
+  // Show name/tag form if not yet set
+  if (!cs.tag) {
+    _buildChampionshipTagForm(cs);
+    return;
   }
 
-  const listEl=document.getElementById('cs-roster-list'); if (!listEl) return;
-  listEl.innerHTML='';
-  if (roster.length===0) {
-    const empty=document.createElement('div'); empty.className='t-roster-empty';
-    empty.textContent='No Radosers yet — create some first!'; listEl.appendChild(empty);
+  // Update page title with championship identity
+  const titleEl = document.querySelector('#championship-setup .game-title');
+  if (titleEl) titleEl.innerHTML = `🏆 ${cs.name} <span style="font-family:monospace;font-size:0.6em;color:#88aaff;vertical-align:middle;opacity:0.85"> [${cs.tag}]</span>`;
+
+  if (size === 32) {
+    _buildChampionshipDraft(cs);
   } else {
-    roster.forEach((ch,idx)=>{
-      const isSel=sel.includes(idx); const isLocked=!isSel&&full;
-      const card=document.createElement('div');
-      card.className='t-roster-card'+(isSel?' selected':'')+(isLocked?' full-not-selected':'');
-      const wIcon=WEAPON_DEFS.find(d=>d.id===ch.weapon)?.icon??'';
-      card.innerHTML='<span class="t-slot-dot" style="background:'+(ch.color||'#888')+'"></span>'
-        +'<span class="t-card-name" style="color:'+(ch.color||'#aac')+'">'+(ch.raceEmoji||'')+' '+(ch.name||'?')+'</span>'
-        +'<span style="font-size:12px;color:#8899aa">'+wIcon+' '+(ch.weapon||'')+'</span>'
-        +'<span class="t-card-check">'+(isSel?'✓':'')+'</span>';
+    _buildChampionshipRosterPick(cs, size);
+  }
+}
+
+// ── Championship Name/Tag Setup Form ──────────────────────────
+function _buildChampionshipTagForm(cs) {
+  const listEl = document.getElementById('cs-roster-list');
+  if (!listEl) return;
+  document.getElementById('csSelectAllBtn').style.display = 'none';
+  document.getElementById('csClearBtn').style.display    = 'none';
+  document.getElementById('csStartBtn').disabled = true;
+  const si = document.getElementById('cs-slot-info');
+  if (si) si.textContent = '';
+
+  listEl.innerHTML = `
+    <div class="cs-tag-form">
+      <div class="cs-tag-form-title">⚔️ Name Your Championship</div>
+      <div class="cs-tag-form-row">
+        <label class="cs-tag-label">Championship Name <span style="color:#445">(1–16 chars)</span></label>
+        <input id="csChampName" maxlength="16" placeholder="e.g. Sunohana" class="cg-name-input" style="width:220px">
+      </div>
+      <div class="cs-tag-form-row">
+        <label class="cs-tag-label">Tag <span style="color:#445">(exactly 3 chars, like Discord)</span></label>
+        <input id="csChampTag" maxlength="3" placeholder="SHN" class="cg-name-input cs-tag-input">
+      </div>
+      <button class="cg-btn primary" id="csTagSubmit" style="margin-top:14px;width:100%;max-width:320px">✓ Set & Continue →</button>
+      <div id="csTagError" style="color:#ff4455;font-size:12px;margin-top:6px;display:none"></div>
+    </div>`;
+
+  const tagInput  = document.getElementById('csChampTag');
+  const nameInput = document.getElementById('csChampName');
+
+  tagInput.addEventListener('input', () => {
+    tagInput.value = tagInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  });
+
+  const submit = () => {
+    const name  = nameInput.value.trim();
+    const tag   = tagInput.value.trim();
+    const errEl = document.getElementById('csTagError');
+    if (!name)           { errEl.textContent = 'Championship name cannot be empty.'; errEl.style.display = ''; return; }
+    if (tag.length !== 3){ errEl.textContent = 'Tag must be exactly 3 characters.';  errEl.style.display = ''; return; }
+    cs.name = name;
+    cs.tag  = tag;
+    saveDraftProgress();   // persist name/tag immediately
+    buildChampionshipSetup();
+  };
+
+  document.getElementById('csTagSubmit').addEventListener('click', submit);
+  [nameInput, tagInput].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
+}
+
+// ── Size=32: Draft Phase UI ────────────────────────────────────
+function _buildChampionshipDraft(cs) {
+  // Ensure draft state exists
+  if (!cs.draftRoster) {
+    cs.draftRoster = [];
+    initUniquePool();
+    saveDraftProgress();   // persist initial empty draft
+  }
+  const draft = cs.draftRoster;
+  const size  = cs.size; // 32
+  const full  = draft.length >= size;
+
+  // Slot info
+  const si = document.getElementById('cs-slot-info');
+  if (si) {
+    si.textContent = `(${draft.length} / ${size} in draft)`;
+    si.style.color = full ? '#44bb77' : '#556';
+  }
+
+  // Show/hide Select All / Clear buttons (not relevant for draft)
+  const selAllBtn = document.getElementById('csSelectAllBtn');
+  const clrBtn    = document.getElementById('csClearBtn');
+  if (selAllBtn) selAllBtn.style.display = 'none';
+  if (clrBtn)    clrBtn.style.display    = 'none';
+
+  // Render draft roster list
+  const listEl = document.getElementById('cs-roster-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+
+  // Action buttons row
+  const actRow = document.createElement('div');
+  actRow.className = 'cs-draft-actions';
+  if (!full) {
+    actRow.innerHTML = `
+      <button class="t-sel-btn cs-draft-btn" onclick="initChargenDraft()">⚗️ Create Player</button>
+      <button class="t-sel-btn cs-draft-btn" onclick="quickCreateDraft()">⚡ Quick Create</button>
+      <button class="t-sel-btn cs-draft-btn cs-fill-btn" onclick="fillRemainingDraftSlots()">⚡ Fill ${size - draft.length} Remaining</button>`;
+  } else {
+    actRow.innerHTML = `<div class="cs-draft-ready">✅ Draft complete! ${size} players ready.</div>`;
+  }
+  listEl.appendChild(actRow);
+
+  // Unique pool indicator
+  if (cs.uniquePool) {
+    const totalUniques = WEAPON_DEFS.filter(w => w.unique).length + SKILL_DEFS.filter(s => s.unique).length;
+    const remaining    = cs.uniquePool.size;
+    const poolEl = document.createElement('div');
+    poolEl.className = 'cs-unique-pool-info';
+    poolEl.innerHTML = `★ Unique pool: <b>${remaining}</b> / ${totalUniques} available`;
+    listEl.appendChild(poolEl);
+  }
+
+  // Separator
+  if (draft.length > 0) {
+    const sep = document.createElement('div');
+    sep.className = 't-section-label';
+    sep.style.cssText = 'margin-top:10px;margin-bottom:4px';
+    sep.textContent = 'Draft Roster';
+    listEl.appendChild(sep);
+  }
+
+  // Draft player cards
+  if (draft.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 't-roster-empty';
+    empty.textContent = 'No players yet — start creating!';
+    listEl.appendChild(empty);
+  } else {
+    draft.forEach((ch, idx) => {
+      const wDef = WEAPON_DEFS.find(w => w.id === ch.weapon);
+      const wIcon = wDef?.icon ?? '';
+      const uniqueWBadge = wDef?.unique ? ' <span class="unique-badge">★ UNIQUE</span>' : '';
+      const uniqueSkillCount = (ch.skills || []).filter(sid => SKILL_DEFS.find(s => s.id === sid)?.unique).length;
+      const uniqueSBadge = uniqueSkillCount > 0 ? ` <span class="unique-badge">★ ${uniqueSkillCount} unique</span>` : '';
+
+      const card = document.createElement('div');
+      card.className = 't-roster-card selected';
+      card.innerHTML = `
+        <span class="t-slot-dot" style="background:${ch.color||'#888'}"></span>
+        <span class="t-card-name" style="color:${ch.color||'#aac'}">${ch.raceEmoji||''} ${ch.name||'?'}</span>
+        <span style="font-size:12px;color:#8899aa">${wIcon} ${ch.weapon||''}${uniqueWBadge}${uniqueSBadge}</span>
+        <button onclick="removeDraftPlayer(${idx})" class="cs-draft-remove" title="Remove from draft">✕</button>`;
+      listEl.appendChild(card);
+    });
+  }
+
+  // Dot preview
+  const sumEl = document.getElementById('cs-slot-summary');
+  if (sumEl) {
+    sumEl.innerHTML = '';
+    draft.forEach(ch => {
+      const dot = document.createElement('span'); dot.className = 't-summary-dot';
+      dot.style.cssText = `background:${ch.color||'#888'};box-shadow:0 0 4px ${ch.color||'#888'}88`;
+      dot.title = ch.name || '?'; sumEl.appendChild(dot);
+    });
+    const empty = size - draft.length;
+    for (let i = 0; i < Math.min(empty, 20); i++) {
+      const dot = document.createElement('span'); dot.className = 't-summary-dot';
+      dot.style.cssText = 'background:#222;opacity:0.25;'; dot.title = 'Empty slot';
+      sumEl.appendChild(dot);
+    }
+    if (empty > 20) {
+      const more = document.createElement('span');
+      more.style.cssText = 'color:#334;font-size:10px';
+      more.textContent = `+${empty - 20} more slots`;
+      sumEl.appendChild(more);
+    }
+  }
+
+  // Start button
+  const sb = document.getElementById('csStartBtn');
+  if (sb) sb.disabled = !full;
+}
+
+// ── Size=64/128/256: Old roster-pick UI ───────────────────────
+function _buildChampionshipRosterPick(cs, size) {
+  const roster = JSON.parse(localStorage.getItem('cgRoster') || '[]');
+  if (!cs.selectedFighters) cs.selectedFighters = [];
+  const sel  = cs.selectedFighters;
+  const full = sel.length >= size;
+
+  // Restore Select All / Clear buttons
+  const selAllBtn = document.getElementById('csSelectAllBtn');
+  const clrBtn    = document.getElementById('csClearBtn');
+  if (selAllBtn) selAllBtn.style.display = '';
+  if (clrBtn)    clrBtn.style.display    = '';
+
+  const si = document.getElementById('cs-slot-info');
+  if (si) {
+    const bots = Math.max(0, size - sel.length);
+    si.textContent = '(' + sel.length + ' / ' + size + ' selected' + (bots > 0 ? ' · ' + bots + ' bot' + (bots > 1 ? 's' : '') : '') + ')';
+    si.style.color = sel.length >= size ? '#44bb77' : '#556';
+  }
+
+  const listEl = document.getElementById('cs-roster-list'); if (!listEl) return;
+  listEl.innerHTML = '';
+  if (roster.length === 0) {
+    const empty = document.createElement('div'); empty.className = 't-roster-empty';
+    empty.textContent = 'No Radosers yet — create some first!'; listEl.appendChild(empty);
+  } else {
+    roster.forEach((ch, idx) => {
+      const isSel = sel.includes(idx); const isLocked = !isSel && full;
+      const card = document.createElement('div');
+      card.className = 't-roster-card' + (isSel ? ' selected' : '') + (isLocked ? ' full-not-selected' : '');
+      const wIcon = WEAPON_DEFS.find(d => d.id === ch.weapon)?.icon ?? '';
+      card.innerHTML = '<span class="t-slot-dot" style="background:' + (ch.color || '#888') + '"></span>'
+        + '<span class="t-card-name" style="color:' + (ch.color || '#aac') + '">' + (ch.raceEmoji || '') + ' ' + (ch.name || '?') + '</span>'
+        + '<span style="font-size:12px;color:#8899aa">' + wIcon + ' ' + (ch.weapon || '') + '</span>'
+        + '<span class="t-card-check">' + (isSel ? '✓' : '') + '</span>';
       if (!isLocked) {
-        card.addEventListener('click',()=>{
-          const cur=state.championship.selectedFighters||[]; const pos=cur.indexOf(idx);
-          if (pos>=0) cur.splice(pos,1);
+        card.addEventListener('click', () => {
+          const cur = state.championship.selectedFighters || []; const pos = cur.indexOf(idx);
+          if (pos >= 0) cur.splice(pos, 1);
           else if (cur.length < size) cur.push(idx);
-          state.championship.selectedFighters=cur; buildChampionshipSetup();
+          state.championship.selectedFighters = cur; buildChampionshipSetup();
         });
       }
       listEl.appendChild(card);
     });
   }
 
-  const sb=document.getElementById('csStartBtn'); if (sb) sb.disabled=roster.length===0;
+  const sb = document.getElementById('csStartBtn');
+  if (sb) {
+    sb.disabled = roster.length === 0;
+    sb.onclick = null; // standard start handled elsewhere
+  }
 
-  const sumEl=document.getElementById('cs-slot-summary');
+  const sumEl = document.getElementById('cs-slot-summary');
   if (sumEl) {
-    sumEl.innerHTML='';
-    sel.forEach(idx=>{
-      const ch=roster[idx]; if (!ch) return;
-      const dot=document.createElement('span'); dot.className='t-summary-dot';
-      dot.style.cssText='background:'+(ch.color||'#888')+';box-shadow:0 0 4px '+(ch.color||'#888')+'88';
-      dot.title=ch.name||'?'; sumEl.appendChild(dot);
+    sumEl.innerHTML = '';
+    sel.forEach(idx => {
+      const ch = roster[idx]; if (!ch) return;
+      const dot = document.createElement('span'); dot.className = 't-summary-dot';
+      dot.style.cssText = 'background:' + (ch.color || '#888') + ';box-shadow:0 0 4px ' + (ch.color || '#888') + '88';
+      dot.title = ch.name || '?'; sumEl.appendChild(dot);
     });
-    const bots=Math.max(0,size-sel.length);
-    for (let i=0;i<Math.min(bots,20);i++) {
-      const dot=document.createElement('span'); dot.className='t-summary-dot';
-      dot.style.cssText='background:#444;opacity:0.4'; dot.title='Bot'; sumEl.appendChild(dot);
+    const bots = Math.max(0, size - sel.length);
+    for (let i = 0; i < Math.min(bots, 20); i++) {
+      const dot = document.createElement('span'); dot.className = 't-summary-dot';
+      dot.style.cssText = 'background:#444;opacity:0.4'; dot.title = 'Bot'; sumEl.appendChild(dot);
     }
-    if (bots>20) { const more=document.createElement('span'); more.style.cssText='color:#445;font-size:10px'; more.textContent='+' +(bots-20)+' bots'; sumEl.appendChild(more); }
+    if (bots > 20) {
+      const more = document.createElement('span'); more.style.cssText = 'color:#445;font-size:10px';
+      more.textContent = '+' + (bots - 20) + ' bots'; sumEl.appendChild(more);
+    }
   }
 }
 
 function _updateChampionshipResumeUI() {
   const info=getChampionshipSaveInfo(); const el=document.getElementById('cs-resume-btn'); if (!el) return;
-  if (info&&!info.completed) {
+  if (!info || info.completed) { el.style.display='none'; return; }
+  if (info.isDraft) {
+    el.style.display=''; el.textContent=`▶ Resume Draft ${info.size} (${info.draftCount}/${info.size} players)`;
+  } else {
     el.style.display=''; el.textContent='▶ Resume Championship '+info.size+' (Phase '+info.currentPhase+'/'+info.totalPhases+')';
-  } else el.style.display='none';
+  }
 }

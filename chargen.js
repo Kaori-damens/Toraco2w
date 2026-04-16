@@ -6,6 +6,24 @@ let cgState = null;
 let cgRoster = JSON.parse(localStorage.getItem('cgRoster') || '[]');
 let quickCreateMode = false;
 let quickCreateName = ''; // custom name from prompt
+let cgDraftMode = false;  // true when creating for championship draft
+
+// ── DEBUG HELPER ─────────────────────────────────────────────
+// Appends a debug quick-pick panel below any chargen spin wheel.
+// items: [{label, onClick}]
+function _cgDebug(box, title, items) {
+  const dbg = document.createElement('div');
+  dbg.style.cssText = 'margin-top:10px;padding:8px 12px;background:#1a1a2e;border:1px dashed #ff6b35;border-radius:8px;';
+  const btns = items.map((it, i) => {
+    const id = `_cgdbg_${Date.now()}_${i}`;
+    return { html: `<button id="${id}" style="background:#2a2a4a;border:1px solid #444;border-radius:5px;color:#ccc;cursor:pointer;font-size:11px;padding:3px 8px;">${it.label}</button>`, id, cb: it.onClick };
+  });
+  dbg.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:11px;color:#ff6b35;letter-spacing:1px;">DEBUG — ${title}</span><button id="_cgdbg_reroll" style="background:#2a2a4a;border:1px solid #ff6b35;border-radius:5px;color:#ff6b35;cursor:pointer;font-size:11px;padding:2px 8px;">🔄 Roll Again</button></div><div style="display:flex;flex-wrap:wrap;gap:5px;">${btns.map(b=>b.html).join('')}</div>`;
+  box.appendChild(dbg);
+  btns.forEach(b => { const el = dbg.querySelector('#'+b.id); if (el) el.onclick = b.cb; });
+  const reroll = dbg.querySelector('#_cgdbg_reroll');
+  if (reroll) reroll.onclick = () => renderCgStep();
+}
 
 function initChargen() {
   cgState = {
@@ -52,6 +70,10 @@ function renderCgStep() {
     const sr = CG_SUBRACES[cgState.race.subKey];
     if (!sr) { advanceCg(); return; }
     cgRenderSpin(box, `${cgState.race.emoji} Sub-Race`, sr.map((r,i) => ({ label:r.label, weight:r.weight, color:wColor(i) })), (w,idx) => { cgState.subrace = { ...sr[idx] }; advanceCg(); }, null, `${cgState.race.emoji} ${cgState.race.name}`);
+    _cgDebug(box, 'Pick Sub-Race', sr.map((r,i) => ({
+      label: r.label,
+      onClick: () => { cgState.subrace = { ...sr[i] }; advanceCg(); }
+    })));
     return;
   }
   const STAT_STEPS = { str:'strength', spd:'speed', dur:'durability', iq:'iq', biq:'battleiq', ma:'ma' };
@@ -245,6 +267,11 @@ function renderCgStep() {
     }
 
     cgRenderSpin(box, `${sd.emoji} ${sd.label}${constraintNote}`, items, onStatResult, cgState.stats, null, statTransform);
+    // Debug: pick value 1-10 directly (applies onStatResult logic including giant/god transforms)
+    _cgDebug(box, `Pick ${ABBR[sk]}`, Array.from({length:10}, (_,i) => ({
+      label: String(i+1),
+      onClick: () => onStatResult(null, i)
+    })));
     return;
   }
   if (s === 'hasweapon') {
@@ -283,10 +310,39 @@ function renderCgStep() {
       if (!cgState.hasWeapon) cgState.weapon = 'fists'; // skip weapon wheel
       advanceCg();
     });
+    _cgDebug(box, 'Pick Has Weapon?', [
+      { label: '⚔️ Armed',   onClick: () => { cgState.hasWeapon = true;  advanceCg(); } },
+      { label: '✊ Unarmed', onClick: () => { cgState.hasWeapon = false; cgState.weapon = 'fists'; advanceCg(); } },
+    ]);
     return;
   }
   if (s === 'weapon') {
-    cgRenderSpin(box, '🗡️ Weapon', CG_WEAPONS_ARMED.map((w,i) => ({ label:w.label, weight:1, color:wColor(i) })), (w,idx) => { cgState.weapon = CG_WEAPONS_ARMED[idx].id; advanceCg(); });
+    // In championship draft mode, append available unique weapons to the wheel
+    const draftUniqueWeapons = cgDraftMode
+      ? WEAPON_DEFS.filter(w => w.unique && isUniqueAvailable(w.id))
+      : [];
+    const allWeaponOptions = [...CG_WEAPONS_ARMED, ...draftUniqueWeapons];
+    const weaponItems = allWeaponOptions.map((w, i) => ({
+      label: (w.icon ? w.icon + ' ' : '') + (w.label || w.name),
+      weight: w.unique ? 1 : 1,  // uniques get equal weight for now
+      color: w.unique ? '#ffd700' : wColor(i),
+      _isUnique: !!w.unique,
+      _id: w.id,
+    }));
+    cgRenderSpin(box, '🗡️ Weapon', weaponItems, (_w, idx) => {
+      const chosen = allWeaponOptions[idx];
+      cgState.weapon = chosen.id || chosen;
+      if (cgDraftMode && chosen.unique) claimUnique(chosen.id);
+      advanceCg();
+    });
+    _cgDebug(box, 'Pick Weapon', allWeaponOptions.map(w => ({
+      label: (w.icon ? w.icon + ' ' : '') + (w.label || w.name),
+      onClick: () => {
+        cgState.weapon = w.id;
+        if (cgDraftMode && w.unique) claimUnique(w.id);
+        advanceCg();
+      }
+    })));
     return;
   }
   if (s === 'skillcount') {
@@ -295,7 +351,8 @@ function renderCgStep() {
       const iq = cgState.stats.iq ?? 10;
       // Cap by filtered pool (skills matching this character's weapon), not total SKILL_DEFS
       const charWeapon = cgState.weapon || null;
-      const poolSize = SKILL_DEFS.filter(s => !s.weapon || s.weapon === charWeapon).length;
+      const effectiveWeaponBless = (charWeapon && WEAPON_MAP[charWeapon]?.baseWeapon) || charWeapon;
+      const poolSize = SKILL_DEFS.filter(s => !s.weapon || s.weapon === effectiveWeaponBless).length;
       const count = Math.min(Math.ceil(iq * 1.7), poolSize);
       cgState.skillCount = count;
       box.innerHTML = `<div class="cg-card">
@@ -325,6 +382,10 @@ function renderCgStep() {
       cgState.skillCount = idx + skillBonus;
       advanceCg();
     }, null, null, skillTransform);
+    _cgDebug(box, 'Pick Skill Count', Array.from({length: items.length}, (_, i) => ({
+      label: i === 0 ? '0 Skills' : `${i + skillBonus} Skill${(i + skillBonus) !== 1 ? 's' : ''}`,
+      onClick: () => { cgState.skillCount = i + skillBonus; advanceCg(); }
+    })));
     return;
   }
   if (s === 'skillpick') { cgRenderSkillPick(box); return; }
@@ -367,7 +428,10 @@ function cgRenderName(box) {
     cgState.name = v; advanceCg();
   };
   document.getElementById('cgNameInput').onkeydown = e => { if (e.key === 'Enter') document.getElementById('cgNameNext').click(); };
-  document.getElementById('cgBackMenu').onclick = () => { showScreen('menu'); buildFightersPanel(); renderRoster(); };
+  document.getElementById('cgBackMenu').onclick = () => {
+    if (cgDraftMode) { cgDraftMode = false; showScreen('championship-setup'); buildChampionshipSetup(); }
+    else { showScreen('menu'); buildFightersPanel(); renderRoster(); }
+  };
   // Quick create: auto-fill name (custom or random) and advance
   if (quickCreateMode) {
     document.getElementById('cgNameInput').value = quickCreateName || getRandomGameName();
@@ -470,9 +534,16 @@ function cgRenderSkillPick(box) {
   const total    = cgState.skillCount;
   const picked   = cgState.skills;
   const pickedIds = new Set(picked.map(s => s.id));
-  // Only show universal skills + skills that match this character's weapon
+  // Universal skills + skills matching this weapon + unique skills if in draft mode and available
   const charWeapon = cgState.weapon || null;
-  const available = SKILL_DEFS.filter(s => !pickedIds.has(s.id) && (!s.weapon || s.weapon === charWeapon));
+  // For unique weapons, use their baseWeapon for skill pool matching
+  const effectiveWeapon = (charWeapon && WEAPON_MAP[charWeapon]?.baseWeapon) || charWeapon;
+  const available = SKILL_DEFS.filter(s => {
+    if (pickedIds.has(s.id)) return false;
+    if (s.weapon && s.weapon !== effectiveWeapon) return false;
+    if (s.unique) return cgDraftMode && isUniqueAvailable(s.id);
+    return true;
+  });
   const spinNum  = picked.length + 1;
 
   const pickedHtml = picked.length > 0
@@ -519,6 +590,7 @@ function cgRenderSkillPick(box) {
       btn.disabled = false;
       btn.onclick = () => {
         if (!pickedSkill) return;
+        if (cgDraftMode && pickedSkill.unique) claimUnique(pickedSkill.id);
         cgState.skills.push(pickedSkill);
         if (cgState.skills.length >= total) { advanceCg(); }
         else { renderCgStep(); }
@@ -529,6 +601,17 @@ function cgRenderSkillPick(box) {
 
   document.getElementById('cgSpinBtn').onclick = doSpin;
   if (quickCreateMode) setTimeout(doSpin, 300);
+
+  // Debug: pick any available skill directly
+  _cgDebug(box, `Pick Skill ${spinNum}/${total}`, available.map(sk => ({
+    label: sk.icon + ' ' + sk.name,
+    onClick: () => {
+      if (cgDraftMode && sk.unique) claimUnique(sk.id);
+      cgState.skills.push(sk);
+      if (cgState.skills.length >= total) { advanceCg(); }
+      else { renderCgStep(); }
+    }
+  })));
 }
 
 // All subrace effects are now applied inline during chargen spins.
@@ -537,17 +620,18 @@ function applySubraceEffects(_cgState) { /* no-op */ }
 
 function cgRenderDone(box) {
   const r = cgState.race, sr = cgState.subrace, st = cgState.stats;
-  const wep = CG_WEAPONS.find(w => w.id === cgState.weapon);
+  const wep = CG_WEAPONS.find(w => w.id === cgState.weapon)
+           ?? WEAPON_DEFS.find(w => w.id === cgState.weapon);
   const raceSk = (typeof RACE_SKILL_DEFS !== 'undefined') ? RACE_SKILL_DEFS[r.id] : null;
   box.innerHTML = `
     <div class="cg-card">
       <div class="cg-label" style="font-size:20px;color:#fff;font-weight:900">${r.emoji} ${cgState.name}</div>
       <div style="color:#7a9ac0;font-size:14px">${r.name}${sr ? ' · '+sr.label : ''}</div>
       <div class="cg-summary">
-        <div class="cg-sum-row"><span class="cg-sum-lbl">Weapon</span><span class="cg-sum-val">${wep?.label ?? '—'}</span></div>
+        <div class="cg-sum-row"><span class="cg-sum-lbl">Weapon</span><span class="cg-sum-val">${(wep?.icon ? wep.icon + ' ' : '') + (wep?.name ?? wep?.label ?? '—')}${wep?.unique ? ' <span class="unique-badge">★ UNIQUE</span>' : ''}</span></div>
         ${sr ? `<div class="cg-sum-row"><span class="cg-sum-lbl">Sub-Race</span><span class="cg-sum-val">${sr.label}</span></div>` : ''}
         ${STAT_DISPLAY.map(sd => `<div class="cg-sum-row"><span class="cg-sum-lbl">${sd.emoji} ${sd.label}</span><span class="cg-sum-val" style="color:${STAT_COLORS[(st[sd.key]||1)-1]}">${st[sd.key] ?? '—'}</span></div>`).join('')}
-      ${cgState.skills?.length > 0 ? cgState.skills.map(s => `<div class="cg-sum-row"><span class="cg-sum-lbl">Skill</span><span class="cg-sum-val">${s.icon} ${s.name}</span></div>`).join('') : '<div class="cg-sum-row"><span class="cg-sum-lbl">Skills</span><span class="cg-sum-val" style="color:#555">None</span></div>'}
+      ${cgState.skills?.length > 0 ? cgState.skills.map(s => `<div class="cg-sum-row"><span class="cg-sum-lbl">Skill</span><span class="cg-sum-val">${s.icon} ${s.name}${s.unique ? ' <span class="unique-badge">★ UNIQUE</span>' : ''}</span></div>`).join('') : '<div class="cg-sum-row"><span class="cg-sum-lbl">Skills</span><span class="cg-sum-val" style="color:#555">None</span></div>'}
       </div>
       ${raceSk ? `
       <div class="cg-race-skill-box">
@@ -567,7 +651,7 @@ function cgRenderDone(box) {
       ${sr?.desc ? `<div class="cg-trait">Sub-Race bonus: ${sr.desc}</div>` : ''}
       <div class="cg-nav">
         <button class="cg-btn" id="cgRestart">↺ Restart</button>
-        <button class="cg-btn primary" id="cgSave">📜 Add to Radosers</button>
+        <button class="cg-btn primary" id="cgSave">${cgDraftMode ? '⚔️ Add to Draft' : '📜 Add to Radosers'}</button>
       </div>
     </div>`;
   document.getElementById('cgRestart').onclick = () => initChargen();
@@ -577,13 +661,26 @@ function cgRenderDone(box) {
       name: cgState.name, race: cgState.race.id, raceName: cgState.race.name,
       raceEmoji: cgState.race.emoji, subrace: cgState.subrace,
       stats: { ...cgState.stats }, weapon: cgState.weapon,
-      color: generateRadoserColor(cgRoster.length),
+      color: generateRadoserColor(cgDraftMode
+        ? (state.championship?.draftRoster?.length ?? 0)
+        : cgRoster.length),
       skills: (cgState.skills || []).map(s => s.id),
     };
-    cgRoster.push(char);
-    localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
     quickCreateMode = false;
-    showScreen('menu'); buildFightersPanel(); renderRoster(); renderHeroShowcase();
+    if (cgDraftMode) {
+      // Tag with championship identity
+      char.championshipTag  = state.championship?.tag  ?? null;
+      char.championshipName = state.championship?.name ?? null;
+      // Copy to global roster (persists with tag badge)
+      cgRoster.push(char);
+      localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
+      cgDraftMode = false;
+      onDraftPlayerCreated(char);
+    } else {
+      cgRoster.push(char);
+      localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
+      showScreen('menu'); buildFightersPanel(); renderRoster(); renderHeroShowcase();
+    }
   };
   document.getElementById('cgSave').onclick = saveChar;
   // Quick create: auto-save
@@ -624,22 +721,32 @@ function openDebugRadoser() {
 
   // Populate weapon dropdown
   const weaponEl = document.getElementById('dbg-weapon');
+  const uniqueWeapons = WEAPON_DEFS.filter(w => w.unique).map(w => ({
+    id: w.id, label: `${w.icon} ${w.name} [UNIQUE]`,
+  }));
   const allWeapons = [
     ...CG_WEAPONS_ARMED,
     { id:'fists',  label:'✊ Fists (Unarmed)' },
     { id:'rapier', label:'🤺 Rapier [FORBIDDEN]' },
     { id:'katana', label:'⚔️ Katana [FORBIDDEN]' },
+    ...uniqueWeapons,
   ];
   weaponEl.innerHTML = allWeapons.map(w => `<option value="${w.id}">${w.label}</option>`).join('');
 
-  // Populate skills checkboxes
+  // Populate skills checkboxes — unique skills get gold styling + [UNIQUE] tag
   const skillsEl = document.getElementById('dbg-skills');
-  skillsEl.innerHTML = SKILL_DEFS.map(s => `
-    <label style="display:flex;align-items:center;gap:5px;background:#1a1030;border:1px solid #333;
+  skillsEl.innerHTML = SKILL_DEFS.map(s => {
+    const isUnique = !!s.unique;
+    const bg      = isUnique ? '#1a1200' : '#1a1030';
+    const border  = isUnique ? '#886600' : '#333';
+    const tag     = isUnique ? ' <span style="font-size:9px;color:#ffd700;background:#2a1a00;border:1px solid #886600;border-radius:3px;padding:0 3px;vertical-align:middle;">UNIQUE</span>' : '';
+    return `
+    <label style="display:flex;align-items:center;gap:5px;background:${bg};border:1px solid ${border};
                   border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;user-select:none;">
-      <input type="checkbox" value="${s.id}" style="accent-color:#9933ff;" onchange="dbgLimitSkills()">
-      ${s.icon} ${s.name}
-    </label>`).join('');
+      <input type="checkbox" value="${s.id}" style="accent-color:${isUnique ? '#ffaa00' : '#9933ff'};" onchange="dbgLimitSkills()">
+      ${s.icon} ${s.name}${tag}
+    </label>`;
+  }).join('');
 
   document.getElementById('dbg-name').value = getRandomGameName();
   modal.style.display = 'block';
@@ -662,7 +769,7 @@ function dbgUpdateSubrace() {
 function dbgLimitSkills() {
   const checkboxes = [...document.querySelectorAll('#dbg-skills input[type=checkbox]')];
   const checked = checkboxes.filter(c => c.checked);
-  if (checked.length > 2) checked[checked.length - 1].checked = false;
+  if (checked.length > 4) checked[checked.length - 1].checked = false;
 }
 
 function debugSaveRadoser() {
@@ -691,7 +798,7 @@ function debugSaveRadoser() {
   // Weapon + Skills
   const weapon = document.getElementById('dbg-weapon').value || 'fists';
   const skills = [...document.querySelectorAll('#dbg-skills input[type=checkbox]:checked')]
-    .map(c => c.value).slice(0, 2);
+    .map(c => c.value).slice(0, 4);
 
   const char = {
     id: Date.now() + Math.random(),
@@ -707,3 +814,18 @@ function debugSaveRadoser() {
 }
 
 document.getElementById('debugRadoserBtn')?.addEventListener('click', openDebugRadoser);
+
+// ── Championship Draft Mode Entry Points ──────────────────────
+function initChargenDraft() {
+  cgDraftMode = true;
+  quickCreateMode = false;
+  quickCreateName = '';
+  initChargen();
+}
+
+function quickCreateDraft() {
+  cgDraftMode = true;
+  quickCreateMode = true;
+  quickCreateName = '';
+  initChargen();
+}

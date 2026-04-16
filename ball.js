@@ -73,19 +73,21 @@ class Ball {
     const def = WEAPON_MAP[id];
     const spd = this.charSPD ?? 5;
     // Per-ball attackCooldown based on SPD
+    // For unique weapons, derive from baseWeapon if not explicitly set
+    const bwid = def.baseWeapon || def.id;
     let ac = def.attackCooldown;
-    if      (def.id === 'fists')   ac = Math.max(2, 13 - spd);
-    else if (def.id === 'sword')   ac = Math.max(2, 28 - spd);
-    else if (def.id === 'dagger')  ac = Math.max(2, 18 - spd);
-    else if (def.id === 'spear')   ac = Math.max(2, 38 - spd);
-    else if (def.id === 'scythe')  ac = Math.max(2, 34 - spd);
-    else if (def.id === 'hammer')  ac = Math.max(2, 48 - spd);
-    else if (def.id === 'rapier')  ac = Math.max(2, 18 - spd);
-    else if (def.id === 'katana')  ac = Math.max(2, 42 - spd);
+    if      (bwid === 'fists')   ac = Math.max(2, 13 - spd);
+    else if (bwid === 'sword')   ac = Math.max(2, 28 - spd);
+    else if (bwid === 'dagger')  ac = Math.max(2, 18 - spd);
+    else if (bwid === 'spear')   ac = Math.max(2, 38 - spd);
+    else if (bwid === 'scythe')  ac = Math.max(2, 34 - spd);
+    else if (bwid === 'hammer')  ac = Math.max(2, 48 - spd);
+    else if (bwid === 'rapier')  ac = Math.max(2, 18 - spd);
+    else if (bwid === 'katana')  ac = Math.max(2, 42 - spd);
     // Ranged: fireInterval overridden per-ball via weapon.fireInterval
     let fi = def.fireInterval || null;
-    if (def.id === 'bow')      fi = Math.max(5, 140 - spd * 2);
-    else if (def.id === 'shuriken') fi = Math.max(5, 250 - spd * 2);
+    if      (bwid === 'bow')      fi = Math.max(5, 140 - spd * 2);
+    else if (bwid === 'shuriken') fi = Math.max(5, 250 - spd * 2);
     return {
       id,
       angle: 0,
@@ -118,6 +120,32 @@ class Ball {
       momentumTimer: 0,
       iaiReady: false,
       iaiHit: false,
+      // Jingubang — Whirl Mode
+      whirlTimer: 0,
+      whirlJustActivated: false,
+      // ── Brainstormed Unique Weapons ──────────────────────────
+      // Excalibur
+      excaliburActivated: false,   // true once HP drops to ≤30% (one-time)
+      excaliburTransformTimer: 0,  // counts down from 1200 (20s)
+      excaliburBeamCooldown: 0,    // cooldown between beams during transform
+      // Mjolnir
+      lightningPending: false,
+      // Iron Fist
+      emberStacks: 0,
+      combustionPending: false,
+      // Gungnir
+      gungnirThrowTimer: 0,
+      // Harvester
+      soulShards: 0,
+      soulBurstPending: false,
+      // Caliburn
+      caliburnStacks: 0,
+      caliburnSpeedTimer: 0,
+      caliburnCrit: false,
+      // Medusa Bow (target-side state: medusaSlowStacks on the ball, not weapon)
+      // Muramasa
+      muramasaFrenzy: 0,
+      muramasaFrenzyTimer: 0,
     };
   }
 
@@ -126,19 +154,22 @@ class Ball {
     const spearDebuff  = this.weapon.spinDebuffTimer > 0 ? 0.9 : 1.0;  // -10% from spear parry
     const hammerDebuff = this.weapon.spinSlowTimer   > 0 ? 0.7 : 1.0;  // -30% from hammer slow
     const parryBoost   = this.weapon.spinBoostTimer  > 0 ? 2.0 : 1.0;  // +100% from Parry Master
+    const giantBoost   = (this.weapon.whirlTimer > 0 && this.weaponDef?.id === 'jingubang') ? 6.0 : 1.0;  // Jingubang whirl mode: 6x spin
+    const caliburnBoost = (this.weapon.caliburnSpeedTimer > 0) ? 1.4 : 1.0; // Caliburn: 3s speed boost
     const netDebuff    = this.netTrapped > 0 ? 0.70 : 1.0;              // -30% from Troll Net
     const stuckDebuff  = (this.rs_weaponStuck > 0 || this.stunTimer > 0) ? 0 : 1; // Void Grip / Smite stun
-    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * netDebuff * stuckDebuff;
+    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff;
   }
 
   getDamage() {
     const def = this.weaponDef;
+    const bwid = def.baseWeapon || def.id; // effective base weapon id
     const str = this.charSTR ?? 1;
     const ma  = this.charMA  ?? 0;
     const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0;
     let base = def.baseDamage;
-    if (def.id === 'fists')  base += ma * 0.2;   // MA=10 → +2 base (×STR)
-    if (def.id === 'dagger') base += ma * 0.15;  // MA=10 → +1.5 base (×STR)
+    if (bwid === 'fists')  base += ma * 0.2;   // MA=10 → +2 base (×STR)
+    if (bwid === 'dagger') base += ma * 0.15;  // MA=10 → +1.5 base (×STR)
     let dmg = (base * str + this.weapon.bonusDamage) * rageMult;
     // Skills that modify outgoing damage
     if (this.skills.includes('berserker') && this.hp / this.maxHp < 0.30) dmg *= 1.5;
@@ -153,34 +184,48 @@ class Ball {
     if (this.rs_forgeSharpness > 0) dmg *= (1 + this.rs_forgeSharpness * 0.05);
     // Orc Blood Price: burst hit deals bonus damage (STR-scaled)
     if (this.charRace === 'orc' && this.rs_burstReady) dmg *= (1 + (this.charSTR ?? 5) * 0.15);
-    // Rapier — Riposte multiplier (IQ-scaled + parry stacks)
+    // Rapier / Caliburn — Riposte multiplier (IQ-scaled + parry stacks)
     // Base: ×(1.5 + IQ×0.15), each parry stack adds ×0.5
-    if (def.id === 'rapier' && this.weapon.riposteWindow > 0) {
+    if (bwid === 'rapier' && this.weapon.riposteWindow > 0) {
       const iq     = this.charIQ ?? 0;
       const stacks = this.weapon.riposteStacks || 0;
       dmg *= (1.5 + iq * 0.15 + stacks * 0.5);
       spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ RIPOSTE!', '#ffdd00');
     }
-    // Katana — Iai Strike multiplier ×3
-    if (def.id === 'katana' && this.weapon.iaiReady) {
-      dmg *= 3.0;
+    // Katana — Iai Strike multiplier ×3; Muramasa — ×4 but costs 8% HP
+    if (bwid === 'katana' && this.weapon.iaiReady) {
+      if (def.id === 'muramasa') {
+        dmg *= 4.0;
+        const hpCost = this.maxHp * 0.08;
+        this.hp = Math.max(1, this.hp - hpCost); // can't die from own IAI cost
+        spawnDamageNumber(this.x, this.y - this.radius - 20, `🩸 IAI! -${hpCost.toFixed(1)}HP`, '#ff2244');
+      } else {
+        dmg *= 3.0;
+      }
       this.weapon.iaiHit = true; // flag for collision.js battle log
-      spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ IAI STRIKE!', '#ffffff');
+      spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ IAI STRIKE!', bwid === 'muramasa' ? '#ff4466' : '#ffffff');
+    }
+    // Caliburn — guaranteed crit flag
+    if (def.id === 'caliburn' && this.weapon.caliburnCrit) {
+      // Force crit in getDamage; the crit flag is consumed in weaponSkillOnHit via collision.js
+      dmg *= this.critMult;
+      this.weapon.caliburnCrit = false;
+      spawnDamageNumber(this.x, this.y - this.radius - 20, '⚡ BURST CRIT!', '#ffee44');
     }
     // ── Weapon skill outgoing modifiers ───────────────────────
     // Duel Instinct (Sword): +30% when only 1 enemy alive
-    if (this.skills.includes('duel_instinct') && def.id === 'sword' && typeof state !== 'undefined') {
+    if (this.skills.includes('duel_instinct') && bwid === 'sword' && typeof state !== 'undefined') {
       const enemiesAlive = state.players.filter(p => p !== this && p.alive);
       if (enemiesAlive.length <= 1) dmg *= 1.30;
     }
     // Parry Punish (Sword): ×2 for 3s after parry
-    if (this.skillState?.parryPunishActive && def.id === 'sword') dmg *= 2.0;
+    if (this.skillState?.parryPunishActive && bwid === 'sword') dmg *= 2.0;
     // Brawler's Rhythm (Fists): every 5th hit ×2.5
-    if (this.skillState?.brawlerReady && def.id === 'fists') dmg *= 2.5;
+    if (this.skillState?.brawlerReady && bwid === 'fists') dmg *= 2.5;
     // Flurry Finisher (Dagger): every 5th consecutive hit ×2.5
-    if (this.skillState?.flurryReady && def.id === 'dagger') dmg *= 2.5;
+    if (this.skillState?.flurryReady && bwid === 'dagger') dmg *= 2.5;
     // Heavy Momentum (Hammer): +20% per same-target stack (max 3 = +60%)
-    if (this.skills.includes('heavy_momentum') && def.id === 'hammer' && (this.skillState?.hammerStacks || 0) > 0) {
+    if (this.skills.includes('heavy_momentum') && bwid === 'hammer' && (this.skillState?.hammerStacks || 0) > 0) {
       dmg *= (1 + this.skillState.hammerStacks * 0.20);
     }
     return dmg;
@@ -313,8 +358,8 @@ class Ball {
         this.weapon.lungeHit   = false;
       }
     }
-    // Rapier Lunge: riposte window open + weapon angle facing enemy + in range + not yet fired
-    if (this.weaponDef?.id === 'rapier' && this.weapon.riposteWindow > 0
+    // Rapier / Caliburn Lunge: riposte window open + weapon angle facing enemy + in range + not yet fired
+    if ((this.weaponDef?.id === 'rapier' || this.weaponDef?.id === 'caliburn') && this.weapon.riposteWindow > 0
         && !this.weapon.lungeFired
         && typeof state !== 'undefined' && state.players) {
       const enemies = state.players.filter(b => b.alive && b !== this &&
@@ -340,12 +385,165 @@ class Ball {
         }
       }
     }
-    // Katana: tick down momentum decay timer; lose stacks if expired
-    if (this.weapon.momentumTimer > 0) {
-      this.weapon.momentumTimer--;
-    } else if (this.weapon.momentumStacks > 0 && !this.weapon.iaiReady) {
-      this.weapon.momentumStacks = 0;
+    // Katana / Muramasa: tick down momentum decay timer; lose stacks if expired
+    if (this.weaponDef?.id === 'katana' || this.weaponDef?.id === 'muramasa') {
+      if (this.weapon.momentumTimer > 0) {
+        this.weapon.momentumTimer--;
+      } else if (this.weapon.momentumStacks > 0 && !this.weapon.iaiReady) {
+        this.weapon.momentumStacks = 0;
+      }
     }
+    // Jingubang: whirl mode activation announcement + timer countdown
+    if (this.weaponDef?.id === 'jingubang') {
+      if (this.weapon.whirlJustActivated) {
+        this.weapon.whirlJustActivated = false;
+        spawnBigAnnouncement?.('🪄 如意棒 WHIRL!', this.color);
+        spawnDamageNumber(this.x, this.y - this.radius - 20, '🌀 WHIRL!', '#ffd700');
+      }
+      if (this.weapon.whirlTimer > 0) {
+        this.weapon.whirlTimer--;
+        if (this.weapon.whirlTimer === 0) {
+          spawnDamageNumber(this.x, this.y - this.radius - 16, '🪄 whirl ends…', '#aa8800');
+        }
+      }
+    }
+    // ── Unique weapon per-frame logic ─────────────────────────
+    const udef = this.weaponDef;
+    // Excalibur: trigger Transform Mode when HP drops to ≤30% (once per match)
+    if (udef?.id === 'excalibur' && !this.weapon.excaliburActivated && this.hp / this.maxHp <= 0.30) {
+      this.weapon.excaliburActivated = true;
+      this.weapon.excaliburTransformTimer = 20 * 60; // 20s
+      this.weapon.excaliburBeamCooldown = 0;
+      spawnDamageNumber(this.x, this.y - this.radius - 28, '🌟 LAST STAND!', '#ffe84c');
+      spawnBigAnnouncement?.('🌟 EXCALIBUR AWAKENS!', this.color);
+      sfxScale(); sfxScale();
+    }
+    // Excalibur: during Transform — countdown and fire beam every 120 frames
+    if (udef?.id === 'excalibur' && this.weapon.excaliburTransformTimer > 0) {
+      this.weapon.excaliburTransformTimer--;
+      if (this.weapon.excaliburBeamCooldown > 0) this.weapon.excaliburBeamCooldown--;
+      if (this.weapon.excaliburBeamCooldown <= 0) {
+        this.weapon.excaliburBeamCooldown = 120; // beam every 2s
+        const beamTarget = typeof state !== 'undefined'
+          ? state.players.filter(p => p !== this && p.alive)
+              .reduce((best, p) => !best || Math.hypot(p.x-this.x,p.y-this.y) < Math.hypot(best.x-this.x,best.y-this.y) ? p : best, null)
+          : null;
+        const beamAngle = beamTarget ? Math.atan2(beamTarget.y-this.y, beamTarget.x-this.x) : this.weapon.angle;
+        const beam = new Projectile(
+          this.x + Math.cos(beamAngle)*this.radius,
+          this.y + Math.sin(beamAngle)*this.radius,
+          Math.cos(beamAngle)*14, Math.sin(beamAngle)*14,
+          this, 'sword_beam', this.getDamage() * 1.5
+        );
+        beam.piercing = true; beam.maxBounces = 0; beam.r = 10;
+        if (typeof projectiles !== 'undefined') projectiles.push(beam);
+        spawnDamageNumber(this.x, this.y - this.radius - 24, '🌟 SWORD BEAM!', '#ffe84c');
+        sfxScale(); sfxScale();
+      }
+    }
+    // Mjolnir: spawn lightning on pending flag; also 25% chance on wall bounce
+    if (udef?.id === 'mjolnir') {
+      const wasHitX = this._lastX !== undefined && Math.abs(this.x - this._lastX - this.vx) > 1;
+      const wasHitY = this._lastY !== undefined && Math.abs(this.y - this._lastY - this.vy) > 1;
+      if ((wasHitX || wasHitY) && Math.random() < 0.25) this.weapon.lightningPending = true;
+      if (this.weapon.lightningPending) {
+        this.weapon.lightningPending = false;
+        const lAngle = Math.random() * Math.PI * 2;
+        const bolt = new Projectile(
+          this.x, this.y,
+          Math.cos(lAngle) * 12, Math.sin(lAngle) * 12,
+          this, 'lightning', (this.getDamage() * 0.25)
+        );
+        bolt.maxBounces = 2; bolt.r = 4;
+        if (typeof projectiles !== 'undefined') projectiles.push(bolt);
+        spawnDamageNumber(this.x, this.y - this.radius - 16, '⚡ LIGHTNING!', '#88ccff');
+      }
+    }
+    this._lastX = this.x; this._lastY = this.y;
+    // Iron Fist: combustion AOE on pending flag
+    if (udef?.id === 'iron_fist' && this.weapon.combustionPending && typeof state !== 'undefined') {
+      this.weapon.combustionPending = false;
+      spawnBigAnnouncement?.('🔥 COMBUSTION!', this.color);
+      spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 COMBUSTION!', '#ff6600');
+      spawnSparks(this.x, this.y, 20);
+      for (const en of state.players) {
+        if (en === this || !en.alive) continue;
+        if (Math.hypot(en.x-this.x, en.y-this.y) < 100) {
+          const aoeDmg = this.getDamage() * 3;
+          en.takeDamage(aoeDmg, this.x, this.y, false, this, false, true);
+          spawnDamageNumber(en.x, en.y - en.radius - 16, `🔥 -${aoeDmg.toFixed(1)}`, '#ff6600');
+        }
+      }
+      sfxScale(); sfxScale();
+    }
+    // Gungnir: auto-throw spear every 120 frames
+    if (udef?.id === 'gungnir' && typeof state !== 'undefined') {
+      this.weapon.gungnirThrowTimer = (this.weapon.gungnirThrowTimer || 0) + 1;
+      if (this.weapon.gungnirThrowTimer >= 120) {
+        this.weapon.gungnirThrowTimer = 0;
+        const throwTarget = state.players.filter(p => p !== this && p.alive)
+          .reduce((best, p) => !best || Math.hypot(p.x-this.x,p.y-this.y) < Math.hypot(best.x-this.x,best.y-this.y) ? p : best, null);
+        if (throwTarget) {
+          const ta = Math.atan2(throwTarget.y-this.y, throwTarget.x-this.x);
+          const spear = new Projectile(
+            this.x + Math.cos(ta)*this.radius,
+            this.y + Math.sin(ta)*this.radius,
+            Math.cos(ta)*11, Math.sin(ta)*11,
+            this, 'gungnir', this.getDamage() * 0.6
+          );
+          spear.maxBounces = 0; spear.r = 8; spear.tracking = true; spear.trackTarget = throwTarget;
+          if (typeof projectiles !== 'undefined') projectiles.push(spear);
+          spawnDamageNumber(this.x, this.y - this.radius - 16, '✨ THROW!', '#ffdd66');
+        }
+      }
+    }
+    // Harvester: soul burst AOE on pending flag
+    if (udef?.id === 'harvester' && this.weapon.soulBurstPending && typeof state !== 'undefined') {
+      this.weapon.soulBurstPending = false;
+      spawnBigAnnouncement?.('💀 SOUL BURST!', this.color);
+      spawnDamageNumber(this.x, this.y - this.radius - 24, '💀 SOUL BURST!', '#cc44ff');
+      spawnSparks(this.x, this.y, 18);
+      for (const en of state.players) {
+        if (en === this || !en.alive) continue;
+        if (Math.hypot(en.x-this.x, en.y-this.y) < 80) {
+          const aoeDmg = this.getDamage() * 3;
+          en.takeDamage(aoeDmg, this.x, this.y, false, this, false, true);
+          spawnDamageNumber(en.x, en.y - en.radius - 16, `💀 -${aoeDmg.toFixed(1)}`, '#cc44ff');
+        }
+      }
+      sfxScale(); sfxScale();
+    }
+    // Caliburn: tick speed boost timer; also tick rapier riposte
+    if (udef?.id === 'caliburn') {
+      if (this.weapon.caliburnSpeedTimer > 0) {
+        this.weapon.caliburnSpeedTimer--;
+        if (this.weapon.caliburnSpeedTimer === 0) {
+          spawnDamageNumber(this.x, this.y - this.radius - 16, '⚡ boost ended', '#88aaff');
+        }
+      }
+    }
+    // Muramasa: frenzy stack decay + attackCooldown reduction
+    if (udef?.id === 'muramasa') {
+      if (this.weapon.muramasaFrenzyTimer > 0) {
+        this.weapon.muramasaFrenzyTimer--;
+        if (this.weapon.muramasaFrenzyTimer === 0 && this.weapon.muramasaFrenzy > 0) {
+          this.weapon.muramasaFrenzy = 0;
+          spawnDamageNumber(this.x, this.y - this.radius - 16, '🩸 frenzy fades', '#aa2244');
+        }
+      }
+      // Apply frenzy: reduce base attack cooldown
+      const frenzy = this.weapon.muramasaFrenzy || 0;
+      this.weapon.attackCooldown = Math.max(8, (WEAPON_MAP.muramasa?.attackCooldown ?? 42) - (this.charSPD || 0) - frenzy * 3);
+    }
+    // Medusa Bow: tick target-side petrify (stored on ball as medusaPetrify)
+    if ((this.medusaPetrify || 0) > 0) {
+      this.medusaPetrify--;
+      this.rs_weaponStuck = Math.max(this.rs_weaponStuck || 0, 2); // keep weapon frozen
+      if (this.medusaPetrify === 1) {
+        spawnDamageNumber(this.x, this.y - this.radius - 16, '🐍 unpetrified', '#44cc88');
+      }
+    }
+
     if (this.immunityFrames     > 0) this.immunityFrames--;
     if (this.projImmunityFrames > 0) this.projImmunityFrames--;
     if (this.hitFlash > 0) this.hitFlash--;
@@ -376,7 +574,7 @@ class Ball {
       }
     }
     // Zone Control (Spear): deal 0.5 dmg to enemies within 150px every 30 frames
-    if (this.skills.includes('zone_control') && this.weaponDef?.id === 'spear' && this.skillState && typeof state !== 'undefined') {
+    if (this.skills.includes('zone_control') && (this.weaponDef?.id === 'spear' || this.weaponDef?.baseWeapon === 'spear') && this.skillState && typeof state !== 'undefined') {
       this.skillState.sk_zoneTimer = (this.skillState.sk_zoneTimer || 0) + 1;
       if (this.skillState.sk_zoneTimer >= 30) {
         this.skillState.sk_zoneTimer = 0;
@@ -389,8 +587,8 @@ class Ball {
         }
       }
     }
-    // Grim Presence (Scythe): mark nearby enemies with aura debuff (refreshed each frame)
-    if (this.skills.includes('grim_presence') && this.weaponDef?.id === 'scythe' && typeof state !== 'undefined') {
+    // Grim Presence (Scythe / Harvester): mark nearby enemies with aura debuff (refreshed each frame)
+    if (this.skills.includes('grim_presence') && (this.weaponDef?.id === 'scythe' || this.weaponDef?.baseWeapon === 'scythe') && typeof state !== 'undefined') {
       for (const en of state.players) {
         if (en === this || !en.alive) continue;
         if (Math.hypot(en.x - this.x, en.y - this.y) < 80) {
@@ -436,7 +634,7 @@ class Ball {
             // Bow aim cone: only fire when opponent is within ±coneHalf of weapon angle
             // Cone width scales with IQ — IQ1→±24°, IQ5→±40°, IQ10→±60°
             let inCone = true;
-            if (def.id === 'bow' && opponent && opponent.alive) {
+            if ((def.id === 'bow' || def.id === 'medusa_bow') && opponent && opponent.alive) {
               const dx = opponent.x - this.x, dy = opponent.y - this.y;
               let diff = Math.atan2(dy, dx) - this.weapon.angle;
               while (diff >  Math.PI) diff -= Math.PI * 2;
@@ -446,10 +644,11 @@ class Ball {
             }
 
             if (inCone) {
-              const count = def.id === 'bow'
+              const bwidFire = def.baseWeapon || def.id;
+              const count = bwidFire === 'bow'
                 ? (this.weapon.arrowCount || 1)
                 : (this.weapon.shurikenCount || 1);
-              if (def.id === 'bow') {
+              if (bwidFire === 'bow') {
                 // Multi-stream: MA>=5 → 2 streams, MA>=10 → 3 streams
                 const ma = this.charMA ?? 0;
                 const streams = ma >= 10 ? 3 : ma >= 5 ? 2 : 1;
@@ -496,7 +695,7 @@ class Ball {
       return { vx: (dx/dist)*speed, vy: (dy/dist)*speed };
     };
     sfxShoot();
-    if (def.id === 'bow') {
+    if (def.id === 'bow' || def.id === 'medusa_bow') {
       // Arrow speed scales with SPD (arm strength) and IQ (technique)
       const baseSpd = def.arrowSpeed + (this.weapon.arrowSpeedBonus || 0)
                     + spdStat * 0.25 + iqStat * 0.15
@@ -522,6 +721,7 @@ class Ball {
           this, 'arrow', (this.charSTR ?? 1)
         );
         if (this.rs_forgeProjSizeBonus) arrow.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
+        if (def.id === 'medusa_bow') arrow.medusaArrow = true; // tag for Medusa debuff in collision.js
         // Blessed by Athena: auto-aim this arrow
         const aaArrow = godBiqAutoAim(arrow.vx, arrow.vy);
         if (aaArrow) { arrow.vx = aaArrow.vx; arrow.vy = aaArrow.vy; }
@@ -551,15 +751,16 @@ class Ball {
         }
         projectiles.push(arrow);
       }
-    } else if (def.id === 'shuriken') {
+    } else if (def.id === 'shuriken' || def.id === 'fuma_shuriken') {
       // Shuriken speed scales more aggressively (low base, needs stats to be viable)
       const spd = def.shurikenSpeed + spdStat * 0.4 + iqStat * 0.25
                 + (this.rs_forgeProjSpeedBonus || 0); // Dwarf: Swift Flight
+      const stype = def.id === 'fuma_shuriken' ? 'fuma_shuriken' : 'shuriken';
       const star = new Projectile(
         this.x + Math.cos(a) * this.radius,
         this.y + Math.sin(a) * this.radius,
         Math.cos(a) * spd, Math.sin(a) * spd,
-        this, 'shuriken', (this.charSTR ?? 1)
+        this, stype, (this.charSTR ?? 1)
       );
       if (this.rs_forgeProjSizeBonus) star.r += this.rs_forgeProjSizeBonus; // Dwarf: Heavy Ammo
       // Blessed by Athena: auto-aim this shuriken
@@ -567,7 +768,7 @@ class Ball {
       if (aaStar) { star.vx = aaStar.vx; star.vy = aaStar.vy; }
       projectiles.push(star);
       // Fan Throw: every 5th throw → fire 2 extra shurikens at ±20°
-      if (this.skills.includes('fan_throw') && this.skillState) {
+      if (this.skills.includes('fan_throw') && this.skillState && def.id !== 'fuma_shuriken') {
         this.skillState.sk_fanCount = (this.skillState.sk_fanCount || 0) + 1;
         if (this.skillState.sk_fanCount % 5 === 0) {
           const fanAngles = [-20 * Math.PI / 180, 20 * Math.PI / 180];

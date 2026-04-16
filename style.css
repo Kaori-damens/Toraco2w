@@ -840,6 +840,41 @@ canvas#gameCanvas {
   color: #778;
   font-style: italic;
 }
+/* ── Unique badge ─────────────────────────────────────────────── */
+.unique-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 900;
+  color: #ffd700;
+  background: #1a1200;
+  border: 1px solid #886600;
+  border-radius: 4px;
+  padding: 1px 4px;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  margin-left: 3px;
+}
+/* ── Championship Draft Phase ────────────────────────────────── */
+.cs-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.cs-fill-btn { color: #8899aa !important; border-color: #2a3a4a !important; }
+.cs-fill-btn:hover { color: #aabbcc !important; }
+.cs-draft-ready { font-size: 13px; color: #44bb77; font-weight: 700; padding: 4px 8px; }
+.cs-unique-pool-info { font-size: 11px; color: #6a7a5a; margin-bottom: 6px; }
+.cs-unique-pool-info b { color: #aacc66; }
+.cs-draft-remove {
+  margin-left: auto;
+  background: none; border: none; color: #663333;
+  cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px;
+  transition: color .15s;
+}
+.cs-draft-remove:hover { color: #ff5555; }
+
 .t-roster-empty {
   color: #445;
   font-size: 12px;
@@ -1127,6 +1162,12 @@ canvas#gameCanvas {
 .rc-total { font-size: 11px; color: #888; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1a1a3a; padding-top: 4px; margin-top: 2px; }
 .rc-total-val { font-weight: 900; font-size: 14px; color: #ffd700; }
 .rc-title-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: #0e0e22; border: 1px solid currentColor; margin-top: 1px; }
+.rc-guild-tag { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #0a0a1e; border: 1px solid #3355aa; color: #6688cc; letter-spacing: 2px; font-family: monospace; margin-top: 1px; cursor: default; }
+.cs-tag-form { padding: 20px 8px; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+.cs-tag-form-title { font-size: 15px; font-weight: 700; color: #88aaff; margin-bottom: 4px; }
+.cs-tag-form-row { display: flex; flex-direction: column; gap: 5px; }
+.cs-tag-label { font-size: 12px; color: #7788aa; }
+.cs-tag-input { width: 90px; text-transform: uppercase; letter-spacing: 3px; font-family: monospace; font-size: 16px; text-align: center; }
 .rc-add { padding: 5px 12px; background: #44cc88; border: none; border-radius: 6px; color: #000; font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; align-self: flex-end; transition: opacity .2s; }
 .rc-add:hover { opacity: .85; }
 .rc-del { position: absolute; top: 5px; right: 7px; background: none; border: none; color: #444; font-size: 13px; cursor: pointer; line-height: 1; }

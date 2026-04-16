@@ -622,6 +622,57 @@
         </div>
       </div>
 
+      <!-- ── Radoser Badges ── -->
+      <div class="wiki-section collapsed">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>🏷️ Radoser Badges</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+
+          <div class="wiki-sub">Title Badges — auto-assigned based on stats</div>
+          <div class="wiki-note">Evaluated in priority order. First matching condition wins.</div>
+          <table class="wiki-table">
+            <tr><th>Tier</th><th>Badge</th><th>Condition</th></tr>
+            <tr><td>Perfect</td><td>🐐 GOAT</td><td>All 6 stats = 10 (total = 60)</td></tr>
+            <tr><td>Perfect</td><td>🌟 Legend</td><td>Total ≥ 55</td></tr>
+            <tr><td>Multi-10</td><td>⚡ Demigod</td><td>≥ 4 stats equal 10</td></tr>
+            <tr><td>Multi-10</td><td>🔥 Prodigy</td><td>≥ 3 stats equal 10</td></tr>
+            <tr><td>Single-10</td><td>💨 Speedster</td><td>SPD = 10</td></tr>
+            <tr><td>Single-10</td><td>💪 Destroyer</td><td>STR = 10</td></tr>
+            <tr><td>Single-10</td><td>🛡️ Iron Wall</td><td>DUR = 10</td></tr>
+            <tr><td>Single-10</td><td>🧠 Mastermind</td><td>IQ = 10</td></tr>
+            <tr><td>Single-10</td><td>👻 Phantom</td><td>BIQ = 10</td></tr>
+            <tr><td>Single-10</td><td>🌪️ Whirlwind</td><td>MA = 10</td></tr>
+            <tr><td>Build</td><td>🏋️ Tank</td><td>STR ≥ 8 &amp; DUR ≥ 8</td></tr>
+            <tr><td>Build</td><td>💥 Glass Cannon</td><td>SPD ≥ 8 &amp; DUR ≤ 3</td></tr>
+            <tr><td>Build</td><td>🐂 Berserker</td><td>STR ≥ 8 &amp; SPD ≤ 3</td></tr>
+            <tr><td>Build</td><td>🐦 Trickster</td><td>SPD ≥ 8 &amp; STR ≤ 3</td></tr>
+            <tr><td>Build</td><td>🎯 Tactician</td><td>IQ ≥ 8 &amp; BIQ ≥ 8</td></tr>
+            <tr><td>Build</td><td>🎭 Dancer</td><td>MA ≥ 8</td></tr>
+            <tr><td>Build</td><td>⚖️ All-Rounder</td><td>Every stat ≥ 7</td></tr>
+            <tr><td>Build</td><td>🟢 Balanced</td><td>Every stat ≥ 5</td></tr>
+            <tr><td>Build</td><td>🎪 One-Trick</td><td>Max stat ≥ 8 &amp; total ≤ 25</td></tr>
+            <tr><td>Total</td><td>⚔️ Veteran</td><td>Total ≥ 45</td></tr>
+            <tr><td>Total</td><td>🔥 Warrior</td><td>Total ≥ 35</td></tr>
+            <tr><td>Total</td><td>📊 Average</td><td>Total ≥ 25</td></tr>
+            <tr><td>Total</td><td>😐 Mid</td><td>Total ≥ 15</td></tr>
+            <tr><td>Total</td><td>🌱 Rookie</td><td>Fallback (total &lt; 15)</td></tr>
+          </table>
+
+          <div class="wiki-sub" style="margin-top:14px">Championship Tag Badge <code style="font-size:0.85em">[TAG]</code></div>
+          <div class="wiki-note">Radosers created during a <strong>Toraco Championship</strong> draft carry a 3-character tag badge that identifies which championship they belong to.</div>
+          <table class="wiki-table">
+            <tr><th>Field</th><th>Rule</th></tr>
+            <tr><td>Championship Name</td><td>1–16 characters, set once when entering Championship</td></tr>
+            <tr><td>Tag</td><td>Exactly 3 characters · uppercase A–Z / 0–9 · e.g. <code>SHN</code></td></tr>
+            <tr><td>Example</td><td>Name: <em>Sunohana</em> → badge: <strong>[SHN]</strong></td></tr>
+            <tr><td>Who gets tagged</td><td>All Radosers from: Chargen draft, Quick Create, Fill Remaining</td></tr>
+            <tr><td>Persists</td><td>Tag saved to localStorage with the Radoser — visible in Radosers tab</td></tr>
+          </table>
+
+        </div>
+      </div>
+
       <!-- ── Skills ── -->
       <div class="wiki-section collapsed">
         <div class="wiki-section-header" data-wiki-toggle>
@@ -717,6 +768,193 @@
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">16 Apr 2026</span>
+          <span class="changelog-badge">Patch 72</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚔️ <b>Excalibur Rework — Last Stand</b>: Đổi trigger từ "10 hits → beam" sang "HP ≤ 30% → Transform Mode 20s". Trong Transform Mode: tự bắn Sword Beam mỗi 2s (xuyên tường, xuyên địch, ×1.5 dmg). Visual: kiếm pulsing gold, vòng countdown giảm dần quanh ball.</li>
+              <li>🔱 <b>Gungnir throw damage</b>: Giảm xuống ×0.6 getDamage() (từ ×1.2) — throw 60% sát thương thay vì 120%.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">15 Apr 2026</span>
+          <span class="changelog-badge">Patch 71</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Fix Double Rage Multiplier</b>: Sát thương projectile (Gungnir, mũi tên, shuriken, v.v.) bị nhân <code>rageMult</code> hai lần trong phase Rage — một lần trong <code>getDamage()</code> lúc tạo projectile, một lần nữa trong <code>resolveProjectiles()</code>. Fix: chỉ nhân một lần (đã baked in từ <code>getDamage()</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">15 Apr 2026</span>
+          <span class="changelog-badge">Patch 70</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🪄 <b>Jingubang Rework 如意棒</b>: Giờ là Unique Spear (baseWeapon: spear) — kế thừa spear skills. Visual: đầu gậy hình chữ nhật (bỏ tam giác), hai đai vàng hai đầu + đai giữa, tassel đỏ. Scale length nhanh hơn spear (+7px/hit vs +4). Sau mỗi 6 hits → <b>WHIRL 4s</b>: gậy xoay 360° quanh bản thân (6× tốc độ quay), hitbox full circle bán kính = chiều dài gậy — sát thương toàn bộ kẻ địch trong vùng.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">15 Apr 2026</span>
+          <span class="changelog-badge">Patch 69</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⏱️ <b>Fix: Tốc độ game đồng nhất trên mọi màn hình</b>: Game loop giờ dùng fixed-timestep accumulator (16.667ms/step). Màn hình 120Hz/144Hz không còn chạy game nhanh gấp đôi so với 60Hz.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">15 Apr 2026</span>
+          <span class="changelog-badge">Patch 68</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>💾 <b>Fix: Resume Championship Draft (32)</b>: Draft phase giờ được tự động save vào localStorage sau mỗi thay đổi (tạo player, xóa, fill remaining, set name/tag). Back về menu rồi vào lại → Resume button hiện đúng <em>"Resume Draft 32 (N/32 players)"</em>.</li>
+              <li>🔄 <b>Fix: Không bị wipe draft khi bấm Championship từ menu</b>: Nếu đang có draft trong memory, vào lại setup sẽ giữ nguyên thay vì reset.</li>
+              <li>🔧 <b>Fix: uniquePool Set survive serialization</b>: uniquePool (Set) được convert Array khi save JSON và restore về Set khi resume.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">15 Apr 2026</span>
+          <span class="changelog-badge">Patch 67</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏷️ <b>Championship Tag Badge</b>: Khi vào Championship, popup cho đặt tên (1–16 ký tự) và tag (3 ký tự, như Discord). Mọi radoser tạo trong draft đó tự động được gắn badge <code>[TAG]</code> và copy sang tab Radosers.</li>
+              <li>📋 <b>Auto-copy to Radosers</b>: Chargen draft mode nay tự push vào cgRoster (kèm tag) — không cần tạo thủ công.</li>
+              <li>⚡ <b>Fill Remaining</b>: Radosers được fill tự động cũng mang tag của championship.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">15 Apr 2026</span>
+          <span class="changelog-badge">Patch 66</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Fix: Màn hình đen sau khi chọn Skill Count</b>: WEAPON_MAP chưa được khai báo trong modular files → ReferenceError crash cgRenderSkillPick trước khi render HTML. Fix: thêm <code>const WEAPON_MAP = {}</code> vào weapons.js.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">15 Apr 2026</span>
+          <span class="changelog-badge">Patch 65</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🌟 <b>Excalibur</b> (Unique Sword): Tích điểm theo số hit. Sau 10 hit → bắn Sword Beam xuyên qua, sát thương cao. Blade sáng vàng với thanh điện tích.</li>
+              <li>⚡ <b>Mjolnir</b> (Unique Hammer): Mỗi khi đánh trúng hoặc chạm tường → 35% sinh tia sét ngẫu nhiên bounce 2 lần, sát thương 25% base. Đầu búa xanh điện.</li>
+              <li>🔥 <b>Iron Fist</b> (Unique Fists): Mỗi hit +1 Ember (max 5). Đủ 5 → Combustion AOE 100px, sát thương 3×. Găng tay sáng lửa theo stack.</li>
+              <li>🌑 <b>Shadowfang</b> (Unique Dagger): Mỗi hit tiêm độc ngay lập tức (2 dmg/3s, 12s). Đánh từ phía sau defender → tự động crit. Blade tím-đen với shadow wisp.</li>
+              <li>✨ <b>Gungnir</b> (Unique Spear): Mỗi 120 frame tự phóng lao Gungnir về phía đối thủ gần nhất (có tracking nhẹ). Lao vàng rune tráng lệ.</li>
+              <li>💀 <b>Harvester</b> (Unique Scythe): Mỗi hit +1 Soul Shard (max 5). Đủ 5 → Soul Burst AOE 80px, sát thương 3×. Soul orbs xoay xung quanh ball.</li>
+              <li>⚡ <b>Caliburn</b> (Unique Rapier): Mỗi parry +1 stack (max 3). Đủ 3 → tốc độ ×1.4 trong 5s + hit tiếp theo guaranteed crit. Giữ cơ chế Riposte + Lunge của rapier.</li>
+              <li>🐍 <b>Medusa Bow</b> (Unique Bow): Mỗi mũi tên trúng → đối thủ -1 maxSpd. Đủ 5 stack → Petrify 2s (vũ khí đứng yên). Cung serpent xanh lá.</li>
+              <li>🌀 <b>Fuma Shuriken</b> (Unique Shuriken): Mỗi lần bounce tường → shuriken lớn ra (+4 radius) và sát thương ×1.6. Max 3 bounce.</li>
+              <li>🩸 <b>Muramasa</b> (Unique Katana): Mỗi hit +1 Frenzy stack (max 3, -3 cooldown/stack). IAI Strike tốn 8% HP nhưng sát thương ×4 thay vì ×3. Blade đỏ máu.</li>
+              <li>🔧 <b>System</b>: Unique weapons dùng chung skill pool với base weapon (baseWeapon lookup). Tất cả weapon-specific skills/checks hoạt động đúng với cả unique version.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">12 Apr 2026</span>
+          <span class="changelog-badge">Patch 64</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Fix Limit Break stuck</b>: Khi cả 2 human dùng melee đều trong Limit Break, vũ khí 2 bên sẵn sàng cùng lúc có thể gây ra mutual kill (draw) liên tục, khiến BO3 không bao giờ kết thúc. Fix: trong collidePair, chỉ check lượt đánh ngược lại nếu cả 2 radoser còn sống sau lượt đầu tiên.</li>
+              <li>🐛 <b>Fix Dragon đuôi không vẩy</b>: Dragon bị đưa vào static asset overrides nên đoạn code animated tail bị skip. Fix: xóa dragon khỏi overrides → dùng lại switch-case có đuôi vẩy theo thời gian thực.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">12 Apr 2026</span>
+          <span class="changelog-badge">Patch 63</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚖️ <b>Jingubang balance</b>: Đổi sang damage scaling như Sword (baseDamage×STR + 1.15/hit) thay vì baseDamage=14. Giờ mạnh hơn Sword ~15% mỗi hit, không còn bị overpowered.</li>
+              <li>🪄 <b>Jingubang — Giant Mode</b>: Đạt đủ 10 hits → gậy hoá to gấp đôi, tầm đánh 2×, hitbox 2×, xoay 3.5× nhanh hơn trong 5 giây. Kèm aura vòng tròn golden và tassel phát sáng.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">11 Apr 2026</span>
+          <span class="changelog-badge">Patch 62</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>★ <b>Unique System</b>: Unique weapons/skills chỉ xuất hiện trong Championship mode — một khi đã được roll, sẽ bị xóa khỏi pool cho cả Championship đó.</li>
+              <li>🪄 <b>Jingubang</b>: Unique weapon đầu tiên — cây gậy Như Ý của Tôn Ngộ Không. Tầm đánh dài, damage cao (14 base), tốc độ tăng theo số hit.</li>
+              <li>🫴 <b>Cướp Đoạt</b>: Unique skill — đầu trận cướp vũ khí đối thủ, khiến họ chiến đấu bằng Fists.</li>
+              <li>🗡️ <b>Song Kiếm</b>: Unique skill — trang bị thêm 1 vũ khí thứ 2, gây 50% sát thương, tấn công xen kẽ.</li>
+              <li>🌀 <b>Shadow Clone</b>: Unique skill — mỗi round có 1 phân thân hấp thụ 2 đòn đầu tiên.</li>
+              <li>🏆 <b>Championship Draft Phase (32)</b>: Mode 32 người nay có Draft Phase riêng — tạo đủ 32 người trước khi bắt đầu. Unique pool active trong suốt draft.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">10 Apr 2026</span>
           <span class="changelog-badge">Patch 61</span>

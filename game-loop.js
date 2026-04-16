@@ -5,42 +5,67 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let rafId = null;
 
-function gameLoop() {
+// Fixed timestep: game logic runs at exactly 60 steps/sec regardless of display Hz.
+// rAF fires at monitor refresh rate (60/120/144Hz) — accumulate real time,
+// drain in 16.667ms chunks so 120Hz screen doesn't run the game 2× faster.
+const GAME_STEP_MS  = 1000 / 60;   // 16.667 ms per logic step
+const MAX_CATCHUP   = 5;            // max steps per rAF frame (prevents spiral-of-death on tab focus regain)
+let   _lastRafTime  = null;
+let   _accumulator  = 0;
+
+function gameLoop(now) {
   if (!state.running) return;
   rafId = requestAnimationFrame(gameLoop);
 
-  if (state.phase === 'countdown') {
-    state.countdownFrame++;
-    // 4 phases × 60f: "3" (0–59), "2" (60–119), "1" (120–179), "FIGHT!" (180–239)
-    const cf = state.countdownFrame;
-    const ENTRY_FRAMES = 180; // balls travel during "3","2","1", then freeze at "FIGHT!"
+  // Bootstrap on first frame
+  if (_lastRafTime === null) { _lastRafTime = now; }
+  let elapsed = now - _lastRafTime;
+  _lastRafTime = now;
 
-    // Animate entry: ease-out (sin curve)
-    for (const b of state.players) {
-      if (b._targetX == null) continue;
-      if (cf <= ENTRY_FRAMES) {
-        const t = Math.sin((cf / ENTRY_FRAMES) * Math.PI / 2); // 0→1 ease-out
-        b.x = b._entrySpawnX + (b._targetX - b._entrySpawnX) * t;
-        b.y = b._entrySpawnY + (b._targetY - b._entrySpawnY) * t;
-      } else {
-        b.x = b._targetX;
-        b.y = b._targetY;
-      }
-    }
+  // Cap elapsed to avoid huge jumps after tab-switch / focus loss
+  if (elapsed > 200) elapsed = 200;
+  _accumulator += elapsed;
 
-    if (cf >= 240) {
-      state.phase = 'playing';
+  // Drain accumulator in fixed 16.667ms steps
+  let stepsThisFrame = 0;
+  while (_accumulator >= GAME_STEP_MS && stepsThisFrame < MAX_CATCHUP * state.speed) {
+    _accumulator -= GAME_STEP_MS;
+
+    if (state.phase === 'countdown') {
+      state.countdownFrame++;
+      // 4 phases × 60f: "3" (0–59), "2" (60–119), "1" (120–179), "FIGHT!" (180–239)
+      const cf = state.countdownFrame;
+      const ENTRY_FRAMES = 180; // balls travel during "3","2","1", then freeze at "FIGHT!"
+
+      // Animate entry: ease-out (sin curve)
       for (const b of state.players) {
-        if (b._targetX != null) { b.x = b._targetX; b.y = b._targetY; }
-        b.vx = b._launchVx || 0;
-        b.vy = b._launchVy || 0;
-        skillOnPreCombat(b);
+        if (b._targetX == null) continue;
+        if (cf <= ENTRY_FRAMES) {
+          const t = Math.sin((cf / ENTRY_FRAMES) * Math.PI / 2); // 0→1 ease-out
+          b.x = b._entrySpawnX + (b._targetX - b._entrySpawnX) * t;
+          b.y = b._entrySpawnY + (b._targetY - b._entrySpawnY) * t;
+        } else {
+          b.x = b._targetX;
+          b.y = b._targetY;
+        }
       }
+
+      if (cf >= 240) {
+        state.phase = 'playing';
+        for (const b of state.players) {
+          if (b._targetX != null) { b.x = b._targetX; b.y = b._targetY; }
+          b.vx = b._launchVx || 0;
+          b.vy = b._launchVy || 0;
+          skillOnPreCombat(b);
+        }
+      }
+    } else if (!state.paused && !state.ended) {
+      for (let s = 0; s < state.speed; s++) step();
+      state.matchTime += state.speed;
     }
-  } else if (!state.paused && !state.ended) {
-    for (let s = 0; s < state.speed; s++) step();
-    state.matchTime += state.speed;
-  }
+
+    stepsThisFrame++;
+  } // end while accumulator
 
   render();
   updateHUD();

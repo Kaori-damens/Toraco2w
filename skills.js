@@ -39,6 +39,14 @@ const SKILL_DEFS = [
   { id: 'blood_mark',    name: 'Blood Mark',    icon: '🩸', type: 'post_combat', desc: 'On loss: curse the winner — they start their next match at only 80% HP' },
   { id: 'copycat',       name: 'Copycat',       icon: '🎭', type: 'post_combat', desc: 'On win: chance to copy a random skill from the opponent (scales with BIQ)' },
 
+  // ── UNIQUE SKILLS (Championship only — removed from pool once rolled) ──────
+  { id: 'usurp',        name: 'Cướp Đoạt',    icon: '🫴', type: 'pre_combat',  unique: true,
+    desc: 'At round start, steal the opponent\'s weapon. They fight with Fists for the rest of the round.' },
+  { id: 'dualwield',    name: 'Song Kiếm',     icon: '🗡️', type: 'passive',    unique: true,
+    desc: 'Equip a second random weapon. It deals 50% damage and attacks independently, alternating with your primary.' },
+  { id: 'shadow_clone', name: 'Shadow Clone',  icon: '🌀', type: 'pre_combat',  unique: true,
+    desc: 'Begin each round with a shadow clone. The first 2 hits against you are absorbed by the clone before it vanishes.' },
+
   // ── WEAPON SKILLS (only available if ball has matching weapon) ──
   // 🥊 Fists
   { id: 'iron_knuckles',   name: 'Iron Knuckles',    icon: '👊', type: 'in_combat',  weapon: 'fists',
@@ -348,7 +356,8 @@ function skillOnHit(attacker, defender, dmg) {
 function weaponSkillOnHit(attacker, defender, dmg) {
   const sk = attacker.skillState;
   if (!sk) return;
-  const wid = attacker.weaponDef?.id;
+  // For unique weapons, use their baseWeapon for skill matching
+  const wid = attacker.weaponDef?.baseWeapon || attacker.weaponDef?.id;
 
   // Shadow Strike (Dagger): consume guaranteed crit flag
   if (sk.shadowStrikeCrit && wid === 'dagger') {
@@ -464,8 +473,9 @@ function skillOnParry(b1, b2) {
       spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '⚡ SPIN UP!', '#cc88ff');
       flashSkillHUD(ball, SKILL_MAP['parry_master']);
     }
-    // Rapier: parry → +1 riposte stack (max 3) + open riposte window
-    if (ball.weaponDef?.id === 'rapier') {
+    // Rapier / Caliburn: parry → +1 riposte stack (max 3) + open riposte window
+    // Also handle Caliburn parry stack → speed boost
+    if (ball.weaponDef?.id === 'rapier' || ball.weaponDef?.id === 'caliburn') {
       const biq = ball.charBIQ ?? 0;
       ball.weapon.riposteStacks  = Math.min(3, (ball.weapon.riposteStacks || 0) + 1);
       ball.weapon.riposteWindow  = Math.max(40, 10 + biq * 6);
@@ -478,8 +488,21 @@ function skillOnParry(b1, b2) {
       ball.maxSpd = ball.baseMaxSpd;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 16, '⚡ PARRIED!', '#aaddff');
     }
+    // Caliburn: parry → +1 caliburn stack (max 3). At 3: speed boost + guaranteed crit
+    if (ball.weaponDef?.id === 'caliburn') {
+      ball.weapon.caliburnStacks = Math.min(3, (ball.weapon.caliburnStacks || 0) + 1);
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 20,
+        `⚡ CALIBURN ×${ball.weapon.caliburnStacks}`, '#ccf0ff');
+      if (ball.weapon.caliburnStacks >= 3) {
+        ball.weapon.caliburnSpeedTimer = 300; // 5s boost
+        ball.weapon.caliburnCrit = true;
+        ball.weapon.caliburnStacks = 0;
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 28, '⚡ BURST!', '#ffee44');
+        spawnBigAnnouncement?.('⚡ CALIBURN BURST!', ball.color);
+      }
+    }
     // Parry Punish (Sword): after parry → ×2 dmg for 3 seconds (180 frames)
-    if (ball.skills?.includes('parry_punish') && ball.weaponDef?.id === 'sword') {
+    if (ball.skills?.includes('parry_punish') && (ball.weaponDef?.id === 'sword' || ball.weaponDef?.baseWeapon === 'sword')) {
       ball.skillState.parryPunishActive = true;
       ball.skillState.parryPunishTimer  = 180;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '🗡️ PUNISH!', '#ffdd00');
@@ -525,7 +548,7 @@ function skillOnKill(killer, victim) {
     flashSkillHUD(killer, SKILL_MAP['blood_frenzy']);
   }
   // Soul Harvest (Scythe): on kill → +10 HP
-  if (killer.skills?.includes('soul_harvest') && killer.weaponDef?.id === 'scythe') {
+  if (killer.skills?.includes('soul_harvest') && (killer.weaponDef?.id === 'scythe' || killer.weaponDef?.baseWeapon === 'scythe')) {
     killer.hp = Math.min(killer.maxHp, killer.hp + 10);
     spawnDamageNumber(killer.x, killer.y - killer.radius, '✨ +10 HP', '#88ff88');
     addBattleLog('heal', { attacker: getBallLabel(killer), aColor: killer.color, heal: 10, hpAfter: +killer.hp.toFixed(1), source: 'Soul Harvest' });

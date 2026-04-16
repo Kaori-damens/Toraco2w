@@ -135,6 +135,9 @@ function startGame() {
   applyArenaFit(state.arena);
   state.running = true;
   state.paused  = false;
+  // Reset fixed-timestep accumulator so stale time from menu doesn't cause a frame spike
+  _lastRafTime = null;
+  _accumulator = 0;
   if (rafId) cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(gameLoop);
 }

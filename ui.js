@@ -468,8 +468,12 @@ document.getElementById('championshipBtn').addEventListener('click', () => {
   state.tournament  = null;
   state.tournament2v2 = null;
   state.bo3 = null;
-  // Reset setup state (keep size preference)
-  if (!state.championship || state.championship.phases) state.championship = {size:128, selectedFighters:[]};
+  // Keep in-memory draft state (size=32, draftRoster exists, no phases)
+  const hasDraft = state.championship && !state.championship.phases && state.championship.draftRoster;
+  if (!hasDraft) {
+    // Reset only if not mid-draft
+    if (!state.championship || state.championship.phases) state.championship = {size:128, selectedFighters:[]};
+  }
   buildChampionshipSetup();
   showScreen('championship-setup');
 });
@@ -493,10 +497,13 @@ document.getElementById('csClearBtn').addEventListener('click', () => {
 });
 
 document.getElementById('csStartBtn').addEventListener('click', () => {
-  const roster   = JSON.parse(localStorage.getItem('cgRoster') ?? '[]');
-  const cs       = state.championship;
-  const size     = cs?.size ?? 128;
-  const selIdxs  = cs?.selectedFighters ?? [];
+  const cs   = state.championship;
+  const size = cs?.size ?? 128;
+  // Size=32 uses draft flow — handled by startChampionship32()
+  if (size === 32) { startChampionship32(); return; }
+  // Size=64/128/256: old roster-pick flow
+  const roster      = JSON.parse(localStorage.getItem('cgRoster') ?? '[]');
+  const selIdxs     = cs?.selectedFighters ?? [];
   const selFighters = selIdxs.map(i => roster[i]).filter(Boolean);
   clearChampionshipSave();
   clearTournamentSave();
@@ -504,15 +511,30 @@ document.getElementById('csStartBtn').addEventListener('click', () => {
   state.tournament    = null;
   state.tournament2v2 = null;
   state.bo3           = null;
-  saveChampionshipProgress();   // save ngay sau khi tạo để F5 có thể resume
+  saveChampionshipProgress();
   renderChampionshipBracket();
   showScreen('bracket');
 });
 
 document.querySelectorAll('[data-cssize]').forEach(btn => {
   btn.addEventListener('click', () => {
-    if (!state.championship || state.championship.phases) state.championship = {size:128, selectedFighters:[]};
-    state.championship.size = parseInt(btn.dataset.cssize);
+    const newSize  = parseInt(btn.dataset.cssize);
+    const prevTag  = state.championship?.tag;
+    const prevName = state.championship?.name;
+    if (!state.championship || state.championship.phases) {
+      state.championship = { size: newSize, selectedFighters: [] };
+    } else {
+      // Switching away from 32: clear draft state to avoid stale data
+      if (state.championship.size === 32 && newSize !== 32) {
+        state.championship = { size: newSize, selectedFighters: [], tag: prevTag, name: prevName };
+      }
+      // Switching to 32: reset to fresh draft
+      else if (newSize === 32 && state.championship.size !== 32) {
+        state.championship = { size: 32, tag: prevTag, name: prevName };
+      } else {
+        state.championship.size = newSize;
+      }
+    }
     buildChampionshipSetup();
   });
 });

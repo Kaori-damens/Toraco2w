@@ -117,8 +117,9 @@ function collidePair(b1, b2) {
   }
 
   // 3. Weapon-to-body damage
+  // Check b1→b2 first; only check b2→b1 if b2 survived b1's hit (prevents simultaneous mutual kills)
   _checkWeaponHit(b1, b2);
-  _checkWeaponHit(b2, b1);
+  if (b1.alive && b2.alive) _checkWeaponHit(b2, b1);
 }
 
 // resolveProjectiles: projectiles vs all alive balls (any non-owner is a valid target)
@@ -177,8 +178,7 @@ function resolveProjectiles(players, projectiles) {
       // Check body hit
       if (dist2(proj.x, proj.y, target.x, target.y) < (proj.r + target.radius) * (proj.r + target.radius)) {
         const isCrit = Math.random() < proj.owner.critChance;
-        const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0;
-        const baseProjDmg = proj.damage * rageMult;
+        const baseProjDmg = proj.damage; // rageMult already baked in via getDamage() at throw time
         // Skill: Predator — +15% if target has less HP
         const predMult = proj.owner.skillState?.predatorActive ? 1.15 : 1;
         // Weapon skills: projectile damage multipliers
@@ -223,6 +223,19 @@ function resolveProjectiles(players, projectiles) {
           target.bounceCooldown = 14;
           proj.owner.weaponDef.onHit(proj.owner.weapon);
           skillOnHit(proj.owner, target, dmg);
+          // Medusa Bow: slow stack + petrify
+          if (proj.medusaArrow) {
+            target.medusaSlowStacks = (target.medusaSlowStacks || 0) + 1;
+            target.maxSpd  = Math.max(2, target.maxSpd  - 1.0);
+            target.baseMaxSpd = Math.max(2, target.baseMaxSpd - 1.0);
+            spawnDamageNumber(target.x, target.y - target.radius - 14,
+              `🐍 SLOW ×${target.medusaSlowStacks}`, '#44cc88');
+            if (target.medusaSlowStacks >= 5 && !target.medusaPetrify) {
+              target.medusaPetrify = 120; // 2s petrify
+              spawnDamageNumber(target.x, target.y - target.radius - 24, '🐍 PETRIFIED!', '#44cc88');
+              spawnBigAnnouncement?.('🐍 PETRIFIED!', proj.owner.color);
+            }
+          }
         } else {
           addBattleLog('proj_evade', { attacker: getBallLabel(proj.owner), defender: getBallLabel(target), aColor: proj.owner.color, dColor: target.color });
         }
@@ -239,6 +252,8 @@ function resolveProjectiles(players, projectiles) {
 }
 
 function _checkWeaponHit(attacker, defender) {
+  // Skip if either ball is already dead
+  if (!attacker.alive || !defender.alive) return;
   // No friendly fire in team matches
   if (attacker.teamId >= 0 && attacker.teamId === defender.teamId) return;
   if (attacker.weapon.cooldown > 0) return;
@@ -251,11 +266,24 @@ function _checkWeaponHit(attacker, defender) {
   for (const p of pts) {
     const threshold = p.r + forgeSizeBonus + defender.radius;
     if (dist2(p.x, p.y, defender.x, defender.y) < threshold*threshold) {
-      // Shadow Strike (Dagger): guaranteed crit override
-      const isShadowCrit = attacker.skills?.includes('shadow_strike') && def.id === 'dagger' && attacker.skillState?.shadowStrikeCrit;
-      const isCrit = isShadowCrit || Math.random() < attacker.critChance;
-      const isHammer = def.id === 'hammer';
-      // Hammer: final damage += knockback / 2
+      // Shadow Strike (Dagger / Shadowfang): guaranteed crit override
+      const isShadowCrit = attacker.skills?.includes('shadow_strike') && (def.id === 'dagger' || def.baseWeapon === 'dagger') && attacker.skillState?.shadowStrikeCrit;
+      // Shadowfang: auto-crit when attacking from behind (attacker is behind defender's weapon)
+      let isShadowfangBehind = false;
+      if (def.id === 'shadowfang') {
+        // "behind" = attacker is on the opposite side of defender's weapon angle
+        const toAttacker = Math.atan2(attacker.y - defender.y, attacker.x - defender.x);
+        let angleDiff = toAttacker - defender.weapon.angle;
+        while (angleDiff >  Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        isShadowfangBehind = Math.abs(angleDiff) > 2.2; // ~126° — behind defender's weapon
+      }
+      const isCrit = isShadowCrit || isShadowfangBehind || Math.random() < attacker.critChance;
+      if (isShadowfangBehind && !isShadowCrit) {
+        spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '🌑 BACKSTAB!', '#aa44ff');
+      }
+      const isHammer = def.id === 'hammer' || def.baseWeapon === 'hammer';
+      // Hammer / Mjolnir: final damage += knockback / 2
       const kbBonus = isHammer
         ? (def.baseKnockback + (attacker.weapon.bonusKnockback||0)) / 2
         : 0;
@@ -317,6 +345,14 @@ function _checkWeaponHit(attacker, defender) {
         defender.vx += Math.cos(ka) * kb * 1.4;
         defender.vy += Math.sin(ka) * kb * 1.4;
         defender.bounceCooldown = 18;   // defender AI backs off after being hit
+        // Shadowfang: every melee hit applies poison
+        if (def.id === 'shadowfang') {
+          defender.sk_poisonDuration = 12 * 60;
+          defender.sk_poisonTick     = 0;
+          defender.sk_poisonDmg      = 2.0;
+          defender.sk_poisonOwner    = attacker;
+          spawnDamageNumber(defender.x, defender.y - defender.radius - 14, '🌑 VENOM!', '#9933ff');
+        }
         // Scaling
         def.onHit(attacker.weapon);
         skillOnHit(attacker, defender, dmg);
