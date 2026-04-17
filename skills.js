@@ -10,40 +10,40 @@ const SKILL_DEFS = [
   { id: 'extended_immunity',  name: 'Extended Immunity',  icon: '✨', type: 'passive',    desc: 'Invincibility window after being hit lasts much longer' },
   { id: 'heavy_mass',         name: 'Heavy Mass',         icon: '⚓', type: 'passive',    desc: 'Much harder to knock back' },
   // ── PRE-COMBAT (triggers once at round start) ────────────
-  { id: 'war_cry',    name: 'War Cry',    icon: '📢', type: 'pre_combat', desc: 'First hit of the round deals double damage' },
-  { id: 'fortify',    name: 'Fortify',    icon: '🏰', type: 'pre_combat', desc: 'Begin each round with a shield that blocks one hit entirely' },
+  { id: 'war_cry',    name: 'War Cry',    icon: '📢', type: 'pre_combat', desc: 'First hit of the round deals ×(1.5 + IQ×0.05) damage. [IQ=1: ×1.55 / IQ=10: ×2.0]' },
+  { id: 'fortify',    name: 'Fortify',    icon: '🏰', type: 'pre_combat', desc: 'Begin each round with a shield absorbing (10 + BIQ×2) damage. Excess passes through. [BIQ=1: 12 / BIQ=10: 30]' },
   { id: 'adrenaline', name: 'Adrenaline', icon: '⚡', type: 'pre_combat', desc: 'Move 50% faster for the first 5 seconds of each round' },
   { id: 'predator',   name: 'Predator',   icon: '🦅', type: 'pre_combat', desc: 'Deal 15% more damage when the enemy has less HP than you' },
-  { id: 'first_blood',name: 'First Blood',icon: '🩸', type: 'pre_combat', desc: 'First hit of the round briefly stuns the opponent' },
+  { id: 'first_blood',name: 'First Blood',icon: '🩸', type: 'pre_combat', desc: 'First hit of the round stuns the opponent for (20 + BIQ×4) frames. [BIQ=1: 0.4s / BIQ=10: 1.0s]' },
   // ── IN-COMBAT (reactive event hooks) ────────────────────
-  { id: 'berserker',   name: 'Berserker',   icon: '😤', type: 'in_combat',  desc: 'Deal 50% more damage when below 30% HP' },
+  { id: 'berserker',   name: 'Berserker',   icon: '😤', type: 'in_combat',  desc: 'Below 30% HP: deal ×(1.2 + IQ×0.03) damage. [IQ=1: ×1.23 / IQ=10: ×1.5]' },
   { id: 'phoenix',     name: 'Phoenix',     icon: '🔥', type: 'in_combat',  desc: 'Once per round, survive a killing blow with 1 HP remaining' },
-  { id: 'counter',     name: 'Counter',     icon: '↩️', type: 'in_combat',  desc: 'After your attack is parried, your next hit deals double damage' },
+  { id: 'counter',     name: 'Counter',     icon: '↩️', type: 'in_combat',  desc: 'After your attack is parried, next hit deals ×(1.5 + BIQ×0.05) damage. [BIQ=1: ×1.55 / BIQ=10: ×2.0]' },
   { id: 'vampiric',    name: 'Vampiric',    icon: '🧛', type: 'in_combat',  desc: 'Each hit heals you for 5% of the damage you deal' },
-  { id: 'parry_master',name: 'Parry Master',icon: '🗡️', type: 'in_combat',  desc: 'On successful parry: no knockback + weapon spins much faster briefly' },
+  { id: 'parry_tech_1', name: 'Parry Technique I',   icon: '🔄', type: 'in_combat',  desc: 'On parry: instantly reverse your weapon spin direction.' },
+  { id: 'parry_tech_2', name: 'Parry Technique II',  icon: '🗡️', type: 'in_combat',  desc: 'On parry: no knockback + spin boost (60+BIQ×6 frames) + counter window (BIQ×4 frames). [BIQ=5: 90f spin / 20f counter | BIQ=10: 120f spin / 40f counter]' },
+  { id: 'parry_tech_3', name: 'Parry Technique III', icon: '🛡️', type: 'in_combat',  desc: 'Your entire weapon body can parry (not just the tip). Fists users: take 50% damage on parry clashes.' },
   { id: 'momentum',    name: 'Momentum',    icon: '🌀', type: 'in_combat',  desc: 'Each kill in FFA increases your speed by 10%, up to 5 kills' },
   { id: 'shadow_step', name: 'Shadow Step', icon: '👻', type: 'in_combat',  desc: 'When you dodge a hit, instantly teleport to a random safe position' },
   { id: 'blood_frenzy',name: 'Blood Frenzy',icon: '💉', type: 'in_combat',  desc: 'Restore 25 HP each time you defeat an opponent' },
-  { id: 'flow_state',  name: 'Flow State',  icon: '🌊', type: 'in_combat',  desc: 'Each hit builds speed (scales with MA). Taking damage resets all stacks' },
-  { id: 'read_react',  name: 'Read & React',icon: '⚡', type: 'in_combat',  desc: 'When hit, chance to instantly counter-attack (scales with BIQ)' },
-  { id: 'exploit',     name: 'Exploit',     icon: '💡', type: 'in_combat',  desc: 'Each hit has a chance to deal double damage (scales with IQ and BIQ)' },
-  { id: 'deflection',  name: 'Deflection',  icon: '🪞', type: 'passive',    desc: 'Passive chance to completely negate an incoming hit (scales with MA)' },
-  { id: 'mind_break',  name: 'Mind Break',  icon: '🧿', type: 'pre_combat', desc: 'If your IQ is higher than the enemy, they deal less damage. Bigger IQ gap = bigger reduction' },
+  { id: 'flow_state',  name: 'Flow State',  icon: '🌊', type: 'in_combat',  desc: 'Each hit builds speed (+MA×1% per stack). Taking damage resets all stacks' },
+  { id: 'read_react',  name: 'Read & React',icon: '⚡', type: 'in_combat',  desc: 'When hit, BIQ×3.5% chance to counter for ×(1 + BIQ×0.1) damage. [BIQ=5: 17.5% / ×1.5 / BIQ=10: 35% / ×2.0]' },
+  { id: 'exploit',     name: 'Exploit',     icon: '💡', type: 'in_combat',  desc: 'Each hit: (IQ+BIQ)×1% chance to deal ×(1.5 + IQ×0.05) damage. [IQ+BIQ=10: 10% / IQ=10: ×2.0]' },
+  { id: 'deflection',  name: 'Deflection',  icon: '🪞', type: 'passive',    desc: 'MA×2% chance to completely negate an incoming hit. [MA=5: 10% / MA=10: 20%]' },
+  { id: 'mind_break',  name: 'Mind Break',  icon: '🧿', type: 'pre_combat', desc: 'If IQ > enemy IQ: reduce their damage by (gap × (2 + IQ×0.5))%. Scales with both IQ and the gap.' },
   // ── POST-COMBAT (triggers after round ends) ──────────────
-  { id: 'learning',      name: 'Learning',      icon: '📚', type: 'post_combat', desc: 'On loss: deal 5% more damage next round' },
-  { id: 'adaptation',    name: 'Adaptation',    icon: '🧬', type: 'post_combat', desc: 'On loss: take 20% less damage from the weapon type that killed you' },
+  { id: 'learning',      name: 'Learning',      icon: '📚', type: 'post_combat', desc: 'On loss: deal 5% more damage next round (stacks each loss)' },
+  { id: 'adaptation',    name: 'Adaptation',    icon: '🧬', type: 'post_combat', desc: 'On loss: take (15 + BIQ×2)% less damage from the weapon type that killed you. [BIQ=5: 25% / BIQ=10: 35%]' },
   { id: 'survivor',      name: 'Survivor',      icon: '🩹', type: 'post_combat', desc: 'Win at very low HP: permanently gain +10 max HP' },
   { id: 'veteran',       name: 'Veteran',       icon: '🏅', type: 'post_combat', desc: 'On win: permanently gain +1 to a random stat' },
-  { id: 'mastery',       name: 'Mastery',       icon: '🌙', type: 'post_combat', desc: 'Win while injured: chance to permanently boost your weapon\'s damage (scales with MA)' },
+  { id: 'mastery',       name: 'Mastery',       icon: '🌙', type: 'post_combat', desc: 'Win while injured: MA×3% chance to permanently boost weapon base damage' },
   { id: 'perfectionist', name: 'Perfectionist', icon: '💎', type: 'post_combat', desc: 'Win at high HP: +15% damage next round. Win while injured: -10% damage instead' },
   { id: 'blood_mark',    name: 'Blood Mark',    icon: '🩸', type: 'post_combat', desc: 'On loss: curse the winner — they start their next match at only 80% HP' },
-  { id: 'copycat',       name: 'Copycat',       icon: '🎭', type: 'post_combat', desc: 'On win: chance to copy a random skill from the opponent (scales with BIQ)' },
+  { id: 'copycat',       name: 'Copycat',       icon: '🎭', type: 'post_combat', desc: 'On win: BIQ×5% chance to copy a random skill from the opponent' },
 
   // ── UNIQUE SKILLS (Championship only — removed from pool once rolled) ──────
   { id: 'usurp',        name: 'Cướp Đoạt',    icon: '🫴', type: 'pre_combat',  unique: true,
     desc: 'At round start, steal the opponent\'s weapon. They fight with Fists for the rest of the round.' },
-  { id: 'dualwield',    name: 'Song Kiếm',     icon: '🗡️', type: 'passive',    unique: true,
-    desc: 'Equip a second random weapon. It deals 50% damage and attacks independently, alternating with your primary.' },
   { id: 'shadow_clone', name: 'Shadow Clone',  icon: '🌀', type: 'pre_combat',  unique: true,
     desc: 'Begin each round with a shadow clone. The first 2 hits against you are absorbed by the clone before it vanishes.' },
 
@@ -64,7 +64,7 @@ const SKILL_DEFS = [
   { id: 'duel_instinct',   name: 'Duel Instinct',     icon: '⚔️', type: 'passive',    weapon: 'sword',
     desc: 'When only one enemy remains, deal 30% more damage' },
   { id: 'parry_punish',    name: 'Parry Punish',      icon: '🗡️', type: 'in_combat',  weapon: 'sword',
-    desc: 'After a successful parry, your next 3 seconds of attacks deal double damage' },
+    desc: 'After a successful parry, deal ×2 dmg for (2 + IQ×0.2)s. [IQ=1: 2.2s / IQ=5: 3.0s / IQ=10: 4.0s]' },
 
   // 🗡️ Dagger
   { id: 'poison_blade',    name: 'Poison Blade',      icon: '🐍', type: 'in_combat',  weapon: 'dagger',
@@ -78,7 +78,7 @@ const SKILL_DEFS = [
   { id: 'long_reach',      name: 'Long Reach',        icon: '🔱', type: 'passive',    weapon: 'spear',
     desc: 'Start every round with +20px extra spear reach' },
   { id: 'skewer',          name: 'Skewer',            icon: '📌', type: 'in_combat',  weapon: 'spear',
-    desc: "On hit: pin the enemy's weapon for 30 frames — they cannot swing while pinned" },
+    desc: "On hit: pin the enemy's weapon for (20 + BIQ×4) frames. [BIQ=1: 0.4s / BIQ=5: 0.67s / BIQ=10: 1.0s]" },
   { id: 'zone_control',    name: 'Zone Control',      icon: '💫', type: 'passive',    weapon: 'spear',
     desc: 'Enemies that stay within 150px of your spear tip take 0.5 damage per second' },
 
@@ -100,9 +100,9 @@ const SKILL_DEFS = [
 
   // 🏹 Bow
   { id: 'sniper',          name: 'Sniper',            icon: '🎯', type: 'in_combat',  weapon: 'bow',
-    desc: 'Arrows shot at targets over 300px away deal 55% more damage' },
+    desc: 'Arrows shot at targets over 300px away deal ×(1.4 + IQ×0.03) damage. [IQ=1: ×1.43 / IQ=10: ×1.70]' },
   { id: 'volley',          name: 'Volley',            icon: '🏹', type: 'pre_combat', weapon: 'bow',
-    desc: 'The first 3 arrows of the round deal double damage' },
+    desc: 'First 3 arrows of the round deal ×(1.5 + IQ×0.05) damage. [IQ=1: ×1.55 / IQ=10: ×2.0]' },
   { id: 'piercing_shot',   name: 'Piercing Shot',     icon: '💥', type: 'in_combat',  weapon: 'bow',
     desc: 'Every 8th arrow pierces through the target and can hit enemies behind them' },
 
@@ -189,6 +189,7 @@ function initRoundSkillState(ball) {
     warCryReady:     ball.skills.includes('war_cry'),
     fortifyShield:   ball.skills.includes('fortify'),
     firstBloodReady: ball.skills.includes('first_blood'),
+    cloneHits:       ball.skills.includes('shadow_clone') ? 2 : 0, // absorbs first 2 hits
     phoenixUsed:     false,
     counterActive:   false,
     momentumStacks:  0,
@@ -221,9 +222,34 @@ function skillOnPreCombat(ball) {
   // Passive skills: handled by .always-active CSS class set in buildHUD() — no flash needed here.
 
   // Flash pre-combat skills (they arm themselves at round start)
-  const preCombats = ['war_cry','fortify','adrenaline','predator','first_blood'];
+  const preCombats = ['war_cry','fortify','adrenaline','predator','first_blood','shadow_clone'];
   for (const pid of preCombats) {
     if (ball.skills.includes(pid) && SKILL_MAP[pid]) flashSkillHUD(ball, SKILL_MAP[pid]);
+  }
+
+  // Usurp: steal one opponent's weapon — they fight with fists this round
+  if (ball.skills.includes('usurp') && typeof state !== 'undefined') {
+    const enemies = state.players.filter(p => p !== ball && p.alive
+      && (ball.teamId >= 0 ? p.teamId !== ball.teamId : true)
+      && p.weaponDef.id !== 'fists');
+    if (enemies.length > 0) {
+      // Pick nearest enemy
+      const target = enemies.reduce((best, p) =>
+        Math.hypot(p.x-ball.x, p.y-ball.y) < Math.hypot(best.x-ball.x, best.y-ball.y) ? p : best);
+      const stolenName = target.weaponDef.icon + ' ' + target.weaponDef.name;
+      // Force target to use fists
+      target.weaponDef   = WEAPON_MAP['fists'];
+      target.weapon      = target._initWeapon('fists');
+      spawnDamageNumber(target.x, target.y - target.radius - 18, `🫴 STOLEN!`, '#ff4444');
+      spawnDamageNumber(ball.x,   ball.y   - ball.radius   - 18, `🫴 ${stolenName}`, '#ffd700');
+      spawnBigAnnouncement?.('🫴 CƯỚP ĐOẠT!', ball.color);
+      if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['usurp']);
+    }
+  }
+
+  // Shadow Clone: show announcement (clone HP absorbed in takeDamage)
+  if (ball.skills.includes('shadow_clone')) {
+    spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '🌀 CLONE ACTIVE (2 hits)', '#aaddff');
   }
 
   if (ball.skills.includes('adrenaline')) {
@@ -261,7 +287,7 @@ function skillOnPreCombat(ball) {
       const theirIQ = other.charIQ || 1;
       if (myIQ > theirIQ) {
         const gap = myIQ - theirIQ;
-        const debuff = gap * 0.03;
+        const debuff = gap * (0.02 + myIQ * 0.005);
         other.mindBreakDebuff = Math.min((other.mindBreakDebuff || 0) + debuff, 0.60);
         spawnDamageNumber(other.x, other.y - other.radius - 14,
           `🧿 MIND BREAK -${(debuff * 100).toFixed(0)}%`, '#cc88ff');
@@ -283,17 +309,19 @@ function skillOnHit(attacker, defender, dmg) {
     flashSkillHUD(attacker, SKILL_MAP['war_cry']);
   }
 
-  // First Blood: stun defender on first hit
+  // First Blood: stun duration scales BIQ — 20 + BIQ×4 frames (BIQ=5→40f, BIQ=10→60f)
   if (sk.firstBloodReady) {
     sk.firstBloodReady = false;
-    defender.weapon.spinSlowTimer = Math.max(defender.weapon.spinSlowTimer, 30);
-    spawnDamageNumber(defender.x, defender.y - defender.radius - 18, 'STUNNED!', '#ff6633');
+    const fbStun = 20 + (attacker.charBIQ || 0) * 4;
+    defender.weapon.spinSlowTimer = Math.max(defender.weapon.spinSlowTimer, fbStun);
+    spawnDamageNumber(defender.x, defender.y - defender.radius - 18, `🩸 STUNNED! (${(fbStun/60).toFixed(1)}s)`, '#ff6633');
     flashSkillHUD(attacker, SKILL_MAP['first_blood']);
   }
 
-  // Counter: consume after use (2× damage already applied in getDamage)
+  // Counter: consume after use (mult already applied in getDamage); fix 2: clear expiry too
   if (sk.counterActive) {
     sk.counterActive = false;
+    sk.counterExpiry = null;
     flashSkillHUD(attacker, SKILL_MAP['counter']);
   }
 
@@ -421,10 +449,11 @@ function weaponSkillOnHit(attacker, defender, dmg) {
     }
   }
 
-  // Skewer (Spear): pin enemy weapon for 30 frames
+  // Skewer (Spear): pin duration scales BIQ — 20 + BIQ×4 frames (BIQ=5→40f, BIQ=10→60f)
   if (attacker.skills.includes('skewer') && wid === 'spear') {
-    defender.stunTimer = Math.max(defender.stunTimer || 0, 30);
-    spawnDamageNumber(defender.x, defender.y - defender.radius - 16, '📌 SKEWERED!', '#ffaa33');
+    const skewPin = 20 + (attacker.charBIQ || 0) * 4;
+    defender.stunTimer = Math.max(defender.stunTimer || 0, skewPin);
+    spawnDamageNumber(defender.x, defender.y - defender.radius - 16, `📌 SKEWERED! (${(skewPin/60).toFixed(1)}s)`, '#ffaa33');
     if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['skewer']);
   }
 
@@ -467,11 +496,23 @@ function skillOnParry(b1, b2) {
       spawnDamageNumber(ball.x, ball.y - ball.radius, 'COUNTER!', '#ff8833');
       flashSkillHUD(ball, SKILL_MAP['counter']);
     }
-    // Parry Master: no knockback for self + weapon spin ×2 for 90 frames
-    if (ball.skills?.includes('parry_master')) {
-      ball.weapon.spinBoostTimer = 90;
-      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '⚡ SPIN UP!', '#cc88ff');
-      flashSkillHUD(ball, SKILL_MAP['parry_master']);
+    // Parry Technique I: reverse weapon spin direction on parry
+    if (ball.skills?.includes('parry_tech_1')) {
+      ball.weapon.spinDir = (ball.weapon.spinDir || 1) * -1;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🔄 SPIN REVERSE!', '#88ddff');
+      flashSkillHUD(ball, SKILL_MAP['parry_tech_1']);
+    }
+    // Parry Technique II: no knockback + spin boost BIQ-scaled + counter window BIQ-scaled
+    if (ball.skills?.includes('parry_tech_2')) {
+      const biq = ball.charBIQ || 0;
+      ball.weapon.spinBoostTimer = 60 + biq * 6;
+      const pmWindow = biq * 4;
+      if (pmWindow > 0 && ball.skillState) {
+        ball.skillState.counterActive = true;
+        ball.skillState.counterExpiry = (typeof state !== 'undefined' ? state.matchTime : 0) + pmWindow;
+      }
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '⚡ PARRY TECH II!', '#cc88ff');
+      flashSkillHUD(ball, SKILL_MAP['parry_tech_2']);
     }
     // Rapier / Caliburn: parry → +1 riposte stack (max 3) + open riposte window
     // Also handle Caliburn parry stack → speed boost
@@ -501,11 +542,12 @@ function skillOnParry(b1, b2) {
         spawnBigAnnouncement?.('⚡ CALIBURN BURST!', ball.color);
       }
     }
-    // Parry Punish (Sword): after parry → ×2 dmg for 3 seconds (180 frames)
+    // Parry Punish (Sword): window scales IQ — (2 + IQ×0.2)s (IQ=5→3s, IQ=10→4s)
     if (ball.skills?.includes('parry_punish') && (ball.weaponDef?.id === 'sword' || ball.weaponDef?.baseWeapon === 'sword')) {
+      const ppFrames = Math.round((2 + (ball.charIQ || 0) * 0.2) * 60);
       ball.skillState.parryPunishActive = true;
-      ball.skillState.parryPunishTimer  = 180;
-      spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '🗡️ PUNISH!', '#ffdd00');
+      ball.skillState.parryPunishTimer  = ppFrames;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `🗡️ PUNISH! (${(ppFrames/60).toFixed(1)}s)`, '#ffdd00');
       if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['parry_punish']);
     }
   }
@@ -749,12 +791,15 @@ function initRaceSkillState(ball) {
     ball.rs_maxCooldown = 0; // passive — no cooldown bar
   }
   if (race === 'human') {
-    // Threshold trigger: fires once when HP < 20%, lasts until match end
+    // Threshold trigger: fires once when HP < 20%, lasts 15s then exhausted
     ball.rs_active         = false;
     ball.rs_triggered      = false;  // one-time flag — can never re-trigger
     ball.rs_stacks         = 0;
     ball.rs_maxCooldown    = 0;      // no cooldown bar; HP-threshold based
     ball.rs_lbBackoffTimer = 0;      // frames remaining in post-hit backoff phase
+    ball.rs_lbTimer        = 0;      // frames remaining in LB duration (900 = 15s)
+    ball.rs_lbDrainTimer   = 0;      // countdown to next 1 HP drain tick (120 = 2s)
+    ball.rs_lbExhausted    = false;  // true after LB ends — weapon 30% slower
   }
   if (race === 'angel') {
     ball.rs_maxCooldown = Math.max(600, 900 - spd * 40);
@@ -996,6 +1041,32 @@ function updateRaceSkills(ball, players, rstate) {
       ball.rs_sweepBase = ball.weapon.angle; // lock facing direction at activation
       spawnDamageNumber(ball.x, ball.y - ball.radius - 22, '🔥 FLAME BREATH!', '#ff6600');
       addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '🔥 Flame Breath!' });
+    }
+  }
+
+  // ── HUMAN: Limit Break duration drain + expiry ──────────────
+  if (race === 'human' && ball.rs_active) {
+    if (ball.rs_lbTimer > 0) {
+      ball.rs_lbTimer--;
+      // HP drain: -1 HP every 2s (min 1 HP — cannot self-kill)
+      ball.rs_lbDrainTimer--;
+      if (ball.rs_lbDrainTimer <= 0) {
+        ball.hp = Math.max(1, ball.hp - 1);
+        ball.rs_lbDrainTimer = 120;
+        if (typeof spawnDamageNumber === 'function')
+          spawnDamageNumber(ball.x, ball.y - ball.radius - 10, '-1', '#ff6666');
+      }
+      // Duration expired → exhaustion debuff
+      if (ball.rs_lbTimer === 0) {
+        ball.rs_active     = false;
+        ball.rs_lbExhausted = true;
+        if (typeof spawnDamageNumber === 'function')
+          spawnDamageNumber(ball.x, ball.y - ball.radius - 26, '💀 EXHAUSTED', '#888888');
+        if (typeof spawnBigAnnouncement === 'function')
+          spawnBigAnnouncement(`💀 ${ball.charName || 'Human'} — Exhausted!`, '#888888');
+        if (typeof addBattleLog === 'function')
+          addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '💀 Limit Break ended — exhausted!' });
+      }
     }
   }
 
@@ -1644,7 +1715,7 @@ function drawRaceSkillUI(ctx, ball) {
     ctx.restore();
   }
 
-  // Human: golden limit break glow + stack counter
+  // Human: golden limit break glow + stack counter + duration ring
   if (race === 'human' && ball.rs_active) {
     const pulse = 0.3 + 0.25 * Math.sin(t * 0.65);
     ctx.save();
@@ -1664,6 +1735,34 @@ function drawRaceSkillUI(ctx, ball) {
       ctx.fillText(`⚡×${ball.rs_stacks}`, cx, cy - r - 4);
       ctx.restore();
     }
+    // Duration countdown arc (sweeps away as time runs out)
+    if ((ball.rs_lbTimer || 0) > 0) {
+      const pct = ball.rs_lbTimer / 900; // 900 = 15s * 60fps
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = pct > 0.33 ? '#ffee44' : '#ff4444';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r + 16, -Math.PI / 2, -Math.PI / 2 + pct * Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  // Human: exhausted debuff indicator — grey pulsing ring
+  if (race === 'human' && ball.rs_lbExhausted) {
+    const pulse = 0.2 + 0.15 * Math.sin(t * 0.3);
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = '#888888'; ctx.lineWidth = 3;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.font = 'bold 10px Arial'; ctx.fillStyle = '#aaaaaa';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('💀', cx, cy - r - 2);
+    ctx.restore();
   }
 
   // Cooldown arc (thin arc sweeping around the ball)

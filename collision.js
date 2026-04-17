@@ -3,6 +3,25 @@
 // ============================================================
 function dist2(ax, ay, bx, by) { return (ax-bx)*(ax-bx) + (ay-by)*(ay-by); }
 
+// Parry Technique III: generate dense hit points along the full weapon length
+function getFullWeaponHitPoints(ball) {
+  const stdPts = ball.weaponDef.getHitPoints(ball);
+  if (!stdPts || stdPts.length === 0) return stdPts;
+  // Find the outermost point from ball center
+  let maxDist = 0, farthest = stdPts[0];
+  for (const p of stdPts) {
+    const d = Math.sqrt((p.x - ball.x) * (p.x - ball.x) + (p.y - ball.y) * (p.y - ball.y));
+    if (d > maxDist) { maxDist = d; farthest = p; }
+  }
+  const pts = [];
+  const steps = Math.max(2, Math.ceil(maxDist / 8));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    pts.push({ x: ball.x + (farthest.x - ball.x) * t, y: ball.y + (farthest.y - ball.y) * t, r: 5 });
+  }
+  return pts;
+}
+
 // collidePair: body bounce + parry + weapon hits for two specific balls
 function collidePair(b1, b2) {
   if (!b1.alive || !b2.alive) return;
@@ -39,14 +58,14 @@ function collidePair(b1, b2) {
   const b1Stuck = (b1.rs_weaponStuck > 0);
   const b2Stuck = (b2.rs_weaponStuck > 0);
   if (b1.weapon.parryCooldown === 0 && b2.weapon.parryCooldown === 0 && !b1Stuck && !b2Stuck) {
-    const pts1 = b1.weaponDef.getHitPoints(b1);
-    const pts2 = b2.weaponDef.getHitPoints(b2);
+    const pts1 = b1.skills?.includes('parry_tech_3') ? getFullWeaponHitPoints(b1) : b1.weaponDef.getHitPoints(b1);
+    const pts2 = b2.skills?.includes('parry_tech_3') ? getFullWeaponHitPoints(b2) : b2.weaponDef.getHitPoints(b2);
     let parryOccurred = false;
     const parryBonus1 = b1.rs_forgeParryBonus || 0;
     const parryBonus2 = b2.rs_forgeParryBonus || 0;
     for (const p1 of pts1) {
       for (const p2 of pts2) {
-        const threshold = p1.r + p2.r + 6 + parryBonus1 + parryBonus2; // Dwarf: Tempered Edge
+        const threshold = p1.r + p2.r + parryBonus1 + parryBonus2; // exact visual overlap only
         if (dist2(p1.x, p1.y, p2.x, p2.y) < threshold*threshold) {
           const d12x = p2.x - p1.x, d12y = p2.y - p1.y;
           const d12len = Math.sqrt(d12x*d12x + d12y*d12y);
@@ -55,7 +74,7 @@ function collidePair(b1, b2) {
           const dot1 = wDir1x*(d12x/d12len) + wDir1y*(d12y/d12len);
           const wDir2x = Math.cos(b2.weapon.angle), wDir2y = Math.sin(b2.weapon.angle);
           const dot2 = wDir2x*(-d12x/d12len) + wDir2y*(-d12y/d12len);
-          if (dot1 > 0.2 && dot2 > 0.2) parryOccurred = true;
+          if (dot1 > 0.05 && dot2 > 0.05) parryOccurred = true; // ~87° — parry at nearly any angle
         }
       }
     }
@@ -70,27 +89,31 @@ function collidePair(b1, b2) {
       const b2Fists = b2.weaponDef.id === 'fists';
 
       if (b1Fists && b2Fists) {
-        // Fists vs Fists: both take damage + normal recoil
+        // Fists vs Fists: both take damage + normal recoil (parry_tech_3 = 50% damage)
         if (pnl > 0) {
           b1.vx += (pnx/pnl)*recoil; b1.vy += (pny/pnl)*recoil;
           b2.vx -= (pnx/pnl)*recoil; b2.vy -= (pny/pnl)*recoil;
         }
-        b1.takeDamage(b2.getDamage(), b2.x, b2.y, false, b2);
-        b2.takeDamage(b1.getDamage(), b1.x, b1.y, false, b1);
+        const dmgTo1 = b2.getDamage() * (b1.skills?.includes('parry_tech_3') ? 0.5 : 1);
+        const dmgTo2 = b1.getDamage() * (b2.skills?.includes('parry_tech_3') ? 0.5 : 1);
+        b1.takeDamage(dmgTo1, b2.x, b2.y, false, b2);
+        b2.takeDamage(dmgTo2, b1.x, b1.y, false, b1);
         addBattleLog('parry_fists', { attacker: getBallLabel(b1), defender: getBallLabel(b2), damage: b2.getDamage(), aColor: b1.color, dColor: b2.color, defHp: +Math.max(0, b1.hp).toFixed(1) });
       } else if (b1Fists || b2Fists) {
         // Fists vs melee: fists takes damage (no knockback), other gets recoil only
+        // parry_tech_3 on fists user = 50% damage reduction
         const [fistsB, otherB] = b1Fists ? [b1, b2] : [b2, b1];
         const nx = fistsB.x - otherB.x, ny = fistsB.y - otherB.y;
         const nl = Math.sqrt(nx*nx + ny*ny);
         if (nl > 0) { otherB.vx -= (nx/nl)*recoil; otherB.vy -= (ny/nl)*recoil; }
-        fistsB.takeDamage(otherB.getDamage(), otherB.x, otherB.y, false, otherB);
+        const fistsDmgMult = fistsB.skills?.includes('parry_tech_3') ? 0.5 : 1;
+        fistsB.takeDamage(otherB.getDamage() * fistsDmgMult, otherB.x, otherB.y, false, otherB);
         addBattleLog('parry_fists', { attacker: getBallLabel(fistsB), defender: getBallLabel(otherB), damage: otherB.getDamage(), aColor: fistsB.color, dColor: otherB.color, defHp: +Math.max(0, fistsB.hp).toFixed(1) });
       } else {
         // Normal parry: recoil both — Parry Master holders keep their direction
         if (pnl > 0) {
-          if (!b1.skills?.includes('parry_master')) { b1.vx += (pnx/pnl)*recoil; b1.vy += (pny/pnl)*recoil; }
-          if (!b2.skills?.includes('parry_master')) { b2.vx -= (pnx/pnl)*recoil; b2.vy -= (pny/pnl)*recoil; }
+          if (!b1.skills?.includes('parry_tech_2')) { b1.vx += (pnx/pnl)*recoil; b1.vy += (pny/pnl)*recoil; }
+          if (!b2.skills?.includes('parry_tech_2')) { b2.vx -= (pnx/pnl)*recoil; b2.vy -= (pny/pnl)*recoil; }
         }
         addBattleLog('parry', { attacker: getBallLabel(b1), defender: getBallLabel(b2), aColor: b1.color, dColor: b2.color });
       }
@@ -184,13 +207,15 @@ function resolveProjectiles(players, projectiles) {
         // Weapon skills: projectile damage multipliers
         let wSkillProjMult = 1;
         if (proj.sniperBoost) {
-          wSkillProjMult *= 1.55;
-          spawnDamageNumber(target.x, target.y - target.radius - 18, '🎯 SNIPE! ×1.55', '#ffdd44');
+          const sniperMult = 1.4 + (proj.owner?.charIQ || 5) * 0.03;
+          wSkillProjMult *= sniperMult;
+          spawnDamageNumber(target.x, target.y - target.radius - 18, `🎯 SNIPE! ×${sniperMult.toFixed(2)}`, '#ffdd44');
           if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['sniper']);
         }
         if (proj.volleyBoost) {
-          wSkillProjMult *= 2.0;
-          spawnDamageNumber(target.x, target.y - target.radius - 18, '🏹 VOLLEY! ×2', '#ffaa33');
+          const volleyMult = 1.5 + (proj.owner?.charIQ || 5) * 0.05;
+          wSkillProjMult *= volleyMult;
+          spawnDamageNumber(target.x, target.y - target.radius - 18, `🏹 VOLLEY! ×${volleyMult.toFixed(2)}`, '#ffaa33');
           if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['volley']);
         }
         if (proj.type === 'shuriken' && (proj.bounces || 0) > 0) {
@@ -301,7 +326,8 @@ function _checkWeaponHit(attacker, defender) {
         spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '💀 EXECUTE! ×1.8', '#ff2222');
         if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['reapers_mark']);
       }
-      const dmg = baseDmgNoCrit * (isCrit ? attacker.critMult : 1) * predMult * (isExploit ? 2 : 1) * reaperMult;
+      const exploitMult = isExploit ? (1.5 + (attacker.charIQ || 5) * 0.05) : 1;
+      const dmg = baseDmgNoCrit * (isCrit ? attacker.critMult : 1) * predMult * exploitMult * reaperMult;
       const hitResult = defender.takeDamage(dmg, attacker.x, attacker.y, isCrit, attacker);
       if (hitResult) {
         const rageCDMult     = (state.matchTime >= 80 * 60) ? 0.7 : 1.0;

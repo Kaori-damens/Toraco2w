@@ -154,11 +154,12 @@ class Ball {
     const spearDebuff  = this.weapon.spinDebuffTimer > 0 ? 0.9 : 1.0;  // -10% from spear parry
     const hammerDebuff = this.weapon.spinSlowTimer   > 0 ? 0.7 : 1.0;  // -30% from hammer slow
     const parryBoost   = this.weapon.spinBoostTimer  > 0 ? 2.0 : 1.0;  // +100% from Parry Master
+    const lbExhausted  = this.rs_lbExhausted         ? 0.7 : 1.0;      // -30% from Limit Break exhaustion
     const giantBoost   = (this.weapon.whirlTimer > 0 && this.weaponDef?.id === 'jingubang') ? 6.0 : 1.0;  // Jingubang whirl mode: 6x spin
     const caliburnBoost = (this.weapon.caliburnSpeedTimer > 0) ? 1.4 : 1.0; // Caliburn: 3s speed boost
     const netDebuff    = this.netTrapped > 0 ? 0.70 : 1.0;              // -30% from Troll Net
     const stuckDebuff  = (this.rs_weaponStuck > 0 || this.stunTimer > 0) ? 0 : 1; // Void Grip / Smite stun
-    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff;
+    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff * lbExhausted;
   }
 
   getDamage() {
@@ -172,9 +173,15 @@ class Ball {
     if (bwid === 'dagger') base += ma * 0.15;  // MA=10 → +1.5 base (×STR)
     let dmg = (base * str + this.weapon.bonusDamage) * rageMult;
     // Skills that modify outgoing damage
-    if (this.skills.includes('berserker') && this.hp / this.maxHp < 0.30) dmg *= 1.5;
-    if (this.skillState?.warCryReady)  dmg *= 2;
-    if (this.skillState?.counterActive) dmg *= 2;
+    if (this.skills.includes('berserker') && this.hp / this.maxHp < 0.30) dmg *= (1.2 + (this.charIQ ?? 5) * 0.03);
+    if (this.skillState?.warCryReady)  dmg *= (1.5 + (this.charIQ ?? 5) * 0.05);
+    if (this.skillState?.counterActive) {
+      // Parry Master counter has an expiry window; regular Counter has none
+      const expired = this.skillState.counterExpiry != null
+        && (typeof state !== 'undefined' ? state.matchTime : 0) > this.skillState.counterExpiry;
+      if (expired) { this.skillState.counterActive = false; this.skillState.counterExpiry = null; }
+      else dmg *= (1.5 + (this.charBIQ ?? 5) * 0.05);
+    }
     if (this.skillLearningMult > 1)    dmg *= this.skillLearningMult;
     // Mind Break debuff: opponent reduced this ball's outgoing damage at round start
     if (this.mindBreakDebuff > 0)      dmg *= (1 - this.mindBreakDebuff);
@@ -218,8 +225,8 @@ class Ball {
       const enemiesAlive = state.players.filter(p => p !== this && p.alive);
       if (enemiesAlive.length <= 1) dmg *= 1.30;
     }
-    // Parry Punish (Sword): ×2 for 3s after parry
-    if (this.skillState?.parryPunishActive && bwid === 'sword') dmg *= 2.0;
+    // Parry Punish (Sword): ×2 for (2 + IQ×0.2)s after parry
+    if (this.skillState?.parryPunishActive && bwid === 'sword') dmg *= 2.0; // mult fixed; window scales IQ
     // Brawler's Rhythm (Fists): every 5th hit ×2.5
     if (this.skillState?.brawlerReady && bwid === 'fists') dmg *= 2.5;
     // Flurry Finisher (Dagger): every 5th consecutive hit ×2.5
@@ -433,7 +440,7 @@ class Ball {
           this.x + Math.cos(beamAngle)*this.radius,
           this.y + Math.sin(beamAngle)*this.radius,
           Math.cos(beamAngle)*14, Math.sin(beamAngle)*14,
-          this, 'sword_beam', this.getDamage() * 1.5
+          this, 'sword_beam', this.getDamage() * (1.2 + (this.charIQ ?? 5) * 0.03)
         );
         beam.piercing = true; beam.maxBounces = 0; beam.r = 10;
         if (typeof projectiles !== 'undefined') projectiles.push(beam);
@@ -489,7 +496,7 @@ class Ball {
             this.x + Math.cos(ta)*this.radius,
             this.y + Math.sin(ta)*this.radius,
             Math.cos(ta)*11, Math.sin(ta)*11,
-            this, 'gungnir', this.getDamage() * 0.6
+            this, 'gungnir', this.getDamage() * (0.3 + (this.charIQ ?? 5) * 0.03)
           );
           spear.maxBounces = 0; spear.r = 8; spear.tracking = true; spear.trackTarget = throwTarget;
           if (typeof projectiles !== 'undefined') projectiles.push(spear);
@@ -632,14 +639,15 @@ class Ball {
           const interval = this.weapon.fireInterval ?? def.fireInterval ?? 120;
           if (this.weapon.fireTimer >= interval) {
             // Bow aim cone: only fire when opponent is within ±coneHalf of weapon angle
-            // Cone width scales with IQ — IQ1→±24°, IQ5→±40°, IQ10→±60°
+            // IQ cao → cone HẸP → chỉ bắn khi aim chuẩn → accuracy cao hơn
+            // IQ1→±56°, IQ5→±40°, IQ10→±20°
             let inCone = true;
             if ((def.id === 'bow' || def.id === 'medusa_bow') && opponent && opponent.alive) {
               const dx = opponent.x - this.x, dy = opponent.y - this.y;
               let diff = Math.atan2(dy, dx) - this.weapon.angle;
               while (diff >  Math.PI) diff -= Math.PI * 2;
               while (diff < -Math.PI) diff += Math.PI * 2;
-              const coneHalf = (20 + (this.charIQ ?? 1) * 4) * Math.PI / 180;
+              const coneHalf = (60 - (this.charIQ ?? 1) * 4) * Math.PI / 180;
               inCone = Math.abs(diff) <= coneHalf;
             }
 
@@ -802,13 +810,32 @@ class Ball {
       return false;
     }
 
-    // Skill: Fortify Shield — absorb one hit entirely
+    // Skill: Shadow Clone — absorb first 2 hits entirely
+    if ((this.skillState?.cloneHits || 0) > 0) {
+      this.skillState.cloneHits--;
+      this.immunityFrames = 10;
+      spawnSparks(this.x, this.y, 8);
+      spawnDamageNumber(this.x, this.y - this.radius, `🌀 CLONE! (${this.skillState.cloneHits} left)`, '#aaddff');
+      if (this.skillState.cloneHits === 0) {
+        spawnDamageNumber(this.x, this.y - this.radius - 18, '🌀 Clone gone!', '#888888');
+      }
+      if (typeof flashSkillHUD === 'function') flashSkillHUD(this, SKILL_MAP['shadow_clone']);
+      return false;
+    }
+
+    // Skill: Fortify Shield — absorb up to (10 + BIQ×2) dmg; excess passes through
     if (this.skillState?.fortifyShield) {
       this.skillState.fortifyShield = false;
-      this.immunityFrames = 10;
+      const absorbCap = 10 + (this.charBIQ || 0) * 2;
       spawnSparks(this.x, this.y, 10);
-      spawnDamageNumber(this.x, this.y - this.radius, 'BLOCKED!', '#ffffaa');
-      return false;
+      if (dmg <= absorbCap) {
+        this.immunityFrames = 10;
+        spawnDamageNumber(this.x, this.y - this.radius, `🏰 BLOCKED! (${absorbCap.toFixed(0)})`, '#ffffaa');
+        return false;
+      } else {
+        dmg -= absorbCap;
+        spawnDamageNumber(this.x, this.y - this.radius, `🏰 -${absorbCap.toFixed(0)} SHIELD`, '#ffffaa');
+      }
     }
 
     // Skill: Deflection — MA×2% chance to negate a hit entirely
@@ -822,8 +849,11 @@ class Ball {
 
     // Skill: Thick Hide — -10% damage received
     if (this.skills.includes('thick_hide')) dmg *= 0.9;
-    // Skill: Adaptation — -20% from the specific weapon type that killed you before
-    if (this.adaptResist && attacker?.weaponDef?.id === this.adaptResist) dmg *= 0.8;
+    // Skill: Adaptation — resist scales with BIQ: 15% + BIQ×2% (max 35%)
+    if (this.adaptResist && attacker?.weaponDef?.id === this.adaptResist) {
+      const adaptReduct = Math.min(0.35, 0.15 + (this.charBIQ || 0) * 0.02);
+      dmg *= (1 - adaptReduct);
+    }
     // Guard Stance (Sword): during cooldown → BIQ×3% dmg reduction (max 30%)
     if (this.skills.includes('guard_stance') && this.weaponDef?.id === 'sword' && this.weapon.cooldown > 0) {
       const reduction = Math.min(0.30, (this.charBIQ || 0) * 0.03);
@@ -866,9 +896,12 @@ class Ball {
     // Race: Human Limit Break — triggers when HP crosses below 20% (last stand)
     if (this.charRace === 'human' && this.raceSkillDef &&
         !this.rs_triggered && hpBefore >= this.maxHp * 0.20 && this.hp < this.maxHp * 0.20 && this.hp > 0) {
-      this.rs_active    = true;
-      this.rs_triggered = true;
-      this.rs_stacks    = 0;
+      this.rs_active        = true;
+      this.rs_triggered     = true;
+      this.rs_stacks        = 0;
+      this.rs_lbTimer       = 15 * 60;  // 15s duration
+      this.rs_lbDrainTimer  = 2  * 60;  // first drain tick in 2s
+      this.rs_lbExhausted   = false;
       spawnDamageNumber(this.x, this.y - this.radius - 26, '⚡ LIMIT BREAK!', '#ffdd00');
       if (typeof spawnSparks === 'function') spawnSparks(this.x, this.y, 16);
       if (typeof addBattleLog === 'function') addBattleLog('race_skill', {
@@ -919,12 +952,13 @@ class Ball {
       }
     }
 
-    // Skill: Read & React — BIQ×3% chance to instantly counter-attack after being hit
+    // Skill: Read & React — BIQ×3.5% chance; counter dmg scales BIQ×0.1 bonus mult
     if (!isReactCounter && this.skills.includes('read_react') && attacker?.alive) {
-      if (Math.random() < this.charBIQ * 0.03) {
-        spawnDamageNumber(this.x, this.y - this.radius - 16, '⚡ REACT!', '#ffdd44');
+      if (Math.random() < (this.charBIQ || 0) * 0.035) {
+        const reactMult = 1 + (this.charBIQ || 0) * 0.1;
+        spawnDamageNumber(this.x, this.y - this.radius - 16, `⚡ REACT! ×${reactMult.toFixed(1)}`, '#ffdd44');
         if (typeof flashSkillHUD === 'function') flashSkillHUD(this, SKILL_MAP['read_react']);
-        attacker.takeDamage(this.getDamage(), this.x, this.y, false, this, true);
+        attacker.takeDamage(this.getDamage() * reactMult, this.x, this.y, false, this, true);
       }
     }
 

@@ -93,7 +93,7 @@ function showResult() {
         `Match over — ${mw.charName ?? mw.weaponId} advances!`;
       bracketB.style.display = '';
       // Record in championship
-      if (state.championship) {
+      if (state.championship && state.championship.phases) {
         recordChampionshipMatchResult(mw);
         if (state.championship.completed) bracketB.textContent = '🏆 Championship Over';
       } else if (state.tournament2v2 && state.matchMode === '2v2') {
@@ -117,7 +117,7 @@ function showResult() {
   }
 
   // ── Championship 1v1 BO1 phase handling (no bo3 object) ──
-  if (state.championship && state.matchMode === '1v1' && !state.bo3) {
+  if (state.championship && state.championship.phases && state.matchMode === '1v1' && !state.bo3) {
     rematch.style.display = 'none';
     if (menuBtnR) menuBtnR.style.display = 'none';
     bracketB.style.display = '';
@@ -135,7 +135,7 @@ function showResult() {
   }
 
   // ── Championship FFA phase handling ──
-  if (state.championship && state.matchMode === 'ffa' && !state.bo3) {
+  if (state.championship && state.championship.phases && state.matchMode === 'ffa' && !state.bo3) {
     rematch.style.display = 'none';
     if (menuBtnR) menuBtnR.style.display = 'none';
     bracketB.style.display = '';
@@ -202,6 +202,9 @@ function showResult() {
       }
     });
   }
+
+  // Analytics tracking — A: record match data for win-rate stats
+  if (typeof buildAndTrackMatch === 'function') buildAndTrackMatch();
 
   showScreen('result');
 }

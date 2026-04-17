@@ -89,6 +89,7 @@
     <button class="menu-tab"        data-tab="tab-battle">Battle</button>
     <button class="menu-tab"        data-tab="tab-wiki">📖 Wiki</button>
     <button class="menu-tab"        data-tab="tab-changelog">Changelogs</button>
+    <button class="menu-tab"        data-tab="tab-analytics" onclick="initAnalytics()">📊 Analytics</button>
   </div>
 
   <!-- Tab: Showcase -->
@@ -764,10 +765,219 @@
   </div>
 
   <!-- Tab: Changelogs -->
+  <!-- Tab: Analytics -->
+  <div class="menu-tab-pane" id="tab-analytics">
+    <div id="analytics-content">
+      <div class="an-subtabs">
+        <button class="a-subtab active" data-atab="stats">📊 Match Stats</button>
+        <button class="a-subtab"        data-atab="sim">⚡ Simulation</button>
+        <button class="a-subtab"        data-atab="heuristic">📋 Heuristic</button>
+      </div>
+      <div id="a-panel"></div>
+    </div>
+  </div>
+
   <div class="menu-tab-pane" id="tab-changelog">
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 84</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚡ <b>Human Limit Break — Rework</b>: Limit Break giờ có duration 15 giây thay vì vô hạn.</li>
+              <li>🩸 <b>HP Drain</b>: Mỗi 2 giây trong Limit Break mất 1 HP (dừng ở 1 HP, không tự chết).</li>
+              <li>💀 <b>Exhaustion Debuff</b>: Sau khi hết duration, nhận debuff "Exhausted" — vũ khí quay chậm hơn 30% phần còn lại của hiệp.</li>
+              <li>🟡 <b>Timer Arc HUD</b>: Vòng tròn đếm ngược hiển thị thời gian còn lại của Limit Break (vàng → đỏ khi gần hết). Sau khi hết, hiện icon 💀 + ring xám đứt đoạn.</li>
+              <li>🏟️ <b>Championship — Weighted Arena Size</b>: Trận FFA (4 người): 60% L / 35% M / 5% S. Trận 1v1: 10% L / 70% M / 20% S. Áp dụng cả khi re-roll arena trong BO3.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 83</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🔄 <b>Parry Technique I</b>: Kỹ năng mới — khi parry, đảo chiều quay vũ khí ngay lập tức.</li>
+              <li>🗡️ <b>Parry Technique II</b>: Đổi tên từ "Parry Master" — giữ nguyên hiệu ứng (no knockback + spin boost + counter window theo BIQ).</li>
+              <li>🛡️ <b>Parry Technique III</b>: Kỹ năng mới — toàn bộ thân vũ khí có thể parry (không chỉ đầu tip). Fists + PT3: giảm 50% sát thương khi parry clash.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 82</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🗡️ <b>Parry Master — 3 bug fixes</b>:
+                <b>[Fix 1]</b> Counter window bị block nếu skill Counter đã active — giờ Parry Master luôn override, không check trước.
+                <b>[Fix 2]</b> <code>counterExpiry</code> không được xóa khi counter được dùng → lần parry tiếp theo bị expired ngay — giờ consume counter cũng clear expiry.
+                <b>[Fix 3]</b> Spin boost cố định 90 frames bất kể BIQ — giờ scale: <code>60 + BIQ×6</code> frames (BIQ=1: 66f, BIQ=5: 90f, BIQ=10: 120f).
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 81</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚔️ <b>Parry — tune threshold</b>: Bỏ buffer +6px (trước đây parry có thể trigger khi weapon chưa chạm nhau về visual). Giờ chỉ tính parry khi hit circles thực sự overlap. Đồng thời nới góc từ dot>0.2 (~78°) xuống dot>0.05 (~87°) — weapon chạm nhau ở gần như mọi góc đều tính parry.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 80</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🫴 <b>Usurp (Cướp Đoạt) — IMPLEMENTED</b>: Đầu mỗi round, chọn địch gần nhất có vũ khí và cưỡng đoạt vũ khí của họ — địch phải dùng Fists cả round đó. Hiện announcement + tên vũ khí bị đoạt.</li>
+              <li>🌀 <b>Shadow Clone — IMPLEMENTED</b>: Đầu mỗi round xuất hiện clone ảo hấp thụ 2 hit đầu tiên. Hit vào clone hiện "🌀 CLONE! (X left)", hết clone hiện "Clone gone!".</li>
+              <li>🗑️ <b>Dualwield (Song Kiếm) — REMOVED</b>: Quá phức tạp để implement đúng, đã xóa khỏi skill pool.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 79</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>✨ <b>Championship Draft — Unique Weapon Spin</b>: Sau bước "Có vũ khí không?", nếu armed sẽ có thêm vòng quay "Unique Weapon?" với tỉ lệ 13% Unique / 87% Normal. Nếu trúng Unique → vòng quay chỉ hiện các unique weapon còn trong pool. Nếu không → vòng quay normal weapons như thường. Nếu pool unique đã hết → tự động dùng normal.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 78</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏹 <b>Bow aim cone — fix logic ngược</b>: Trước đây IQ cao → cone rộng → bắn lung tung. Nay đảo ngược: IQ cao → cone hẹp → chỉ bắn khi aim chuẩn → accuracy cao hơn. IQ=1: ±56°, IQ=5: ±40°, IQ=10: ±20°.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 77</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏰 <b>Fortify — scale BIQ</b>: Shield hấp thụ tối đa <code>10 + BIQ×2</code> dmg — BIQ=1: 12, BIQ=5: 20, BIQ=10: 30. Đòn mạnh hơn ngưỡng vẫn xuyên shield (phần dư vào HP).</li>
+              <li>🩸 <b>First Blood — scale BIQ</b>: Thời gian stun <code>20 + BIQ×4</code> frames — BIQ=1: 0.4s, BIQ=5: 0.67s, BIQ=10: 1.0s.</li>
+              <li>🗡️ <b>Parry Punish — scale IQ</b>: Cửa sổ ×2 dmg sau parry kéo dài <code>(2 + IQ×0.2)s</code> — IQ=1: 2.2s, IQ=5: 3.0s, IQ=10: 4.0s.</li>
+              <li>📌 <b>Skewer — scale BIQ</b>: Thời gian ghim vũ khí <code>20 + BIQ×4</code> frames — BIQ=1: 0.4s, BIQ=5: 0.67s, BIQ=10: 1.0s.</li>
+              <li>🎯 <b>Sniper — scale IQ</b>: Bonus dmg từ xa <code>×(1.4 + IQ×0.03)</code> — IQ=1: ×1.43, IQ=5: ×1.55, IQ=10: ×1.70.</li>
+              <li>🏹 <b>Volley — scale IQ</b>: Bonus dmg 3 mũi đầu <code>×(1.5 + IQ×0.05)</code> — IQ=1: ×1.55, IQ=5: ×1.75, IQ=10: ×2.0.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 76</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🧠 <b>BIQ — Skill Scaling (Phase 3)</b>: Các skill phản ứng giờ scale theo BIQ. <b>Counter</b>: mult ×(1.5 + BIQ×0.05) — BIQ=1: ×1.55, BIQ=10: ×2.0. <b>Read & React</b>: chance BIQ×3.5% (tăng nhẹ), counter dmg ×(1 + BIQ×0.1) — BIQ=10: ×2.0. <b>Adaptation</b>: resist 15% + BIQ×2% (max 35%) — BIQ=10: 35% thay vì cố định 20%. <b>Parry Master</b>: sau parry mở counter window BIQ×4 frames — BIQ=10: 40 frames (~0.67s) để strike back.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 75</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🧠 <b>IQ — Skill Scaling (Phase 2)</b>: Các skill tấn công giờ scale theo IQ. <b>Berserker</b>: ×(1.2 + IQ×0.03) — IQ=1: ×1.23, IQ=10: ×1.5. <b>War Cry</b>: ×(1.5 + IQ×0.05) — IQ=1: ×1.55, IQ=10: ×2.0. <b>Exploit</b>: mult ×(1.5 + IQ×0.05) thay vì cố định ×2 — IQ=10 vẫn ×2.0, IQ=1 chỉ ×1.55. <b>Mind Break</b>: debuff/gap tăng theo IQ — gap×(0.02 + IQ×0.005), IQ=10: gap×0.07 thay vì gap×0.03.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 74</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🧠 <b>IQ — Unique Weapon Scaling (Phase 1)</b>: IQ giờ ảnh hưởng đến sức mạnh vũ khí đặc biệt. Excalibur Sword Beam: <code>×(1.2 + IQ×0.03)</code> — IQ=1: ×1.23, IQ=10: ×1.5. Gungnir Throw: <code>×(0.3 + IQ×0.03)</code> — IQ=1: ×0.33, IQ=10: ×0.6.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">16 Apr 2026</span>
+          <span class="changelog-badge">Patch 73</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Fix: Màn hình kết quả bị đóng băng khi thắng 1v1</b>: Sau khi tạo nhân vật qua Championship Draft, <code>state.championship</code> còn lại gây crash trong <code>recordChampionshipMatchResult()</code> (vì chưa có <code>phases</code>) → showScreen('result') không bao giờ chạy. Fix: kiểm tra <code>state.championship.phases</code> trước khi gọi hàm đó.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">16 Apr 2026</span>
           <span class="changelog-badge">Patch 72</span>
@@ -1927,8 +2137,16 @@
           <button class="g-btn" id="pauseBtn">⏸ Pause</button>
           <button class="g-btn" id="menuBtn">← Menu</button>
           <button class="g-btn" id="gravBtn">🌍 Gravity: Off</button>
-          <button class="g-btn" id="zoomBtn">🔍 100%</button>
-          <button class="g-btn" id="speedBtn">⚡ Speed: 1x</button>
+          <div class="g-slider-wrap">
+            <span class="g-slider-icon">🔍</span>
+            <input type="range" id="zoomSlider" min="50" max="100" step="5" value="100" class="g-slider">
+            <span id="zoomLabel" class="g-slider-val">100%</span>
+          </div>
+          <div class="g-slider-wrap">
+            <span class="g-slider-icon">⚡</span>
+            <input type="range" id="speedSlider" min="0" max="6" step="1" value="3" class="g-slider">
+            <span id="speedLabel" class="g-slider-val">1×</span>
+          </div>
         </div>
         <div id="canvas-clip-wrapper">
           <canvas id="gameCanvas" width="1000" height="1000"></canvas>
@@ -2236,6 +2454,7 @@
 <script src="pve.js"></script>
 <script src="pvp-reward.js"></script>
 <script src="tournament-stats.js"></script>
+<script src="analytics.js"></script>
 
 <!-- ── Tournament Stats Modal ──────────────────────── -->
 <div id="tournament-stats-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:9100;overflow-y:auto;padding:20px 12px;" onclick="if(event.target===this)document.getElementById('tournament-stats-modal').style.display='none'">

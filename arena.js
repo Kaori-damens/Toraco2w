@@ -87,37 +87,45 @@ function checkArenaWall(x, y, r, arena) {
 // How much speed is kept after bouncing off a wall (1.0 = elastic, 0 = inelastic)
 const WALL_BOUNCE = 1.0;
 
+// Tiny angle jitter after wall bounce — breaks periodic orbits (90°/180° stuck loops)
+// ±2° is invisible to the eye but enough to deflect any repeating trajectory
+function _jitterVelocity(ball) {
+  const a = (Math.random() - 0.5) * 0.07; // ±0.035 rad ≈ ±2°
+  const c = Math.cos(a), s = Math.sin(a);
+  const vx = ball.vx * c - ball.vy * s;
+  const vy = ball.vx * s + ball.vy * c;
+  ball.vx = vx; ball.vy = vy;
+}
+
 function clampToBall(ball, arena) {
   const r = ball.radius;
+  let bounced = false;
   if (arena.type === 'circle') {
     const dx = ball.x - arena.cx, dy = ball.y - arena.cy;
     const dist = Math.sqrt(dx*dx + dy*dy);
     const maxDist = arena.r - r;
     if (dist > maxDist) {
       const nx = dx/dist, ny = dy/dist;
-      // Snap ball to wall surface
       ball.x = arena.cx + nx * maxDist;
       ball.y = arena.cy + ny * maxDist;
-      // Reflect velocity: remove outward component, add (1+restitution)×it back inward
       const dot = ball.vx*nx + ball.vy*ny;
       if (dot > 0) {
         ball.vx -= dot * nx * (1 + WALL_BOUNCE);
         ball.vy -= dot * ny * (1 + WALL_BOUNCE);
+        bounced = true;
       }
     }
   } else if (arena.type === 'square' || arena.type === 'rect') {
-    if (ball.x - r < arena.x)           { ball.x = arena.x + r;             ball.vx =  Math.abs(ball.vx) * WALL_BOUNCE; }
-    if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r;   ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; }
-    if (ball.y - r < arena.y)           { ball.y = arena.y + r;             ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; }
-    if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r;   ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; }
+    if (ball.x - r < arena.x)           { ball.x = arena.x + r;             ball.vx =  Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
+    if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r;   ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
+    if (ball.y - r < arena.y)           { ball.y = arena.y + r;             ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
+    if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r;   ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
   } else if (arena.type === 'cross') {
     const cx = arena.cx, cy = arena.cy, arm = arena.arm, thick = arena.thick;
-    // Outer bounds
-    if (ball.x < cx-arm+r) { ball.x = cx-arm+r; ball.vx =  Math.abs(ball.vx)*WALL_BOUNCE; }
-    if (ball.x > cx+arm-r) { ball.x = cx+arm-r; ball.vx = -Math.abs(ball.vx)*WALL_BOUNCE; }
-    if (ball.y < cy-arm+r) { ball.y = cy-arm+r; ball.vy =  Math.abs(ball.vy)*WALL_BOUNCE; }
-    if (ball.y > cy+arm-r) { ball.y = cy+arm-r; ball.vy = -Math.abs(ball.vy)*WALL_BOUNCE; }
-    // Keep inside cross shape
+    if (ball.x < cx-arm+r) { ball.x = cx-arm+r; ball.vx =  Math.abs(ball.vx)*WALL_BOUNCE; bounced = true; }
+    if (ball.x > cx+arm-r) { ball.x = cx+arm-r; ball.vx = -Math.abs(ball.vx)*WALL_BOUNCE; bounced = true; }
+    if (ball.y < cy-arm+r) { ball.y = cy-arm+r; ball.vy =  Math.abs(ball.vy)*WALL_BOUNCE; bounced = true; }
+    if (ball.y > cy+arm-r) { ball.y = cy+arm-r; ball.vy = -Math.abs(ball.vy)*WALL_BOUNCE; bounced = true; }
     const inH = (ball.y > cy-thick/2+r && ball.y < cy+thick/2-r);
     const inV = (ball.x > cx-thick/2+r && ball.x < cx+thick/2-r);
     if (!inH && !inV) {
@@ -125,12 +133,10 @@ function clampToBall(ball, arena) {
       ball.vy += (cy - ball.y) * 0.07;
     }
   } else if (arena.type === 'hole') {
-    // Outer square walls
-    if (ball.x - r < arena.x)           { ball.x = arena.x + r;           ball.vx =  Math.abs(ball.vx) * WALL_BOUNCE; }
-    if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; }
-    if (ball.y - r < arena.y)           { ball.y = arena.y + r;           ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; }
-    if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; }
-    // Inner circular hole — bounce outward
+    if (ball.x - r < arena.x)           { ball.x = arena.x + r;           ball.vx =  Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
+    if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
+    if (ball.y - r < arena.y)           { ball.y = arena.y + r;           ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
+    if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
     const hdx = ball.x - arena.holeCx, hdy = ball.y - arena.holeCy;
     const hdist = Math.sqrt(hdx*hdx + hdy*hdy);
     const minHoleDist = arena.holeR + r;
@@ -142,13 +148,14 @@ function clampToBall(ball, arena) {
       if (dot < 0) {
         ball.vx -= dot * hnx * (1 + WALL_BOUNCE);
         ball.vy -= dot * hny * (1 + WALL_BOUNCE);
+        bounced = true;
       }
     }
   } else if (arena.type === 'hole_sq' || arena.type === 'hole_re') {
-    if (ball.x - r < arena.x)           { ball.x = arena.x + r;           ball.vx =  Math.abs(ball.vx) * WALL_BOUNCE; }
-    if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; }
-    if (ball.y - r < arena.y)           { ball.y = arena.y + r;           ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; }
-    if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; }
+    if (ball.x - r < arena.x)           { ball.x = arena.x + r;           ball.vx =  Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
+    if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
+    if (ball.y - r < arena.y)           { ball.y = arena.y + r;           ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
+    if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
     for (const h of (arena.holes || [])) {
       if (h.shape === 'circle') {
         const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
@@ -157,7 +164,7 @@ function clampToBall(ball, arena) {
           const hn = 1/hd;
           ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
           const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
-          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); }
+          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); bounced = true; }
         }
       } else if (h.shape === 'square') {
         const hx1 = h.x - r, hy1 = h.y - r, hx2 = h.x + h.w + r, hy2 = h.y + h.h + r;
@@ -168,6 +175,7 @@ function clampToBall(ball, arena) {
           else if (m===dR) { ball.x=hx2; ball.vx= Math.abs(ball.vx)*WALL_BOUNCE; }
           else if (m===dT) { ball.y=hy1; ball.vy=-Math.abs(ball.vy)*WALL_BOUNCE; }
           else             { ball.y=hy2; ball.vy= Math.abs(ball.vy)*WALL_BOUNCE; }
+          bounced = true;
         }
       }
     }
@@ -178,7 +186,7 @@ function clampToBall(ball, arena) {
       const nx = dx/dist, ny = dy/dist;
       ball.x = arena.cx + nx*maxDist; ball.y = arena.cy + ny*maxDist;
       const dot = ball.vx*nx + ball.vy*ny;
-      if (dot > 0) { ball.vx -= dot*nx*(1+WALL_BOUNCE); ball.vy -= dot*ny*(1+WALL_BOUNCE); }
+      if (dot > 0) { ball.vx -= dot*nx*(1+WALL_BOUNCE); ball.vy -= dot*ny*(1+WALL_BOUNCE); bounced = true; }
     }
     for (const h of (arena.holes || [])) {
       if (h.shape === 'circle') {
@@ -188,11 +196,12 @@ function clampToBall(ball, arena) {
           const hn = 1/hd;
           ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
           const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
-          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); }
+          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); bounced = true; }
         }
       }
     }
   }
+  if (bounced) _jitterVelocity(ball);
 }
 
 // Returns a consistent eye color for a ball, hashed from its color string

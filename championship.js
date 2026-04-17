@@ -4,6 +4,30 @@
 
 const CS_SAVE_KEY = 'cgChampionshipSave';
 
+// Weighted arena random for championship — size depends on player count
+// 4 players (FFA): 60% L / 35% M / 5% S
+// 2 players (1v1): 10% L / 70% M / 20% S
+function randomArenaChampionship(playerCount) {
+  // Step 1: pick size by player count
+  const sizeRoll = Math.random() * 100;
+  let targetSize;
+  if (playerCount >= 4) {
+    targetSize = sizeRoll < 60 ? 'large' : sizeRoll < 95 ? 'medium' : 'small';
+  } else {
+    targetSize = sizeRoll < 10 ? 'large' : sizeRoll < 80 ? 'medium' : 'small';
+  }
+
+  // Step 2: split arenas of that size into plain vs object (trap/hole)
+  const sizePool  = Object.keys(ARENAS).filter(k => ARENAS[k].size === targetSize);
+  const plain     = sizePool.filter(k => !ARENAS[k].traps && !ARENAS[k].holes);
+  const withObj   = sizePool.filter(k =>  ARENAS[k].traps ||  ARENAS[k].holes);
+
+  // Step 3: 30% plain, 70% with objects (fall back to other group if one is empty)
+  const useObj = withObj.length > 0 && (plain.length === 0 || Math.random() < 0.70);
+  const pool   = useObj ? withObj : plain;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 // ── Unique pool management ─────────────────────────────────────
 function initUniquePool() {
   const weaponIds = WEAPON_DEFS.filter(w => w.unique).map(w => w.id);
@@ -367,7 +391,8 @@ function resumeChampionship() {
 function launchNextChampionshipMatch() {
   const cs=state.championship; if (!cs||cs.completed) return;
   const info=getNextChampionshipMatch(); if (!info) return;
-  state.arenaId=randomArena(); state.teamIds=[];
+  const champPlayerCount = info.type === 'ffa' ? (info.fighters?.length ?? 4) : 2;
+  state.arenaId=randomArenaChampionship(champPlayerCount); state.teamIds=[];
   if (info.type==='ffa') {
     state.fighters=info.fighters; state.matchMode='ffa'; state.bo3=null;
   } else {

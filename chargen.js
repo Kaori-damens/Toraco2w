@@ -29,7 +29,8 @@ function initChargen() {
   cgState = {
     step: 'name', name: '', race: null, subrace: null,
     stats: { strength:null, speed:null, durability:null, iq:null, battleiq:null, ma:null },
-    hasWeapon: null,  // true = armed, false = unarmed (fists)
+    hasWeapon: null,      // true = armed, false = unarmed (fists)
+    isUniqueWeapon: null, // true = unique weapon roll (championship only), false = normal
     weapon: null,
     skillCount: 0,    // how many skills to roll
     skills: [],       // array of SKILL_DEF objects picked
@@ -274,6 +275,29 @@ function renderCgStep() {
     })));
     return;
   }
+  if (s === 'uniqueweapon') {
+    // Championship only: 13% chance to roll a unique weapon, 87% normal
+    const availableUniques = WEAPON_DEFS.filter(w => w.unique && isUniqueAvailable(w.id));
+    if (availableUniques.length === 0) {
+      // No uniques left in pool → go straight to normal weapons
+      cgState.isUniqueWeapon = false;
+      advanceCg();
+      return;
+    }
+    const items = [
+      { label: '✨ Unique Weapon!', weight: 13, color: '#ffd700' },
+      { label: '⚔️ Normal Weapon',  weight: 87, color: '#44ccff' },
+    ];
+    cgRenderSpin(box, '🎰 Unique Weapon?', items, (_w, idx) => {
+      cgState.isUniqueWeapon = (idx === 0);
+      advanceCg();
+    });
+    _cgDebug(box, 'Unique Weapon?', [
+      { label: '✨ Unique', onClick: () => { cgState.isUniqueWeapon = true;  advanceCg(); } },
+      { label: '⚔️ Normal', onClick: () => { cgState.isUniqueWeapon = false; advanceCg(); } },
+    ]);
+    return;
+  }
   if (s === 'hasweapon') {
     // Guaranteed weapon from certain subraces — skip wheel
     const sr = cgState.subrace?.label;
@@ -317,19 +341,23 @@ function renderCgStep() {
     return;
   }
   if (s === 'weapon') {
-    // In championship draft mode, append available unique weapons to the wheel
-    const draftUniqueWeapons = cgDraftMode
-      ? WEAPON_DEFS.filter(w => w.unique && isUniqueAvailable(w.id))
-      : [];
-    const allWeaponOptions = [...CG_WEAPONS_ARMED, ...draftUniqueWeapons];
+    let allWeaponOptions;
+    if (cgDraftMode && cgState.isUniqueWeapon) {
+      // Unique weapon wheel — only available uniques, equal weight each
+      allWeaponOptions = WEAPON_DEFS.filter(w => w.unique && isUniqueAvailable(w.id));
+    } else {
+      // Normal weapon wheel — no uniques
+      allWeaponOptions = [...CG_WEAPONS_ARMED];
+    }
     const weaponItems = allWeaponOptions.map((w, i) => ({
       label: (w.icon ? w.icon + ' ' : '') + (w.label || w.name),
-      weight: w.unique ? 1 : 1,  // uniques get equal weight for now
+      weight: 1,
       color: w.unique ? '#ffd700' : wColor(i),
       _isUnique: !!w.unique,
       _id: w.id,
     }));
-    cgRenderSpin(box, '🗡️ Weapon', weaponItems, (_w, idx) => {
+    const title = (cgDraftMode && cgState.isUniqueWeapon) ? '✨ Unique Weapon' : '🗡️ Weapon';
+    cgRenderSpin(box, title, weaponItems, (_w, idx) => {
       const chosen = allWeaponOptions[idx];
       cgState.weapon = chosen.id || chosen;
       if (cgDraftMode && chosen.unique) claimUnique(chosen.id);
@@ -393,8 +421,10 @@ function renderCgStep() {
 }
 
 function advanceCg() {
-  const order = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','weapon','skillcount','skillpick','done'];
+  const order = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','uniqueweapon','weapon','skillcount','skillpick','done'];
   let next = order.indexOf(cgState.step) + 1;
+  // Skip uniqueweapon if not in championship draft OR not armed
+  if (order[next] === 'uniqueweapon' && (!cgDraftMode || cgState.hasWeapon === false)) next++;
   // If unarmed, skip weapon wheel
   if (order[next] === 'weapon' && cgState.hasWeapon === false) next++;
   // If 0 skills rolled, skip the skill-pick wheel

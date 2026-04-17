@@ -982,6 +982,31 @@ canvas#gameCanvas {
 }
 .g-btn:hover { background: #1a1a2a; color: #fff; }
 
+.g-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: #0e0e1c;
+  border: 2px solid #2a2a3a;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #aaa;
+}
+.g-slider-icon { font-size: 14px; }
+.g-slider {
+  width: 90px;
+  accent-color: #4488ff;
+  cursor: pointer;
+  height: 4px;
+}
+.g-slider-val {
+  min-width: 34px;
+  text-align: right;
+  color: #fff;
+}
+
 /* ===== RESULT ===== */
 #result { gap: 18px; padding: 40px; text-align: center; }
 
@@ -4197,6 +4222,67 @@ canvas#gameCanvas {
   font-size: 22px;
   font-weight: 900;
 }
+
+/* ================================================================
+   ANALYTICS TAB
+   ================================================================ */
+#analytics-content { padding: 12px; max-width: 1200px; margin: 0 auto; }
+
+.an-subtabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.a-subtab {
+  padding: 7px 20px; font-size: 13px; font-weight: bold;
+  background: #0e0e1c; border: 2px solid #2a2a3a; border-radius: 7px;
+  color: #aaa; cursor: pointer; transition: all .15s;
+}
+.a-subtab.active { background: #1a1a3a; border-color: #4488ff; color: #fff; }
+.a-subtab:hover  { background: #1a1a2a; color: #fff; }
+
+.an-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.an-note   { color: #888; font-size: 12px; margin: 6px 0; }
+.an-note-cell { color: #777; font-size: 11px; max-width: 320px; }
+
+.an-btn { padding: 6px 16px; font-size: 12px; font-weight: bold; background: #1a1a3a;
+  border: 1px solid #3a3a6a; border-radius: 6px; color: #aaa; cursor: pointer; }
+.an-btn:hover  { background: #2a2a5a; color: #fff; }
+.an-btn.danger { border-color: #663333; color: #cc6666; }
+.an-btn.danger:hover { background: #3a1a1a; color: #ff8888; }
+
+/* Match Stats — 3 column grid */
+.an-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.an-grid3 h3 { margin: 0 0 8px; font-size: 13px; color: #aaa; }
+
+/* Table */
+.an-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.an-table th { background: #1a1a2a; color: #888; padding: 5px 8px; text-align: left; font-size: 11px; border-bottom: 1px solid #2a2a3a; }
+.an-table td { padding: 5px 8px; border-bottom: 1px solid #1a1a2a; color: #ccc; }
+.an-table tr:hover td { background: #0d0d20; }
+.an-pts { font-weight: bold; color: #ffcc44; text-align: center; }
+.an-tier { font-weight: bold; white-space: nowrap; }
+
+/* Bar */
+.an-bar-bg   { background: #1a1a2a; border-radius: 4px; height: 8px; width: 100%; min-width: 60px; overflow: hidden; }
+.an-bar-bg.wide { min-width: 200px; }
+.an-bar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.an-bar-cell { min-width: 100px; }
+
+/* Tier legend */
+.an-tier-legend { font-size: 12px; color: #888; margin-bottom: 10px; }
+
+/* Simulation */
+.an-sim-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: start; margin-bottom: 14px; }
+.an-vs { font-size: 24px; font-weight: bold; color: #555; align-self: center; }
+.an-fighter-cfg { background: #0d0d20; border: 1px solid #1a1a3a; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #aaa; }
+.an-fighter-cfg h3 { margin: 0; font-size: 14px; color: #ccc; }
+.an-fighter-cfg label { display: flex; flex-direction: column; gap: 3px; }
+.an-fighter-cfg select { background: #1a1a2a; color: #ccc; border: 1px solid #2a2a3a; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+.an-stat-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.an-stat-row label { flex-direction: row; align-items: center; gap: 4px; }
+.an-stat { width: 42px; background: #1a1a2a; color: #ccc; border: 1px solid #2a2a3a; border-radius: 4px; padding: 2px 4px; font-size: 12px; text-align: center; }
+.an-skill-select { background: #1a1a2a; color: #ccc; border: 1px solid #2a2a3a; border-radius: 4px; font-size: 11px; width: 100%; }
+.an-sim-ctrl { display: flex; gap: 10px; margin-bottom: 14px; }
+.an-sim-result { background: #0d0d20; border: 1px solid #1a1a3a; border-radius: 8px; padding: 12px; }
+.an-sim-bars { display: flex; flex-direction: column; gap: 8px; }
+.an-sim-bar-wrap { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: bold; color: #aaa; }
 
 /* ================================================================
    RESPONSIVE — MEDIUM DESKTOP (≥1100px)

@@ -163,24 +163,22 @@ document.getElementById('gravBtn').addEventListener('click', () => {
   document.getElementById('gravBtn').textContent = `🌍 Gravity: ${state.gravity ? 'On' : 'Off'}`;
 });
 
-// Zoom
-const ZOOM_LEVELS = [1.0, 0.85, 0.70, 0.55];
-let zoomIdx = 0;
+// Zoom slider (50%–100%)
 const zoomWrapper = document.getElementById('game-zoom-wrapper');
-document.getElementById('zoomBtn').addEventListener('click', () => {
-  zoomIdx = (zoomIdx + 1) % ZOOM_LEVELS.length;
-  const z = ZOOM_LEVELS[zoomIdx];
+document.getElementById('zoomSlider').addEventListener('input', e => {
+  const z = e.target.value / 100;
   zoomWrapper.style.transform = `scale(${z})`;
-  document.getElementById('zoomBtn').textContent = `🔍 ${Math.round(z * 100)}%`;
+  document.getElementById('zoomLabel').textContent = `${e.target.value}%`;
 });
 
-// Speed
-const speeds = [1, 2, 3, 5];
-let speedIdx = 0;
-document.getElementById('speedBtn').addEventListener('click', () => {
-  speedIdx = (speedIdx + 1) % speeds.length;
-  state.speed = speeds[speedIdx];
-  document.getElementById('speedBtn').textContent = `⚡ Speed: ${state.speed}x`;
+// Speed slider — 7 stops, center (index 3) = 1×, left = slow, right = fast
+// Stops: 0.25 / 0.5 / 0.75 / 1 / 2 / 3 / 5
+const SPEED_STOPS  = [0.25, 0.5, 0.75, 1, 2, 3, 5];
+const SPEED_LABELS = ['¼×', '½×', '¾×', '1×', '2×', '3×', '5×'];
+document.getElementById('speedSlider').addEventListener('input', e => {
+  const idx = parseInt(e.target.value);
+  state.speed = SPEED_STOPS[idx];
+  document.getElementById('speedLabel').textContent = SPEED_LABELS[idx];
 });
 
 // Spacebar = pause
@@ -209,7 +207,8 @@ document.getElementById('menuBtnR').addEventListener('click', () => {
 });
 document.getElementById('nextGameBtn').addEventListener('click', () => {
   // Continue BO3 — keep same fighters, random arena
-  if (state.tournament || state.tournament2v2 || state.championship) state.arenaId = randomArena();
+  if (state.championship) state.arenaId = randomArenaChampionship(state.fighters?.length ?? 2);
+  else if (state.tournament || state.tournament2v2) state.arenaId = randomArena();
   showScreen('game');
   startGame();
 });
