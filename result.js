@@ -207,4 +207,9 @@ function showResult() {
   if (typeof buildAndTrackMatch === 'function') buildAndTrackMatch();
 
   showScreen('result');
+
+  // Championship auto mode — skip result screen and continue automatically
+  if (state.championship && state.champAuto && typeof champAutoTick === 'function') {
+    champAutoTick();
+  }
 }

@@ -51,7 +51,7 @@ class Ball {
     this.weapon = this._initWeapon(weaponId);
     this.weaponDef = WEAPON_MAP[weaponId];
 
-    this.stats = { hits: 0, parries: 0, damageDone: 0 };
+    this.stats = { hits: 0, parries: 0, damageDone: 0, damageTaken: 0, evades: 0 };
     this.speechText = null;
     this.speechFrames = 0;
 
@@ -805,6 +805,7 @@ class Ball {
     if (Math.random() < this.evadeChance) {
       this.evadeFrames = 60;
       this.immunityFrames = 20;
+      this.stats.evades++;
       spawnDamageNumber(this.x, this.y - this.radius, 'EVADE', '#aaffee');
       skillOnEvade(this);
       return false;
@@ -862,6 +863,7 @@ class Ball {
 
     const hpBefore = this.hp;
     this.hp -= dmg;
+    this.stats.damageTaken += dmg;
 
     // Flow State: reset stacks when hit
     if (this.skillState?.flowStateStacks > 0) {

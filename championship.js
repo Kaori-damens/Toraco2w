@@ -387,6 +387,113 @@ function resumeChampionship() {
   } catch(e) { return false; }
 }
 
+// ── Championship Auto Mode ────────────────────────────────────
+function _isNextMatchGrandFinal() {
+  const cs = state.championship; if (!cs || cs.completed) return false;
+  const phase = cs.phases[cs.currentPhaseIdx];
+  if (!phase || phase.type !== 'de') return false;
+  if (!phase.seq || phase.currentSeqIdx >= phase.seq.length) return false;
+  return phase.seq[phase.currentSeqIdx].b === 'gf';
+}
+
+function toggleChampAuto() {
+  state.champAuto = !state.champAuto;
+  const btn = document.getElementById('champAutoBtn');
+  if (btn) {
+    btn.textContent = state.champAuto ? '⏹ Stop Auto' : '⚡ Auto';
+    btn.classList.toggle('active', state.champAuto);
+  }
+  // If just turned on, start immediately
+  if (state.champAuto) _champAutoLaunch();
+}
+
+// Called from result.js after showResult() records the match
+function champAutoTick() {
+  if (!state.champAuto || !state.championship) return;
+
+  const cs = state.championship;
+
+  // Championship is fully done
+  if (cs.completed) {
+    state.champAuto = false;
+    _updateChampAutoBtn();
+    return;
+  }
+
+  // Shared: go-to-bracket-and-launch logic
+  const _proceed = () => {
+    if (!state.champAuto) return;
+    renderChampionshipBracket();
+    showScreen('bracket');
+    if (_isNextMatchGrandFinal()) {
+      state.champAuto = false;
+      _updateChampAutoBtn();
+      const btn = document.getElementById('nextMatchBtn');
+      if (btn) { btn.textContent = '🏆 Fight Grand Final'; btn.style.animation = 'pulse 0.8s infinite alternate'; }
+      return;
+    }
+    setTimeout(() => { if (state.champAuto) _champAutoLaunch(); }, 600);
+  };
+
+  // Mid-BO3 (no match winner yet, no reward wheel) → play next game immediately
+  if (state.bo3) {
+    const wn = state.bo3.winsNeeded ?? 2;
+    if (state.bo3.wins[0] < wn && state.bo3.wins[1] < wn) {
+      setTimeout(() => {
+        if (!state.champAuto) return;
+        if (state.championship) state.arenaId = randomArenaChampionship(state.fighters?.length ?? 2);
+        showScreen('game');
+        startGame();
+      }, 1200);
+      return;
+    }
+  }
+
+  // Match fully decided — reward wheel will show at +500ms
+  // Register close callback so manual OR auto-close both trigger _proceed
+  if (typeof pvpRewardSetOnClose === 'function') pvpRewardSetOnClose(_proceed);
+
+  // Auto-spin after wheel has appeared (500ms delay + 300ms buffer = 800ms)
+  setTimeout(() => {
+    if (!state.champAuto) return;
+    const modal   = document.getElementById('pvp-reward-modal');
+    const spinBtn = document.getElementById('pvp-spin-btn');
+    if (modal?.style.display !== 'none' && spinBtn && !spinBtn.disabled) {
+      spinBtn.click();
+      // Auto-click Continue after 4000ms spin + 600ms buffer
+      setTimeout(() => {
+        if (!state.champAuto) return;
+        document.getElementById('pvp-reward-continue')?.click();
+      }, 4600);
+    } else {
+      // Wheel didn't appear (e.g. draw) → clear callback and proceed directly
+      if (typeof pvpRewardSetOnClose === 'function') pvpRewardSetOnClose(null);
+      setTimeout(_proceed, 500);
+    }
+  }, 800);
+}
+
+function _champAutoLaunch() {
+  const cs = state.championship;
+  if (!cs || cs.completed || !state.champAuto) return;
+  if (_isNextMatchGrandFinal()) {
+    state.champAuto = false;
+    _updateChampAutoBtn();
+    return;
+  }
+  if (!getNextChampionshipMatch()) { state.champAuto = false; _updateChampAutoBtn(); return; }
+  launchNextChampionshipMatch();
+}
+
+function _updateChampAutoBtn() {
+  const btn = document.getElementById('champAutoBtn');
+  if (!btn) return;
+  btn.textContent = '⚡ Auto';
+  btn.classList.remove('active');
+  const nmBtn = document.getElementById('nextMatchBtn');
+  if (nmBtn) nmBtn.style.animation = '';
+}
+
 // ── Launch next match from bracket screen ─────────────────────
 function launchNextChampionshipMatch() {
   const cs=state.championship; if (!cs||cs.completed) return;
@@ -421,11 +528,26 @@ function renderChampionshipBracket() {
   const nmBtn=document.getElementById('nextMatchBtn');
   if (nmBtn) {
     if (cs.completed) { nmBtn.disabled=true; nmBtn.textContent='🏆 Championship Over'; }
-    else { nmBtn.disabled=!getNextChampionshipMatch(); nmBtn.textContent='⚔️ Fight Next Match'; }
+    else {
+      const hasNext = !!getNextChampionshipMatch();
+      nmBtn.disabled = !hasNext;
+      nmBtn.style.animation = '';
+      if (hasNext && _isNextMatchGrandFinal()) nmBtn.textContent = '🏆 Fight Grand Final';
+      else nmBtn.textContent = '⚔️ Fight Next Match';
+    }
+  }
+  // Show Auto button only in championship, hide when completed or at GF
+  const autoBtn = document.getElementById('champAutoBtn');
+  if (autoBtn) {
+    const showAuto = !cs.completed && !!getNextChampionshipMatch() && !_isNextMatchGrandFinal();
+    autoBtn.style.display = showAuto ? '' : 'none';
+    autoBtn.textContent = state.champAuto ? '⏹ Stop Auto' : '⚡ Auto';
+    autoBtn.classList.toggle('active', !!state.champAuto);
   }
   const content=document.getElementById('bracket-content'); if (!content) return;
   content.innerHTML='';
-  if (cs.completed&&cs.champion) {
+  // Champion banner — shown only on the final phase view, then falls through to render the bracket too
+  if (cs.completed && cs.champion && cs.viewPhaseIdx === cs.currentPhaseIdx) {
     const champ=cs.champion;
     const w=document.createElement('div'); w.className='bracket-champ-wrap';
     const trophy=document.createElement('div'); trophy.className='bracket-champ-trophy'; trophy.textContent='🏆'; w.appendChild(trophy);
@@ -439,12 +561,15 @@ function renderChampionshipBracket() {
     const dot=document.createElement('span'); dot.className='bp-dot'; dot.style.cssText='background:'+champ.color+';width:14px;height:14px'; prow.appendChild(dot);
     const nm=document.createElement('span'); nm.style.color=champ.color; nm.textContent=(champ.charEmoji||'')+' '+(champ.charName||'???'); prow.appendChild(nm);
     prow.addEventListener('click',()=>showFighterCard(champ));
-    card.appendChild(prow); w.appendChild(card); content.appendChild(w); return;
+    card.appendChild(prow); w.appendChild(card); content.appendChild(w);
+    // Fall through — render the completed bracket below the champion card
   }
   if (!phase) return;
-  if (phase.type==='ffa') _renderCsFfa(content,phase,cs.currentPhaseIdx===cs.viewPhaseIdx);
-  if (phase.type==='1v1') _renderCs1v1(content,phase,cs.currentPhaseIdx===cs.viewPhaseIdx);
-  if (phase.type==='de')  _renderCsDe(content,phase,cs.currentPhaseIdx===cs.viewPhaseIdx);
+  // isActive = true only when viewing the current live phase AND championship is still running
+  const isActive = !cs.completed && cs.currentPhaseIdx === cs.viewPhaseIdx;
+  if (phase.type==='ffa') _renderCsFfa(content,phase,isActive);
+  if (phase.type==='1v1') _renderCs1v1(content,phase,isActive);
+  if (phase.type==='de')  _renderCsDe(content,phase,isActive);
 }
 
 function _renderCsFfa(content, phase, isActive) {

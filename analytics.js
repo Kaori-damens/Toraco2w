@@ -33,8 +33,11 @@ function _extractBallData(ball, isWinner) {
       biq: ball.charBIQ ?? 5, ma:  ball.charMA  ?? 5,
     },
     damageDealt: ball.stats?.damageDone  ?? 0,
+    damageTaken: ball.stats?.damageTaken ?? 0,
     parries:     ball.stats?.parries     ?? 0,
     hits:        ball.stats?.hits        ?? 0,
+    evades:      ball.stats?.evades      ?? 0,
+    hpLeft:      isWinner ? Math.max(0, ball.hp) : 0,
     isWinner,
   };
 }
@@ -60,20 +63,33 @@ function buildAndTrackMatch() {
 function _aggregate(db) {
   const race = {}, weapon = {}, skill = {};
 
-  const bump = (map, key, won) => {
+  const bump = (map, key, f) => {
     if (!key) return;
-    if (!map[key]) map[key] = { wins: 0, total: 0, dmg: 0 };
+    if (!map[key]) map[key] = { wins: 0, losses: 0, total: 0,
+                                hpLeftSum: 0, hpLeftCount: 0,
+                                parries: 0, hits: 0 };
     map[key].total++;
-    if (won) map[key].wins++;
+    map[key].parries += (f.parries ?? 0);
+    map[key].hits    += (f.hits    ?? 0);
+    if (f.isWinner) {
+      map[key].wins++;
+      map[key].hpLeftSum   += (f.hpLeft ?? 0);
+      map[key].hpLeftCount += 1;
+    } else {
+      map[key].losses++;
+    }
   };
 
   for (const m of db.matches) {
     const all = [...(m.winners || []), ...(m.losers || [])];
     for (const f of all) {
-      const won = f.isWinner;
-      bump(race,   f.race,   won);
-      bump(weapon, f.weapon, won);
-      for (const sk of (f.skills || [])) bump(skill, sk, won);
+      bump(race,   f.race,   f);
+      bump(weapon, f.weapon, f);
+      for (const sk of (f.skills || [])) {
+        if (!skill[sk]) skill[sk] = { wins: 0, losses: 0, total: 0 };
+        skill[sk].total++;
+        if (f.isWinner) skill[sk].wins++; else skill[sk].losses++;
+      }
     }
   }
   return { race, weapon, skill };
@@ -106,78 +122,83 @@ const SIM_WEAPON_DPS = {
 
 function _simFighter(cfg) {
   // cfg: { str, spd, dur, iq, biq, ma, weapon, skills }
-  const hp = 50 + (cfg.dur ?? 5) * 10;
+  const str = Number(cfg.str) || 5;
+  const spd = Number(cfg.spd) || 5;
+  const dur = Number(cfg.dur) || 5;
+  const hp  = 50 + dur * 10;
   const weaponDps = SIM_WEAPON_DPS[cfg.weapon]?.dps ?? 1.5;
-  // STR scales damage, SPD scales hit frequency slightly
-  const dps = weaponDps * (cfg.str ?? 5) * (1 + ((cfg.spd ?? 5) - 5) * 0.03);
-  return { hp, maxHp: hp, dps, cfg };
+  const dps = weaponDps * str * (1 + (spd - 5) * 0.03);
+  return { hp, maxHp: hp, dps, shield: 0, phoenixUsed: false,
+           dmgDealt: 0, cfg };
 }
 
 function _simApplySkills(atk, def, rawDmg) {
   let dmg = rawDmg;
-  const sk = atk.cfg.skills || [];
+  const sk  = atk.cfg.skills || [];
   const dsk = def.cfg.skills || [];
-  const iq  = atk.cfg.iq  ?? 5;
-  const biq = atk.cfg.biq ?? 5;
+  const iq  = Number(atk.cfg.iq)  || 5;
+  const dbiq = Number(def.cfg.biq) || 5;  // defender's BIQ for adaptation
 
-  // Attacker buffs
   if (sk.includes('berserker') && atk.hp / atk.maxHp < 0.30) dmg *= (1.2 + iq * 0.03);
-  if (sk.includes('sharp_eye') && Math.random() < 0.10)       dmg *= 2.0; // crit
-  if (sk.includes('predator') && atk.hp > def.hp)              dmg *= 1.15;
+  if (sk.includes('sharp_eye') && Math.random() < 0.10)       dmg *= 2.0;
+  if (sk.includes('predator')  && atk.hp > def.hp)             dmg *= 1.15;
 
-  // Defender reductions
-  if (dsk.includes('thick_hide'))         dmg *= 0.90;
-  if (dsk.includes('iron_body'))          {} // HP buff already baked in
-  if (dsk.includes('adaptation') && Math.random() < (0.15 + biq * 0.02)) dmg *= (1 - (0.15 + biq * 0.02));
+  if (dsk.includes('thick_hide'))   dmg *= 0.90;
+  if (dsk.includes('adaptation') && Math.random() < (0.15 + dbiq * 0.02))
+    dmg *= (1 - (0.15 + dbiq * 0.02));
 
   return Math.max(0, dmg);
 }
 
-function _simHeal(ball) {
-  const sk = ball.cfg.skills || [];
-  if (sk.includes('vampiric')) ball.hp = Math.min(ball.maxHp, ball.hp + ball.lastDmg * 0.05);
-}
-
-// Run one simulated 1v1 match — returns 0 (f1 wins), 1 (f2 wins), -1 (draw)
+// Run one simulated 1v1 match — returns 0 (f1 wins), 1 (f2 wins), -1 (draw/timeout)
 function _runOneSim(f1cfg, f2cfg) {
   const f1 = _simFighter(f1cfg);
   const f2 = _simFighter(f2cfg);
 
-  // Fortify shield
-  if ((f1cfg.skills || []).includes('fortify')) f1.shield = 10 + (f1cfg.biq ?? 5) * 2;
-  if ((f2cfg.skills || []).includes('fortify')) f2.shield = 10 + (f2cfg.biq ?? 5) * 2;
+  const sk1 = f1cfg.skills || [];
+  const sk2 = f2cfg.skills || [];
 
-  const MAX_TICKS = 5400; // 90s at 60fps
+  if (sk1.includes('fortify')) f1.shield = 10 + (Number(f1cfg.biq) || 5) * 2;
+  if (sk2.includes('fortify')) f2.shield = 10 + (Number(f2cfg.biq) || 5) * 2;
+
+  const MAX_TICKS = 5400;
   for (let t = 0; t < MAX_TICKS; t++) {
-    // Each tick = 1 frame; both attack simultaneously
-    const raw1 = f1.dps / 60;
-    const raw2 = f2.dps / 60;
+    const tick1 = f1.dps / 60;
+    const tick2 = f2.dps / 60;
 
-    // War Cry: first hit bonus
-    const wc1 = t === 1 && (f1cfg.skills || []).includes('war_cry') ? (1.5 + (f1cfg.iq ?? 5) * 0.05) : 1;
-    const wc2 = t === 1 && (f2cfg.skills || []).includes('war_cry') ? (1.5 + (f2cfg.iq ?? 5) * 0.05) : 1;
+    // War Cry: bonus on tick 0 (first hit)
+    const wc1 = t === 0 && sk1.includes('war_cry') ? (1.5 + (Number(f1cfg.iq) || 5) * 0.05) : 1;
+    const wc2 = t === 0 && sk2.includes('war_cry') ? (1.5 + (Number(f2cfg.iq) || 5) * 0.05) : 1;
 
-    let dmg1 = _simApplySkills(f1, f2, raw1 * wc1);
-    let dmg2 = _simApplySkills(f2, f1, raw2 * wc2);
+    // Compute outgoing damage for both fighters simultaneously from current state
+    let out1 = _simApplySkills(f1, f2, tick1 * wc1); // F1 → F2
+    let out2 = _simApplySkills(f2, f1, tick2 * wc2); // F2 → F1
 
-    // Absorb through shield
-    if (f2.shield > 0) { const abs = Math.min(f2.shield, dmg1); f2.shield -= abs; dmg1 -= abs; }
-    if (f1.shield > 0) { const abs = Math.min(f1.shield, dmg2); f1.shield -= abs; dmg2 -= abs; }
+    // Shield absorption
+    if (f2.shield > 0) { const a = Math.min(f2.shield, out1); f2.shield -= a; out1 -= a; }
+    if (f1.shield > 0) { const a = Math.min(f1.shield, out2); f1.shield -= a; out2 -= a; }
 
-    f1.lastDmg = dmg2; f2.lastDmg = dmg1;
-    f1.hp -= dmg2;     f2.hp -= dmg1;
+    // Apply damage simultaneously
+    f1.hp       -= out2;  f1.dmgDealt += out1;
+    f2.hp       -= out1;  f2.dmgDealt += out2;
 
     // Phoenix: survive once
-    if (f1.hp <= 0 && (f1cfg.skills || []).includes('phoenix') && !f1.phoenixUsed) { f1.hp = 1; f1.phoenixUsed = true; }
-    if (f2.hp <= 0 && (f2cfg.skills || []).includes('phoenix') && !f2.phoenixUsed) { f2.hp = 1; f2.phoenixUsed = true; }
+    if (f1.hp <= 0 && sk1.includes('phoenix') && !f1.phoenixUsed) { f1.hp = 1; f1.phoenixUsed = true; }
+    if (f2.hp <= 0 && sk2.includes('phoenix') && !f2.phoenixUsed) { f2.hp = 1; f2.phoenixUsed = true; }
 
-    _simHeal(f1); _simHeal(f2);
+    // Vampiric: heal 5% of damage DEALT
+    if (sk1.includes('vampiric')) f1.hp = Math.min(f1.maxHp, f1.hp + out1 * 0.05);
+    if (sk2.includes('vampiric')) f2.hp = Math.min(f2.maxHp, f2.hp + out2 * 0.05);
 
-    if (f1.hp <= 0 && f2.hp <= 0) return -1;
-    if (f1.hp <= 0) return 1;
-    if (f2.hp <= 0) return 0;
+    const f1Dead = f1.hp <= 0;
+    const f2Dead = f2.hp <= 0;
+    if (f1Dead && f2Dead) return -1;
+    if (f1Dead) return 1;  // F2 wins
+    if (f2Dead) return 0;  // F1 wins
   }
-  return f1.hp > f2.hp ? 0 : f2.hp > f1.hp ? 1 : -1;
+  // Timeout: higher HP wins
+  if (Math.abs(f1.hp - f2.hp) < 0.001) return -1;
+  return f1.hp > f2.hp ? 0 : 1;
 }
 
 // Run N simulations — returns { f1wins, f2wins, draws }
@@ -272,14 +293,83 @@ function _renderStats() {
   const agg = _aggregate(db);
   const n   = db.matches.length;
 
-  const raceRows   = _sortedTable(agg.race).map(([k, v]) =>
-    [k, v.total, `${_winPct(v)}%`]);
+  // ── Helpers ──
+  const wpct = v => v.total ? (v.wins / v.total * 100).toFixed(1) : null;
+
+  const filtered = map => Object.entries(map).filter(([,v]) => v.total >= 3);
+
+  const bestWorst = (map) => {
+    const rows = filtered(map).filter(([,v]) => wpct(v) !== null);
+    if (!rows.length) return { best: '–', bestPct: '', worst: '–', worstPct: '' };
+    rows.sort((a, b) => (b[1].wins / b[1].total) - (a[1].wins / a[1].total));
+    const b = rows[0], w = rows[rows.length - 1];
+    return {
+      best:     b[0], bestPct:  `${wpct(b[1])}%`,
+      worst:    w[0], worstPct: `${wpct(w[1])}%`,
+    };
+  };
+
+  const mostWinsLosses = (map) => {
+    const rows = filtered(map);
+    if (!rows.length) return { mostWins: '–', mostWinsN: '', mostLosses: '–', mostLossesN: '' };
+    const byWins   = [...rows].sort((a, b) => b[1].wins   - a[1].wins);
+    const byLosses = [...rows].sort((a, b) => b[1].losses - a[1].losses);
+    return {
+      mostWins:    byWins[0][0],   mostWinsN:   `${byWins[0][1].wins}W`,
+      mostLosses:  byLosses[0][0], mostLossesN: `${byLosses[0][1].losses}L`,
+    };
+  };
+
+  const avgHpLeft = v => v.hpLeftCount > 0
+    ? (v.hpLeftSum / v.hpLeftCount).toFixed(1) : '–';
+
+  // ── Race table ──
+  const raceRows = _sortedTable(agg.race).map(([k, v]) =>
+    [k, v.wins, v.losses, v.total, `${_winPct(v)}%`, avgHpLeft(v)]);
+
+  // ── Weapon table ──
+  const parryRate = v => v.hits > 0 ? (v.parries / v.hits * 100).toFixed(1) : '–';
   const weaponRows = _sortedTable(agg.weapon).map(([k, v]) =>
-    [k, v.total, `${_winPct(v)}%`]);
-  const skillRows  = _sortedTable(agg.skill).map(([k, v]) => {
+    [k, v.wins, v.losses, v.total, `${_winPct(v)}%`, avgHpLeft(v), `${parryRate(v)}%`]);
+
+  // ── Skill table ──
+  const skillRows = _sortedTable(agg.skill).map(([k, v]) => {
     const def = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[k] : null;
-    return [def ? `${def.icon} ${def.name}` : k, v.total, `${_winPct(v)}%`];
+    return [def ? `${def.icon} ${def.name}` : k, v.wins, v.losses, v.total, `${_winPct(v)}%`];
   });
+
+  // ── Highlights ──
+  const rBW  = bestWorst(agg.race, 'race');
+  const rML  = mostWinsLosses(agg.race);
+  const wBW  = bestWorst(agg.weapon, 'weapon');
+  const wML  = mostWinsLosses(agg.weapon);
+  const wEntries = filtered(agg.weapon);
+  const bestParryWeapon = wEntries.length
+    ? wEntries.filter(([,v]) => v.hits > 0)
+              .sort((a, b) => (b[1].parries / b[1].hits) - (a[1].parries / a[1].hits))[0]?.[0] ?? '–'
+    : '–';
+
+  const hl = (label, val, color, sub = '') =>
+    `<div class="an-hl"><span class="an-hl-label">${label}</span><span class="an-hl-val" style="color:${color}">${val}${sub ? ` <span class="an-hl-sub">${sub}</span>` : ''}</span></div>`;
+
+  const highlights = `
+    <div class="an-highlights">
+      <div class="an-hl-group">
+        <div class="an-hl-title">🧬 Race</div>
+        ${hl('🏆 Best winrate',  rBW.best,       '#44cc88', rBW.bestPct)}
+        ${hl('💀 Worst winrate', rBW.worst,      '#ff4455', rBW.worstPct)}
+        ${hl('⚔️ Most wins',    rML.mostWins,   '#ffaa22', rML.mostWinsN)}
+        ${hl('💔 Most losses',  rML.mostLosses, '#ff7755', rML.mostLossesN)}
+      </div>
+      <div class="an-hl-group">
+        <div class="an-hl-title">🗡️ Weapon</div>
+        ${hl('🏆 Best winrate',      wBW.best,           '#44cc88', wBW.bestPct)}
+        ${hl('💀 Worst winrate',     wBW.worst,          '#ff4455', wBW.worstPct)}
+        ${hl('⚔️ Most wins',        wML.mostWins,       '#ffaa22', wML.mostWinsN)}
+        ${hl('💔 Most losses',      wML.mostLosses,     '#ff7755', wML.mostLossesN)}
+        ${hl('🛡️ Best parry rate',  bestParryWeapon,    '#aaddff')}
+      </div>
+    </div>`;
 
   return `
     <div class="an-header">
@@ -287,18 +377,19 @@ function _renderStats() {
       <button class="an-btn danger" onclick="clearAnalyticsData()">🗑️ Clear All</button>
     </div>
     ${n < 5 ? '<p class="an-note">⚠️ Need at least 5 matches for meaningful data.</p>' : ''}
+    ${n >= 3 ? highlights : ''}
     <div class="an-grid3">
       <div>
-        <h3>Race Win Rate</h3>
-        ${_makeTable(['Race','Matches','Win%'], raceRows)}
+        <h3>Race Stats</h3>
+        ${_makeTable(['Race','W','L','Total','Win%','Avg HP Left'], raceRows, ['','an-w','an-l','','',''])}
       </div>
       <div>
-        <h3>Weapon Win Rate</h3>
-        ${_makeTable(['Weapon','Matches','Win%'], weaponRows)}
+        <h3>Weapon Stats</h3>
+        ${_makeTable(['Weapon','W','L','Total','Win%','Avg HP Left','Parry%'], weaponRows, ['','an-w','an-l','','','',''])}
       </div>
       <div>
         <h3>Skill Win Rate</h3>
-        ${_makeTable(['Skill','Matches','Win%'], skillRows)}
+        ${_makeTable(['Skill','W','L','Total','Win%'], skillRows, ['','an-w','an-l','',''])}
       </div>
     </div>`;
 }

@@ -13,11 +13,23 @@ const MAX_CATCHUP   = 5;            // max steps per rAF frame (prevents spiral-
 let   _lastRafTime  = null;
 let   _accumulator  = 0;
 
+// Page Visibility API — reset frame timer when tab regains focus
+// so the game doesn't get a huge elapsed delta and freeze/jump on resume.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    _lastRafTime = null;          // force bootstrap on next frame
+    if (state.running) {
+      cancelAnimationFrame(rafId); // cancel stale pending frame (if any)
+      rafId = requestAnimationFrame(gameLoop);
+    }
+  }
+});
+
 function gameLoop(now) {
   if (!state.running) return;
   rafId = requestAnimationFrame(gameLoop);
 
-  // Bootstrap on first frame
+  // Bootstrap on first frame or after tab-resume
   if (_lastRafTime === null) { _lastRafTime = now; }
   let elapsed = now - _lastRafTime;
   _lastRafTime = now;

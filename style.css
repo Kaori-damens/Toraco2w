@@ -4258,6 +4258,23 @@ canvas#gameCanvas {
 .an-table tr:hover td { background: #0d0d20; }
 .an-pts { font-weight: bold; color: #ffcc44; text-align: center; }
 .an-tier { font-weight: bold; white-space: nowrap; }
+.an-w   { color: #44cc88; font-weight: bold; }
+.an-l   { color: #ff5566; }
+
+/* Highlights panel */
+.an-highlights { display: flex; gap: 16px; margin: 12px 0 18px; flex-wrap: wrap; }
+.an-hl-group  { background: #0d0d20; border: 1px solid #2a2a3a; border-radius: 8px; padding: 10px 14px; flex: 1; min-width: 180px; }
+.an-hl-title  { font-size: 13px; font-weight: bold; color: #aaa; margin-bottom: 8px; }
+.an-hl        { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; font-size: 12px; }
+.an-hl-label  { color: #666; }
+.an-hl-val    { font-weight: bold; white-space: nowrap; }
+.an-hl-sub    { font-weight: normal; color: #888; font-size: 11px; }
+
+/* Championship Auto button */
+.cs-auto-btn        { border-color: #4488ff !important; color: #4488ff !important; }
+.cs-auto-btn.active { background: #4488ff22; border-color: #44ffaa !important; color: #44ffaa !important; animation: pulse 1s infinite alternate; }
+
+@keyframes pulse { from { opacity: 0.8; } to { opacity: 1; box-shadow: 0 0 12px currentColor; } }
 
 /* Bar */
 .an-bar-bg   { background: #1a1a2a; border-radius: 4px; height: 8px; width: 100%; min-width: 60px; overflow: hidden; }

@@ -783,6 +783,54 @@
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 87</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>📜 <b>Bracket History sau khi kết thúc Championship</b>: Sau khi có vô địch, dùng nút ◀ Prev để lướt lại các phase trước (Phase 1 FFA, Phase 2 Playoff…) xem ai đã thua ở đâu. Nút ▶ Next để quay lại phase cuối</li>
+              <li>🏆 <b>Champion card + bracket cùng lúc</b>: Phase cuối (Double Elimination) hiện cả banner vô địch phía trên VÀ toàn bộ bracket DE phía dưới để xem lịch sử trận đấu</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 86</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚡ <b>Championship Auto Mode</b>: Nút "Auto" trên bracket screen — nhấn để tự chạy toàn bộ các trận đấu liên tục không cần click. Tự dừng trước Grand Final để user xem kết quả và quyết định có muốn xem trận chung kết không</li>
+              <li>🏆 <b>Grand Final highlight</b>: Nút "Fight Next Match" đổi thành "Fight Grand Final" khi đến trận cuối; có hiệu ứng nhấp nháy để báo hiệu</li>
+              <li>⏹ <b>Cancel Auto</b>: Nhấn lại nút (lúc này hiện "Stop Auto") để dừng auto bất cứ lúc nào</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
+          <span class="changelog-badge">Patch 85</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>📊 <b>Analytics — Stats nâng cấp</b>: Track thêm HP còn lại khi thắng, số lần evade, damage nhận vào cho mỗi fighter</li>
+              <li>🏆 <b>Highlights panel</b>: Hiển thị race/weapon có winrate tốt/tệ nhất, nhiều thắng/thua nhất ngay đầu tab Stats</li>
+              <li>🛡️ <b>Parry rate theo weapon</b>: Bảng weapon thêm cột Parry% (parries/hits), highlight weapon có parry rate cao nhất</li>
+              <li>📋 <b>Bảng W/L</b>: Tách riêng cột Wins và Losses trong bảng Race/Weapon/Skill thay vì chỉ hiện total</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">17 Apr 2026</span>
           <span class="changelog-badge">Patch 84</span>
           <span class="changelog-chevron">▼</span>
         </div>
@@ -2273,6 +2321,7 @@
   <!-- ── Action bar ── -->
   <div class="bracket-action-bar">
     <button class="r-btn primary" id="nextMatchBtn">⚔️ Fight Next Match</button>
+    <button class="r-btn cs-auto-btn" id="champAutoBtn" style="display:none" onclick="toggleChampAuto()">⚡ Auto</button>
     <button class="r-btn"         id="tournamentStatsBtn" style="display:none">📊 Stats</button>
     <button class="r-btn gold"    id="bracketMenuBtn">← Main Menu</button>
   </div>

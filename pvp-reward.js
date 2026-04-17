@@ -263,6 +263,22 @@ function showPVPRewardWheel(fighter) {
   _pvpDrawWheel(0);
 }
 
+// ── On-close callback (used by auto mode) ─────────────────────────
+let _pvpOnCloseCallback = null;
+function pvpRewardSetOnClose(fn) { _pvpOnCloseCallback = fn; }
+function _pvpClose() {
+  document.getElementById('pvp-reward-modal').style.display = 'none';
+  const cb = _pvpOnCloseCallback;
+  _pvpOnCloseCallback = null;
+  if (cb) { setTimeout(cb, 200); return; }
+  // If winner has Copycat pending → show Copycat Wheel next
+  if (_pvpFighter?._copycatWheel) {
+    const wheel = _pvpFighter._copycatWheel;
+    _pvpFighter._copycatWheel = null;
+    setTimeout(() => showCopycatWheel(_pvpFighter, wheel), 200);
+  }
+}
+
 // ── Button event bindings ─────────────────────────────────────────
 // (scripts run after DOM is parsed since they're at bottom of body)
 document.getElementById('pvp-spin-btn')?.addEventListener('click', () => {
@@ -275,15 +291,7 @@ document.getElementById('pvp-spin-btn')?.addEventListener('click', () => {
   requestAnimationFrame(_pvpAnimateSpin);
 });
 
-document.getElementById('pvp-reward-continue')?.addEventListener('click', () => {
-  document.getElementById('pvp-reward-modal').style.display = 'none';
-  // If winner has Copycat pending → show Copycat Wheel next
-  if (_pvpFighter?._copycatWheel) {
-    const wheel = _pvpFighter._copycatWheel;
-    _pvpFighter._copycatWheel = null;
-    setTimeout(() => showCopycatWheel(_pvpFighter, wheel), 200);
-  }
-});
+document.getElementById('pvp-reward-continue')?.addEventListener('click', _pvpClose);
 
 // ============================================================
 // COPYCAT WHEEL — spins after PVP reward when winner has Copycat
