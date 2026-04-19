@@ -92,12 +92,20 @@ function resumeTournament() {
 }
 
 // ── Fighter Card popup ────────────────────────────────────────────
-function _fcardFighterHTML(f) {
+let _fcardAnimId = null;
+
+function _fcardFighterHTML(f, uid) {
   if (!f) return '';
   const cs   = f.charStats ?? {};
   const base = f.baseStats ?? {};
-  const wep  = (typeof CG_WEAPONS !== 'undefined' ? CG_WEAPONS : []).find(w => w.id === f.weaponId);
-  const wLabel   = wep ? wep.label : (f.weaponId ?? '?');
+
+  const wepDef   = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[f.weaponId] : null;
+  const wep      = (typeof CG_WEAPONS !== 'undefined' ? CG_WEAPONS : []).find(w => w.id === f.weaponId);
+  const rawLabel = wep ? wep.label.replace(/^\S+\s*/, '') : (f.weaponId ?? '?');
+  const wLabel   = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
+  const wIcon    = wepDef?.icon ?? '⚔️';
+  const isUnique = wepDef?.unique === true;
+
   const raceName = cs.race ? (cs.race.charAt(0).toUpperCase() + cs.race.slice(1)) : '';
   const subName  = cs.subrace?.label ? ` · ${cs.subrace.label}` : '';
   const bot      = f.isBot ? ' 🤖' : '';
@@ -114,9 +122,9 @@ function _fcardFighterHTML(f) {
     if (cur == null) {
       valHTML = '<span class="fcard-sv">—</span>';
     } else if (!f.isBot && orig != null && cur !== orig) {
-      const diff  = cur - orig;
-      const cls   = diff > 0 ? 'fcard-diff-pos' : 'fcard-diff-neg';
-      const sign  = diff > 0 ? '+' : '';
+      const diff = cur - orig;
+      const cls  = diff > 0 ? 'fcard-diff-pos' : 'fcard-diff-neg';
+      const sign = diff > 0 ? '+' : '';
       valHTML = `<span class="fcard-sv">${orig}</span><span class="${cls}">${sign}${diff}</span>`;
     } else {
       valHTML = `<span class="fcard-sv">${cur}</span>`;
@@ -125,51 +133,183 @@ function _fcardFighterHTML(f) {
   }).join('');
 
   // ── Skills with new/lost diff ──
-  const curSkills  = f.skills      ?? [];
-  const baseSkills = f.baseSkills  ?? curSkills;
+  const curSkills  = f.skills     ?? [];
+  const baseSkills = f.baseSkills ?? curSkills;
   const lostSkills = baseSkills.filter(id => !curSkills.includes(id));
 
+  const toSkillSpan = (id, extraClass = '') => {
+    const sk       = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[id] : null;
+    const label    = sk ? `${sk.icon} ${sk.name}` : id;
+    const descAttr = sk?.desc ? ` data-desc="${sk.desc.replace(/"/g, '&quot;')}"` : '';
+    const typeAttr = sk?.type ? ` data-type="${sk.type}"` : '';
+    return `<span class="fcard-skill fcard-skill-tip${extraClass}"${descAttr}${typeAttr}>${label}</span>`;
+  };
+
   const skillsHTML = [
-    ...curSkills.map(id => {
-      const sk    = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[id] : null;
-      const label = sk ? `${sk.icon} ${sk.name}` : id;
-      const isNew = !baseSkills.includes(id);
-      return `<span class="fcard-skill${isNew ? ' fcard-skill-new' : ''}">${label}</span>`;
-    }),
+    ...curSkills.map(id => toSkillSpan(id, !baseSkills.includes(id) ? ' fcard-skill-new' : '')),
     ...lostSkills.map(id => {
-      const sk    = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[id] : null;
-      const label = sk ? `${sk.icon} ${sk.name}` : id;
-      return `<span class="fcard-skill fcard-skill-lost">${label} <span class="fcard-lost-tag">lost</span></span>`;
+      const sk       = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[id] : null;
+      const label    = sk ? `${sk.icon} ${sk.name}` : id;
+      const descAttr = sk?.desc ? ` data-desc="${sk.desc.replace(/"/g, '&quot;')}"` : '';
+      const typeAttr = sk?.type ? ` data-type="${sk.type}"` : '';
+      return `<span class="fcard-skill fcard-skill-tip fcard-skill-lost"${descAttr}${typeAttr}>${label} <span class="fcard-lost-tag">lost</span></span>`;
     }),
   ].join('');
 
+  const hasSkills = curSkills.length > 0 || lostSkills.length > 0;
+
   return `
-    <div class="fcard-header" style="border-left:4px solid ${f.color ?? '#888'}">
-      <span class="fcard-dot" style="background:${f.color ?? '#888'}"></span>
-      <span class="fcard-name">${f.charEmoji ?? ''} ${f.charName ?? '?'}</span>
+    <div class="fcard2-top">
+      <canvas id="fcard-ball-${uid}" class="fcard2-ball-canvas" width="120" height="120"></canvas>
+      <div class="fcard2-info">
+        <div class="fcard2-name" style="color:${f.color ?? '#eee'}">${f.charEmoji ?? ''} ${f.charName ?? '?'}${bot}</div>
+        <div class="fcard2-race">${raceName}${subName}</div>
+        <div class="fcard-stats">${statsHTML}</div>
+      </div>
     </div>
-    <div class="fcard-meta">${wLabel} · ${raceName}${subName}${bot}</div>
-    <div class="fcard-stats">${statsHTML}</div>
-    ${skillsHTML ? `<div class="fcard-skills-wrap">${skillsHTML}</div>`
-                 : '<div class="fcard-no-skills">No skills</div>'}
+    <div class="fcard2-weapon-section">
+      <div class="fcard2-weapon-label">
+        <span class="fcard2-wep-icon-name">${wIcon} ${wLabel}</span>
+        ${isUnique ? '<span class="fcard2-unique-tag">[Unique]</span>' : ''}
+      </div>
+      <canvas id="fcard-wep-${uid}" class="fcard2-wep-canvas" width="220" height="70"></canvas>
+    </div>
+    ${hasSkills
+      ? `<div class="fcard2-skills-section">
+           <div class="fcard2-skills-label">✦ Skills</div>
+           <div class="fcard-skills-wrap">${skillsHTML}</div>
+         </div>`
+      : '<div class="fcard-no-skills">No skills</div>'}
   `;
 }
 
+function _fcardDrawBall(f, uid) {
+  const canvas = document.getElementById(`fcard-ball-${uid}`);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cs  = f.charStats ?? {};
+  const CX = 60, CY = 60, R = 32;
+  const fakeBall = {
+    x: CX, y: CY, radius: R,
+    color: f.color ?? '#4d96ff',
+    charRace: cs.race ?? '',
+    charSubrace: cs.subrace ?? null,
+    _deco_fa: 0, team: -1,
+  };
+  const loop = () => {
+    _fcardAnimId = requestAnimationFrame(loop);
+    ctx.clearRect(0, 0, 120, 120);
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+    ctx.fillStyle = fakeBall.color;
+    ctx.shadowColor = fakeBall.color;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    if (typeof drawRaceDecoration === 'function') drawRaceDecoration(ctx, fakeBall);
+    fakeBall._deco_fa += 0.018;
+  };
+  loop();
+}
+
+function _fcardDrawWeapon(f, uid) {
+  const canvas = document.getElementById(`fcard-wep-${uid}`);
+  const wepDef = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[f.weaponId] : null;
+  if (!canvas || !wepDef?.draw) return;
+  const ctx = canvas.getContext('2d');
+  const cs  = f.charStats ?? {};
+  ctx.clearRect(0, 0, 220, 70);
+  const CW = 220, CH = 70, R = 14;
+  const isFists  = wepDef.id === 'fists' || wepDef.id === 'iron_fist';
+  const isRanged = wepDef.aiType === 'ranged';
+  const bLen     = wepDef.baseLength ?? 40;
+  // Center weapon midpoint on canvas: fists → ball at center; ranged → bow/star visual at center; melee → weapon midpoint at center
+  const bx = isFists  ? CW / 2
+           : isRanged ? CW / 2 - R - 6
+           : Math.max(R + 4, CW / 2 - R - bLen / 2);
+  const fakeBall = {
+    x: bx, y: CH / 2, radius: R,
+    color: f.color ?? '#4d96ff',
+    charRace: cs.race ?? '', charSubrace: cs.subrace ?? null,
+    vx: 0, vy: 0,
+    weapon: {
+      angle: 0, hits: 0,
+      attackCooldown: wepDef.attackCooldown ?? 20,
+      bonusDamage: 0, bonusLength: 0, spinBonus: 0, bonusKnockback: 0,
+      whirlTimer: 0, excaliburTransformTimer: 0, gungnirThrowTimer: 120,
+      fireTimer: 0, fireInterval: wepDef.fireInterval ?? 120,
+      arrowCount: 1, shurikenCount: 1,
+      emberStacks: 0, soulShards: 0,
+      caliburnStacks: 0, caliburnSpeedTimer: 0,
+      muramasaFrenzy: 0, momentumStacks: 0, iaiReady: false,
+      riposteWindow: 0, riposteStacks: 0,
+    },
+  };
+  try { wepDef.draw(ctx, fakeBall); } catch (e) {}
+}
+
+function _fcardWireSkillTooltips(container) {
+  const tip = document.getElementById('fcard-skill-tooltip');
+  if (!tip) return;
+  const TL = { passive: 'Passive', pre_combat: 'Pre-Combat', in_combat: 'In-Combat', post_combat: 'Post-Combat' };
+  const TC = { passive: '#e8c87a', pre_combat: '#c9902a', in_combat: '#cc3333', post_combat: '#6aaa44' };
+  container.querySelectorAll('.fcard-skill-tip').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      const desc = el.dataset.desc;
+      if (!desc) return;
+      const type = el.dataset.type ?? '';
+      tip.innerHTML = (type ? `<div class="fcard-tip-type" style="color:${TC[type] ?? '#aaa'}">${TL[type] ?? type}</div>` : '')
+        + `<div class="fcard-tip-desc">${desc}</div>`;
+      tip.style.display = 'block';
+      _fcardMoveTip(e);
+    });
+    el.addEventListener('mousemove', _fcardMoveTip);
+    el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
+function _fcardMoveTip(e) {
+  const tip = document.getElementById('fcard-skill-tooltip');
+  if (!tip || tip.style.display === 'none') return;
+  const M = 12;
+  let x = e.clientX + M, y = e.clientY + M;
+  if (x + tip.offsetWidth  > window.innerWidth  - M) x = e.clientX - tip.offsetWidth  - M;
+  if (y + tip.offsetHeight > window.innerHeight - M) y = e.clientY - tip.offsetHeight - M;
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+}
+
 function showFighterCard(data) {
+  if (_fcardAnimId) { cancelAnimationFrame(_fcardAnimId); _fcardAnimId = null; }
   const modal   = document.getElementById('fighter-card-modal');
   const content = document.getElementById('fighter-card-content');
   if (!modal || !content || !data) return;
+
+  const uid = Date.now();
   if (data.fighters) {
-    // 2v2 team
-    content.innerHTML = `<div class="fcard-team-title">Team</div>` +
-      data.fighters.map(_fcardFighterHTML).join('<hr class="fcard-divider">');
+    const uid2 = uid + 1;
+    content.innerHTML =
+      `<div class="fcard-team-title">Team</div>` +
+      _fcardFighterHTML(data.fighters[0], uid) +
+      '<hr class="fcard-divider">' +
+      _fcardFighterHTML(data.fighters[1], uid2);
+    _fcardDrawBall(data.fighters[0], uid);
+    _fcardDrawWeapon(data.fighters[0], uid);
+    _fcardDrawBall(data.fighters[1], uid2);
+    _fcardDrawWeapon(data.fighters[1], uid2);
   } else {
-    content.innerHTML = _fcardFighterHTML(data);
+    content.innerHTML = _fcardFighterHTML(data, uid);
+    _fcardDrawBall(data, uid);
+    _fcardDrawWeapon(data, uid);
   }
+  _fcardWireSkillTooltips(content);
   modal.style.display = 'flex';
 }
 
 function closeFighterCard() {
+  if (_fcardAnimId) { cancelAnimationFrame(_fcardAnimId); _fcardAnimId = null; }
+  const tip = document.getElementById('fcard-skill-tooltip');
+  if (tip) tip.style.display = 'none';
   const m = document.getElementById('fighter-card-modal');
   if (m) m.style.display = 'none';
 }

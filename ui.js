@@ -155,6 +155,8 @@ document.getElementById('menuBtn').addEventListener('click', () => {
   }
   showScreen('menu');
   buildFightersPanel();
+  _updateTournamentResumeUI();
+  _updateChampionshipResumeUI();
 });
 
 // Gravity
@@ -204,6 +206,8 @@ document.getElementById('menuBtnR').addEventListener('click', () => {
   state.teamIds = [];
   showScreen('menu');
   buildFightersPanel();
+  _updateTournamentResumeUI();
+  _updateChampionshipResumeUI();
 });
 document.getElementById('nextGameBtn').addEventListener('click', () => {
   // Continue BO3 — keep same fighters, random arena
@@ -498,9 +502,9 @@ document.getElementById('csClearBtn').addEventListener('click', () => {
 document.getElementById('csStartBtn').addEventListener('click', () => {
   const cs   = state.championship;
   const size = cs?.size ?? 128;
-  // Size=32 uses draft flow — handled by startChampionship32()
-  if (size === 32) { startChampionship32(); return; }
-  // Size=64/128/256: old roster-pick flow
+  // Size=32/64/128 use draft flow — handled by startChampionshipDraft()
+  if (size === 32 || size === 64 || size === 128) { startChampionshipDraft(); return; }
+  // Size=256: old roster-pick flow
   const roster      = JSON.parse(localStorage.getItem('cgRoster') ?? '[]');
   const selIdxs     = cs?.selectedFighters ?? [];
   const selFighters = selIdxs.map(i => roster[i]).filter(Boolean);
@@ -520,16 +524,18 @@ document.querySelectorAll('[data-cssize]').forEach(btn => {
     const newSize  = parseInt(btn.dataset.cssize);
     const prevTag  = state.championship?.tag;
     const prevName = state.championship?.name;
+    const isDraftSize = s => s === 32 || s === 64 || s === 128;
     if (!state.championship || state.championship.phases) {
       state.championship = { size: newSize, selectedFighters: [] };
     } else {
-      // Switching away from 32: clear draft state to avoid stale data
-      if (state.championship.size === 32 && newSize !== 32) {
-        state.championship = { size: newSize, selectedFighters: [], tag: prevTag, name: prevName };
+      const oldSize = state.championship.size;
+      // Switching between different sizes in draft mode: reset draft
+      if (isDraftSize(oldSize) && isDraftSize(newSize) && oldSize !== newSize) {
+        state.championship = { size: newSize, tag: prevTag, name: prevName };
       }
-      // Switching to 32: reset to fresh draft
-      else if (newSize === 32 && state.championship.size !== 32) {
-        state.championship = { size: 32, tag: prevTag, name: prevName };
+      // Switching between draft and roster-pick (256): reset all
+      else if (isDraftSize(oldSize) !== isDraftSize(newSize)) {
+        state.championship = { size: newSize, selectedFighters: [], tag: prevTag, name: prevName };
       } else {
         state.championship.size = newSize;
       }

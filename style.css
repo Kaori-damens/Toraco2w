@@ -3917,6 +3917,67 @@ canvas#gameCanvas {
 .fcard-divider { border: none; border-top: 1px solid #1e2240; margin: 14px 0; }
 .bracket-player.clickable { cursor: pointer; border-radius: 4px; }
 .bracket-player.clickable:hover { background: rgba(255,255,255,0.06); }
+.cs-fighter-row.clickable { cursor: pointer; border-radius: 4px; }
+.cs-fighter-row.clickable:hover { background: rgba(255,255,255,0.06); }
+
+/* ── Fighter Card v2 ─────────────────────────────────────── */
+#fighter-card-box { max-width: 400px; }
+.fcard2-top {
+  display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start;
+}
+.fcard2-ball-canvas {
+  flex-shrink: 0; border-radius: 50%; background: #0d1025; width: 100px; height: 100px;
+}
+.fcard2-info {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;
+}
+.fcard2-name {
+  font-size: 15px; font-weight: 900; line-height: 1.25;
+  word-break: break-word;
+}
+.fcard2-race {
+  font-size: 11px; color: #667; margin-bottom: 5px;
+}
+.fcard2-weapon-section {
+  border-top: 1px solid #1e2240; padding-top: 10px; margin-bottom: 10px;
+}
+.fcard2-weapon-label {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.fcard2-wep-icon-name {
+  font-size: 13px; font-weight: 700; color: #ccd;
+}
+.fcard2-unique-tag {
+  font-size: 10px; font-weight: 700; color: #ffd700;
+  border: 1px solid #ffd70055; border-radius: 4px;
+  padding: 1px 5px; letter-spacing: 0.5px;
+}
+.fcard2-wep-canvas {
+  display: block; background: #0d1025; border-radius: 8px;
+  width: 100%; height: 70px;
+}
+.fcard2-skills-section {
+  border-top: 1px solid #1e2240; padding-top: 8px;
+}
+.fcard2-skills-label {
+  font-size: 10px; color: #556; letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+/* Skill tooltip */
+#fcard-skill-tooltip {
+  position: fixed; display: none; z-index: 2100;
+  background: #13162b; border: 1px solid #2d3155;
+  border-radius: 8px; padding: 8px 11px;
+  max-width: 260px; pointer-events: none;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.75);
+}
+.fcard-tip-type {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.fcard-tip-desc {
+  font-size: 12px; color: #bbc; line-height: 1.45;
+}
 
 /* ── Phase-based bracket layout ──────────────────────────── */
 #bracket.screen.active {

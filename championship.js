@@ -14,7 +14,7 @@ function randomArenaChampionship(playerCount) {
   if (playerCount >= 4) {
     targetSize = sizeRoll < 60 ? 'large' : sizeRoll < 95 ? 'medium' : 'small';
   } else {
-    targetSize = sizeRoll < 10 ? 'large' : sizeRoll < 80 ? 'medium' : 'small';
+    targetSize = sizeRoll < 5 ? 'large' : sizeRoll < 80 ? 'medium' : 'small';
   }
 
   // Step 2: split arenas of that size into plain vs object (trap/hole)
@@ -74,7 +74,7 @@ function removeDraftPlayer(idx) {
   buildChampionshipSetup();
 }
 
-// Save draft-phase state (size=32, no phases yet) to localStorage
+// Save draft-phase state (size=32/64/128, no phases yet) to localStorage
 function saveDraftProgress() {
   const cs = state.championship;
   if (!cs || cs.phases) return; // only for draft phase
@@ -107,11 +107,11 @@ function fillRemainingDraftSlots() {
   buildChampionshipSetup();
 }
 
-function startChampionship32() {
+function startChampionshipDraft() {
   const cs = state.championship;
-  if (!cs || !cs.draftRoster || cs.draftRoster.length < 32) return;
+  if (!cs || !cs.draftRoster || cs.draftRoster.length < cs.size) return;
   // Build championship from draftRoster, then replace state.championship
-  state.championship = createChampionship(32, cs.draftRoster);
+  state.championship = Object.assign(createChampionship(cs.size, cs.draftRoster), { name: cs.name, tag: cs.tag });
   saveChampionshipProgress();
   showScreen('bracket');
   renderChampionshipBracket();
@@ -551,7 +551,7 @@ function renderChampionshipBracket() {
     const champ=cs.champion;
     const w=document.createElement('div'); w.className='bracket-champ-wrap';
     const trophy=document.createElement('div'); trophy.className='bracket-champ-trophy'; trophy.textContent='🏆'; w.appendChild(trophy);
-    const lbl=document.createElement('div'); lbl.className='bracket-champ-label'; lbl.textContent='Toraco Champion '+cs.size; w.appendChild(lbl);
+    const lbl=document.createElement('div'); lbl.className='bracket-champ-label'; lbl.textContent=cs.name || ('Toraco Champion '+cs.size); w.appendChild(lbl);
     const card=document.createElement('div');
     card.className='bracket-match current bracket-champ-card';
     card.style.cssText='border-color:'+champ.color+';box-shadow:0 0 32px '+champ.color+'55';
@@ -706,7 +706,7 @@ function buildChampionshipSetup() {
   const titleEl = document.querySelector('#championship-setup .game-title');
   if (titleEl) titleEl.innerHTML = `🏆 ${cs.name} <span style="font-family:monospace;font-size:0.6em;color:#88aaff;vertical-align:middle;opacity:0.85"> [${cs.tag}]</span>`;
 
-  if (size === 32) {
+  if (size === 32 || size === 64 || size === 128) {
     _buildChampionshipDraft(cs);
   } else {
     _buildChampionshipRosterPick(cs, size);
@@ -761,7 +761,7 @@ function _buildChampionshipTagForm(cs) {
   [nameInput, tagInput].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
 }
 
-// ── Size=32: Draft Phase UI ────────────────────────────────────
+// ── Size=32/64/128: Draft Phase UI ────────────────────────────
 function _buildChampionshipDraft(cs) {
   // Ensure draft state exists
   if (!cs.draftRoster) {
@@ -770,7 +770,7 @@ function _buildChampionshipDraft(cs) {
     saveDraftProgress();   // persist initial empty draft
   }
   const draft = cs.draftRoster;
-  const size  = cs.size; // 32
+  const size  = cs.size;
   const full  = draft.length >= size;
 
   // Slot info

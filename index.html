@@ -476,7 +476,7 @@
           <table class="wiki-table">
             <thead><tr><th>Weapon</th><th>Base Dmg</th><th>Cooldown</th><th>Scaling (per hit)</th></tr></thead>
             <tbody>
-              <tr><td class="wk">🥊 Fists</td><td>2 + MA×0.2</td><td><code>max(2, 13−SPD)</code></td><td>−0.5f cooldown (min 8f) — chỉ hoạt động nếu AC &gt; 8</td></tr>
+              <tr><td class="wk">🥊 Fists</td><td>2 + MA×0.2</td><td><code>max(2, 13−SPD)</code></td><td>−0.5f cooldown (min 8f) — Chỉ hoạt động nếu AC &gt; 8</td></tr>
               <tr><td class="wk">⚔️ Sword</td><td>1</td><td><code>max(2, 28−SPD)</code></td><td>+1 bonus damage</td></tr>
               <tr><td class="wk">🗡️ Dagger</td><td>1 + MA×0.15</td><td><code>max(2, 18−SPD)</code></td><td>+0.012 spin speed (max 0.55)</td></tr>
               <tr><td class="wk">🔱 Spear</td><td>1</td><td><code>max(2, 38−SPD)</code></td><td>+4 px length, +0.5 damage</td></tr>
@@ -484,11 +484,37 @@
               <tr><td class="wk">🔨 Hammer</td><td>1</td><td><code>max(2, 48−SPD)</code></td><td>+0.8 knockback</td></tr>
               <tr><td class="wk">🏹 Bow</td><td>1/arrow</td><td><code>max(5, 140−SPD×2)</code></td><td>+1 arrow · starting arrows = SPD · size = STR · soft auto-aim (MA track, IQ cone)</td></tr>
               <tr><td class="wk">⭐ Shuriken</td><td>1/star</td><td><code>max(5, 250−SPD×2)</code></td><td>+1 star · bounces ×2</td></tr>
-              <tr><td class="wk">🤺 Rapier</td><td>0.8</td><td><code>max(2, 18−SPD)</code></td><td>Riposte — khi bị đánh: mở cửa sổ phản đòn (IQ+parry stacks × damage). Forbidden Weapon only.</td></tr>
+              <tr><td class="wk">🤺 Rapier</td><td>0.8</td><td><code>max(2, 18−SPD)</code></td><td>Riposte — Khi bị đánh: Mở cửa sổ phản đòn (IQ+parry stacks × damage). Forbidden Weapon only.</td></tr>
               <tr><td class="wk">⚔️ Katana</td><td>1.5</td><td><code>max(2, 42−SPD)</code></td><td>Momentum — 5 hits → Iai Strike (×3 damage). Bị đánh reset stacks. Forbidden Weapon only.</td></tr>
             </tbody>
           </table>
-          <div class="wiki-note">Projectile immunity: 8 frames. Melee immunity: 4 frames (independent counters). · 🚫 <b>Forbidden Weapons</b> (Rapier, Katana): không thể quay ra khi tạo nhân vật — chỉ nhận qua PvP Reward "Forbidden Weapon" (~4.4% chance). Hiệu lực từ trận tiếp theo.</div>
+          <div class="wiki-note">Projectile immunity: 8 frames. Melee immunity: 4 frames (independent counters). · 🚫 <b>Forbidden Weapons</b> (Rapier, Katana): không thể quay ra khi tạo nhân vật — Chỉ nhận qua PvP Reward "Forbidden Weapon" (~4.4% chance). Hiệu lực từ trận tiếp theo.</div>
+        </div>
+      </div>
+
+      <!-- ── Unique Weapons ── -->
+      <div class="wiki-section collapsed">
+        <div class="wiki-section-header" data-wiki-toggle>
+          <span>★ Unique Weapons</span><span class="wiki-chevron">▾</span>
+        </div>
+        <div class="wiki-section-body">
+          <div class="wiki-note">🏆 <b>Championship-only</b> — Chỉ xuất hiện trong pool Championship Draft. Mỗi weapon chỉ có 1 bản trong pool, bị xóa vĩnh viễn sau khi ai đó lấy.</div>
+          <table class="wiki-table">
+            <thead><tr><th>Weapon</th><th>Base</th><th>Base Dmg</th><th>CD</th><th>Scaling / hit</th><th>Unique Mechanic</th></tr></thead>
+            <tbody>
+              <tr><td class="wk">🌟 Excalibur</td><td>Sword</td><td>1.2</td><td><code>max(2, 28−SPD)</code></td><td>+1 damage</td><td>HP ≤30% → <b>Last Stand</b> 20s: Mỗi 2s bắn Sword Beam xuyên giáp, damage cao</td></tr>
+              <tr><td class="wk">⚡ Mjolnir</td><td>Hammer</td><td>1.2</td><td><code>max(2, 48−SPD)</code></td><td>+0.8 knockback</td><td>Mỗi hit hoặc nảy tường: 35% sinh <b>sét</b> nảy ×2</td></tr>
+              <tr><td class="wk">🔥 Iron Fist</td><td>Fists</td><td>2.5</td><td><code>max(2, 16−SPD)</code></td><td>−0.5f cooldown (min 8f)</td><td>5 <b>Ember</b> stacks → <b>Combustion</b> AOE 100px. MA +flat dmg (MA×0.5)</td></tr>
+              <tr><td class="wk">🌑 Shadowfang</td><td>Dagger</td><td>1.2</td><td><code>max(2, 18−SPD)</code></td><td>+spin speed</td><td>Mỗi hit <b>Poison</b> target · Tấn công từ phía sau = auto-crit</td></tr>
+              <tr><td class="wk">✨ Gungnir</td><td>Spear</td><td>1.2</td><td><code>max(2, 38−SPD)</code></td><td>+4px length +0.5 dmg</td><td>Mỗi 120f tự ném <b>Rune Spear</b> tracking về phía kẻ địch gần nhất</td></tr>
+              <tr><td class="wk">🪄 Jingubang</td><td>Spear</td><td>1.2</td><td><code>max(2, 34−SPD)</code></td><td>+7px length +0.45 dmg</td><td>Mỗi 6 hit: <b>WHIRL</b> — Xoay 360° AOE 4s, đánh tất cả kẻ địch trong tầm</td></tr>
+              <tr><td class="wk">💀 Harvester</td><td>Scythe</td><td>1.2</td><td><code>max(2, 34−SPD)</code></td><td>Dual blade tại 5 hits</td><td>5 <b>Soul Shards</b> → <b>Soul Burst</b> AOE 80px × 3× base dmg</td></tr>
+              <tr><td class="wk">⚡ Caliburn</td><td>Rapier</td><td>1.0</td><td><code>max(2, 18−SPD)</code></td><td>Riposte dmg</td><td>3 parry → <b>Caliburn Burst</b>: 5s tốc độ ×1.4 + hit kế tiếp guaranteed crit</td></tr>
+              <tr><td class="wk">🐍 Medusa Bow</td><td>Bow</td><td>1.2/arrow</td><td><code>max(5, 130−SPD×2)</code></td><td>+1 arrow/hit</td><td>Mỗi arrow hit: −1 maxSpd target · 5 stacks → <b>Petrify</b> 2s (khóa vũ khí)</td></tr>
+              <tr><td class="wk">🌀 Fuma Shuriken</td><td>Shuriken</td><td>1.2/star</td><td><code>max(5, 120−SPD×2)</code></td><td>+1 star/hit</td><td>Mỗi nảy tường: +4 radius · dmg ×1.6 (cộng dồn, tối đa 3 lần)</td></tr>
+              <tr><td class="wk">🩸 Muramasa</td><td>Katana</td><td>1.7</td><td><code>max(2, 42−SPD)</code></td><td>Frenzy stacks</td><td>Max 3 <b>Frenzy</b> (−3 CD/stack) · <b>IAI Strike</b>: tốn 8% HP, sát thương ×4</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -559,7 +585,7 @@
               <span class="wiki-skill-icon">⚒️</span>
               <div><div class="wiki-skill-name">FORGE!</div><div class="wiki-skill-race">⛏️ Dwarf</div></div>
             </div>
-            <div class="wiki-skill-desc">Định kỳ nâng cấp vũ khí ngẫu nhiên — melee nhận bonus hit radius, parry radius hoặc +5% dmg/stack; ranged nhận +proj size, +proj speed hoặc +5% dmg/stack. Upgrades tích lũy qua các round.</div>
+            <div class="wiki-skill-desc">Định kỳ nâng cấp vũ khí ngẫu nhiên — Melee nhận bonus hit radius, parry radius hoặc +5% dmg/stack; ranged nhận +proj size, +proj speed hoặc +5% dmg/stack. Upgrades tích lũy qua các round.</div>
             <div class="wiki-skill-stats">
               <span class="wiki-skill-stat"><code>Interval: max(420, 720−DUR×24)f (7–12s)</code></span>
               <span class="wiki-skill-stat"><code>Dmg stack: +5% per Sharpness level (no cap)</code></span>
@@ -571,7 +597,7 @@
               <span class="wiki-skill-icon">🩸</span>
               <div><div class="wiki-skill-name">Blood Price</div><div class="wiki-skill-race">🗡️ Orc</div></div>
             </div>
-            <div class="wiki-skill-desc">Mỗi đòn nhận vào tích 1 Bloodlust stack (tối đa 5). Khi đủ 5 stack: đòn tấn công tiếp theo trở thành Burst — gây thêm sát thương và hồi máu. STR tăng damage, DUR tăng lượng hồi.</div>
+            <div class="wiki-skill-desc">Mỗi đòn nhận vào tích 1 Bloodlust stack (tối đa 5). Khi đủ 5 stack: đòn tấn công tiếp theo trở thành Burst — Gây thêm sát thương và hồi máu. STR tăng damage, DUR tăng lượng hồi.</div>
             <div class="wiki-skill-stats">
               <span class="wiki-skill-stat"><code>Trigger: 5 Bloodlust stacks (passive, no cooldown)</code></span>
               <span class="wiki-skill-stat"><code>Burst dmg: bonus scales with STR</code></span>
@@ -597,7 +623,7 @@
               <span class="wiki-skill-icon">⚡</span>
               <div><div class="wiki-skill-name">Limit Break</div><div class="wiki-skill-race">👤 Human</div></div>
             </div>
-            <div class="wiki-skill-desc">Triggers <strong>once</strong> when HP drops below 20% — lasts until end of match, cannot expire. Each hit lands stacks +15% damage with no cap. Melee: charges at 1.5× speed straight at the nearest enemy. Ranged: kites at ~250px while keeping aim locked. No HP drain — a true last-breath comeback.</div>
+            <div class="wiki-skill-desc">Triggers <strong>once</strong> when HP drops below 20% — Lasts until end of match, cannot expire. Each hit lands stacks +15% damage with no cap. Melee: charges at 1.5× speed straight at the nearest enemy. Ranged: kites at ~250px while keeping aim locked. No HP drain — A true last-breath comeback.</div>
             <div class="wiki-skill-stats">
               <span class="wiki-skill-stat"><code>Trigger: HP &lt; 20% (one-time)</code></span>
               <span class="wiki-skill-stat"><code>Duration: until end of match</code></span>
@@ -668,7 +694,7 @@
             <tr><td>Tag</td><td>Exactly 3 characters · uppercase A–Z / 0–9 · e.g. <code>SHN</code></td></tr>
             <tr><td>Example</td><td>Name: <em>Sunohana</em> → badge: <strong>[SHN]</strong></td></tr>
             <tr><td>Who gets tagged</td><td>All Radosers from: Chargen draft, Quick Create, Fill Remaining</td></tr>
-            <tr><td>Persists</td><td>Tag saved to localStorage with the Radoser — visible in Radosers tab</td></tr>
+            <tr><td>Persists</td><td>Tag saved to localStorage with the Radoser — Visible in Radosers tab</td></tr>
           </table>
 
         </div>
@@ -688,7 +714,7 @@
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💨</span><div><div class="wiki-skill-row-name">Swift</div><div class="wiki-skill-row-desc">+15% movement speed cap</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">👁️</span><div><div class="wiki-skill-row-name">Sharp Eye</div><div class="wiki-skill-row-desc">+10% crit chance</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">✨</span><div><div class="wiki-skill-row-name">Extended Immunity</div><div class="wiki-skill-row-desc">Melee immunity 4→30f · Projectile immunity 8→16f</div></div></div>
-            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚓</span><div><div class="wiki-skill-row-name">Heavy Mass</div><div class="wiki-skill-row-desc">+30% mass — less knockback</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚓</span><div><div class="wiki-skill-row-name">Heavy Mass</div><div class="wiki-skill-row-desc">+30% mass — Less knockback</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🪞</span><div><div class="wiki-skill-row-name">Deflection</div><div class="wiki-skill-row-desc"><code>MA×2%</code> chance to completely negate a hit</div></div></div>
           </div>
 
@@ -712,7 +738,7 @@
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌀</span><div><div class="wiki-skill-row-name">Momentum</div><div class="wiki-skill-row-desc">On kill (FFA): +10% speed stack (max ×5)</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">👻</span><div><div class="wiki-skill-row-name">Shadow Step</div><div class="wiki-skill-row-desc">On evade: teleport to a random safe spot</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💉</span><div><div class="wiki-skill-row-name">Blood Frenzy</div><div class="wiki-skill-row-desc">On kill: heal 25 HP</div></div></div>
-            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌊</span><div><div class="wiki-skill-row-name">Flow State</div><div class="wiki-skill-row-desc">On hit: <code>+MA×1%</code> speed/stack — resets when you take a hit</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌊</span><div><div class="wiki-skill-row-name">Flow State</div><div class="wiki-skill-row-desc">On hit: <code>+MA×1%</code> speed/stack — Resets when you take a hit</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">⚡</span><div><div class="wiki-skill-row-name">Read &amp; React</div><div class="wiki-skill-row-desc">On being hit: <code>BIQ×3%</code> chance to instantly counter-attack</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💡</span><div><div class="wiki-skill-row-name">Exploit</div><div class="wiki-skill-row-desc">On hit: <code>(IQ+BIQ)×1%</code> chance to deal ×2 damage</div></div></div>
           </div>
@@ -730,7 +756,7 @@
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💨</span><div><div class="wiki-skill-row-name">Flurry Finisher <span style="font-size:0.8em;opacity:0.6">🗡️ Dagger</span></div><div class="wiki-skill-row-desc">Hit thứ 5 liên tiếp ×2.5 damage. Bị đánh reset chuỗi.</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌑</span><div><div class="wiki-skill-row-name">Shadow Strike <span style="font-size:0.8em;opacity:0.6">🗡️ Dagger</span></div><div class="wiki-skill-row-desc">Mỗi 10 giây: hit tiếp theo đảm bảo critical.</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🔱</span><div><div class="wiki-skill-row-name">Long Reach <span style="font-size:0.8em;opacity:0.6">🔱 Spear</span></div><div class="wiki-skill-row-desc">Bắt đầu mỗi round với +20px tầm giáo.</div></div></div>
-            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">📌</span><div><div class="wiki-skill-row-name">Skewer <span style="font-size:0.8em;opacity:0.6">🔱 Spear</span></div><div class="wiki-skill-row-desc">Khi hit: ghim vũ khí kẻ địch 30 frames — không thể vung.</div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">📌</span><div><div class="wiki-skill-row-name">Skewer <span style="font-size:0.8em;opacity:0.6">🔱 Spear</span></div><div class="wiki-skill-row-desc">Khi hit: ghim vũ khí kẻ địch 30 frames — Không thể vung.</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💫</span><div><div class="wiki-skill-row-name">Zone Control <span style="font-size:0.8em;opacity:0.6">🔱 Spear</span></div><div class="wiki-skill-row-desc">Kẻ địch trong 150px từ đầu giáo nhận 0.5 dmg/giây (passive aura).</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💀</span><div><div class="wiki-skill-row-name">Reaper's Mark <span style="font-size:0.8em;opacity:0.6">🌙 Scythe</span></div><div class="wiki-skill-row-desc">Kẻ địch dưới 30% HP nhận +80% damage (execute the wounded).</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">✨</span><div><div class="wiki-skill-row-name">Soul Harvest <span style="font-size:0.8em;opacity:0.6">🌙 Scythe</span></div><div class="wiki-skill-row-desc">Mỗi lần kill: hồi 10 HP (FFA stack tự do).</div></div></div>
@@ -754,7 +780,7 @@
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🏅</span><div><div class="wiki-skill-row-name">Veteran</div><div class="wiki-skill-row-desc">Win: +1 random stat permanently (no cap)</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🌙</span><div><div class="wiki-skill-row-name">Mastery</div><div class="wiki-skill-row-desc">Win with HP&lt;50%: <code>MA×3%</code> chance to permanently +1 weapon dmg/proj</div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">💎</span><div><div class="wiki-skill-row-name">Perfectionist</div><div class="wiki-skill-row-desc">Win &gt;80% HP: +15% dmg next round. Win ≤80% HP: −10% dmg</div></div></div>
-            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🩸</span><div><div class="wiki-skill-row-name">Blood Mark</div><div class="wiki-skill-row-desc">Lose: mark opponent — they start next round at <code>80% HP</code></div></div></div>
+            <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🩸</span><div><div class="wiki-skill-row-name">Blood Mark</div><div class="wiki-skill-row-desc">Lose: mark opponent — They start next round at <code>80% HP</code></div></div></div>
             <div class="wiki-skill-row"><span class="wiki-skill-row-icon">🎭</span><div><div class="wiki-skill-row-name">Copycat</div><div class="wiki-skill-row-desc">Win: <code>BIQ×3.5%</code> chance to learn a random skill from opponent</div></div></div>
           </div>
 
@@ -781,6 +807,102 @@
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 93</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏆 <b>Championship Draft — 64 &amp; 128 players</b>: Chế độ 64 và 128 players giờ dùng Draft UI giống 32 — có nút Create Player, Quick Create và Fill Remaining thay vì roster-pick cũ</li>
+              <li>💾 <b>Championship save — PVP Reward</b>: Fix bug stat/skill nhận từ PVP Reward Wheel bị mất khi reload — giờ lưu lại ngay sau khi reward và Copycat Wheel hoàn tất</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 92</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⏸️ <b>Pause fix — Countdown</b>: Countdown không còn tiếp tục đếm khi game bị pause — skill pre-combat (vd: Cướp Đoạt) không còn tự trigger trong lúc paused</li>
+              <li>🏆 <b>Championship Resume fix</b>: Bấm ← Menu trong lúc combat hoặc ở result screen giờ đây hiện đúng nút Resume Championship — trước đây nút không hiện dù dữ liệu vẫn còn trong localStorage</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 91</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏆 <b>Championship Draft — 64 &amp; 128 players</b>: Chế độ 64 và 128 players giờ dùng Draft UI giống 32 players — có nút Create Player, Quick Create và Fill Remaining thay vì roster-pick cũ</li>
+              <li>🔄 <b>Size switching</b>: Chuyển đổi giữa các size draft (32/64/128) sẽ reset draft để tránh dữ liệu sai slot count</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 90</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>👤 <b>Fighter Info Popup</b>: Click vào tên bất kỳ trong Tournament/Championship để xem thông tin chi tiết — hiện ball animation có race decoration, race/subrace, base stats với diff, vũ khí kèm visual canvas, và toàn bộ skills</li>
+              <li>⚔️ <b>Weapon Preview</b>: Popup vẽ trực tiếp vũ khí bằng canvas — đúng màu, đúng hình dạng. Unique weapon có tag <b>[Unique]</b> màu vàng</li>
+              <li>🔍 <b>Skill Tooltip</b>: Hover vào bất kỳ skill badge nào trong popup để xem description đầy đủ kèm loại skill (Passive / Pre-Combat / In-Combat / Post-Combat)</li>
+              <li>🎨 <b>Wiki — Viết hoa đầu dòng</b>: Sửa toàn bộ text UI viết thường sau dấu <code>—</code> và <code>:</code> trong tab Wiki và skills.js</li>
+              <li>📖 <b>Wiki — Unique Weapons</b>: Thêm section mới liệt kê đầy đủ 11 Unique Weapons với base dmg, cooldown, scaling và unique mechanic</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 89</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🥊 <b>Fists MA scaling fix</b>: MA bonus đổi từ cộng vào base (nhân STR) sang flat bonus sau STR — <code>dmg += MA × 0.5</code>. MA=10 → +5 flat thay vì +20 khi STR=10</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">18 Apr 2026</span>
+          <span class="changelog-badge">Patch 88</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🔊 <b>File-based SFX</b>: Thay thế âm thanh procedural bằng file MP3/WAV thật — parry, hit, wall bounce, lightning có âm thanh riêng biệt</li>
+              <li>⚔️ <b>Per-weapon SFX</b>: Dagger, Spear, Fists, Scythe mỗi loại có tiếng hit riêng; Bow có tiếng bắn; Shuriken có tiếng ném + tiếng bounce</li>
+              <li>🏰 <b>Wall bounce SFX</b>: Tiếng boing khi ball chạm tường</li>
+              <li>⚡ <b>Lightning SFX</b>: Mjolnir có tiếng sét khi khai hỏa</li>
+              <li>🔄 <b>Parry Technique I buff</b>: Mỗi lần reverse chiều quay vũ khí +5% spin speed, tối đa 3 stack (+15%)</li>
+              <li>🥊 <b>Parry/Stun rework</b>: Bỏ recoil sau parry, stun 15f (ball đứng yên, velocity giữ nguyên), weapon đứng im, parryCooldown 10f, reverse spin khi hết stun</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">17 Apr 2026</span>
           <span class="changelog-badge">Patch 87</span>
@@ -2617,6 +2739,7 @@
     <div id="fighter-card-content"></div>
   </div>
 </div>
+<div id="fcard-skill-tooltip"></div>
 
 </body>
 </html>

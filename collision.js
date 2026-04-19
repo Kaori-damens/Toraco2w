@@ -82,53 +82,47 @@ function collidePair(b1, b2) {
       const midX = (b1.x + b2.x) / 2, midY = (b1.y + b2.y) / 2;
       spawnSparks(midX, midY, 14);
       sfxParry();
-      const recoil = 5.5;
-      const pnx = b1.x - b2.x, pny = b1.y - b2.y;
-      const pnl = Math.sqrt(pnx*pnx + pny*pny);
+
       const b1Fists = b1.weaponDef.id === 'fists';
       const b2Fists = b2.weaponDef.id === 'fists';
 
       if (b1Fists && b2Fists) {
-        // Fists vs Fists: both take damage + normal recoil (parry_tech_3 = 50% damage)
-        if (pnl > 0) {
-          b1.vx += (pnx/pnl)*recoil; b1.vy += (pny/pnl)*recoil;
-          b2.vx -= (pnx/pnl)*recoil; b2.vy -= (pny/pnl)*recoil;
-        }
+        // Fists vs Fists: both take damage (parry_tech_3 = 50% reduction)
         const dmgTo1 = b2.getDamage() * (b1.skills?.includes('parry_tech_3') ? 0.5 : 1);
         const dmgTo2 = b1.getDamage() * (b2.skills?.includes('parry_tech_3') ? 0.5 : 1);
         b1.takeDamage(dmgTo1, b2.x, b2.y, false, b2);
         b2.takeDamage(dmgTo2, b1.x, b1.y, false, b1);
         addBattleLog('parry_fists', { attacker: getBallLabel(b1), defender: getBallLabel(b2), damage: b2.getDamage(), aColor: b1.color, dColor: b2.color, defHp: +Math.max(0, b1.hp).toFixed(1) });
       } else if (b1Fists || b2Fists) {
-        // Fists vs melee: fists takes damage (no knockback), other gets recoil only
-        // parry_tech_3 on fists user = 50% damage reduction
+        // Fists vs melee: fists takes damage (parry_tech_3 = 50% reduction)
         const [fistsB, otherB] = b1Fists ? [b1, b2] : [b2, b1];
-        const nx = fistsB.x - otherB.x, ny = fistsB.y - otherB.y;
-        const nl = Math.sqrt(nx*nx + ny*ny);
-        if (nl > 0) { otherB.vx -= (nx/nl)*recoil; otherB.vy -= (ny/nl)*recoil; }
         const fistsDmgMult = fistsB.skills?.includes('parry_tech_3') ? 0.5 : 1;
         fistsB.takeDamage(otherB.getDamage() * fistsDmgMult, otherB.x, otherB.y, false, otherB);
         addBattleLog('parry_fists', { attacker: getBallLabel(fistsB), defender: getBallLabel(otherB), damage: otherB.getDamage(), aColor: fistsB.color, dColor: otherB.color, defHp: +Math.max(0, fistsB.hp).toFixed(1) });
       } else {
-        // Normal parry: recoil both — Parry Master holders keep their direction
-        if (pnl > 0) {
-          if (!b1.skills?.includes('parry_tech_2')) { b1.vx += (pnx/pnl)*recoil; b1.vy += (pny/pnl)*recoil; }
-          if (!b2.skills?.includes('parry_tech_2')) { b2.vx -= (pnx/pnl)*recoil; b2.vy -= (pny/pnl)*recoil; }
-        }
         addBattleLog('parry', { attacker: getBallLabel(b1), defender: getBallLabel(b2), aColor: b1.color, dColor: b2.color });
       }
-      b1.weapon.parryCooldown = 25;
-      b2.weapon.parryCooldown = 25;
-      b1.bounceCooldown = 22;
-      b2.bounceCooldown = 22;
-      b1.weapon.angle += Math.PI * 0.15;
-      b2.weapon.angle += Math.PI * 0.15;
+
+      // Fully separate bodies before freezing (prevent overlap during freeze causing visual jitter)
+      const sepDx = b2.x - b1.x, sepDy = b2.y - b1.y;
+      const sepD = Math.sqrt(sepDx*sepDx + sepDy*sepDy) || 1;
+      const sepNx = sepDx/sepD, sepNy = sepDy/sepD;
+      const sepMin = b1.radius + b2.radius + 4;
+      if (sepD < sepMin) {
+        const sepPush = (sepMin - sepD) * 0.5;
+        b1.x -= sepNx * sepPush; b1.y -= sepNy * sepPush;
+        b2.x += sepNx * sepPush; b2.y += sepNy * sepPush;
+      }
+      // Stun both balls: freeze movement + lock weapon for 15f, reverse spin on release
+      b1.parryStun(15);
+      b2.parryStun(15);
+      // parryCooldown is set when stun expires (in skills.js)
+
       b1.stats.parries++;
       b2.stats.parries++;
-      // Spear parried by melee → reverse spin + 10% debuff for 60 frames
+      // Spear parried by melee → extra spin debuff 60f (on top of stun)
       const applySpearParry = (spearBall, otherBall) => {
         if (spearBall.weaponDef.id === 'spear' && otherBall.weaponDef.aiType === 'melee') {
-          spearBall.weapon.spinDir *= -1;
           spearBall.weapon.spinDebuffTimer = 60;
         }
       };
@@ -241,7 +235,7 @@ function resolveProjectiles(players, projectiles) {
           }
           proj.owner.stats.hits++;
           proj.owner.stats.damageDone += dmg;
-          sfxHit();
+          sfxHit(proj.owner?.weaponDef?.id);
           const ka = Math.atan2(target.y - proj.y, target.x - proj.x);
           target.vx += Math.cos(ka) * 4.5;
           target.vy += Math.sin(ka) * 4.5;
@@ -339,7 +333,7 @@ function _checkWeaponHit(attacker, defender) {
         attacker.weapon.cooldown = Math.max(1, Math.floor(attacker.weapon.attackCooldown * rageCDMult * rageFistsMult * grimSlowMult));
         attacker.stats.hits++;
         attacker.stats.damageDone += dmg;
-        sfxHit();
+        sfxHit(attacker.weaponDef?.id);
         // Battle log: hit or crit (with special types for lunge/iai)
         if (attacker.weapon?.iaiHit) {
           addBattleLog('iai', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), damage: dmg, aColor: attacker.color, dColor: defender.color, defHp: +Math.max(0, defender.hp).toFixed(1) });

@@ -43,7 +43,7 @@ function gameLoop(now) {
   while (_accumulator >= GAME_STEP_MS && stepsThisFrame < MAX_CATCHUP * state.speed) {
     _accumulator -= GAME_STEP_MS;
 
-    if (state.phase === 'countdown') {
+    if (state.phase === 'countdown' && !state.paused) {
       state.countdownFrame++;
       // 4 phases × 60f: "3" (0–59), "2" (60–119), "1" (120–179), "FIGHT!" (180–239)
       const cf = state.countdownFrame;

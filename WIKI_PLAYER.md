@@ -1,6 +1,6 @@
 # 📖 TORACO — Player Wiki
 > *AutoRPNG Battle — Radoser Arena*
-> Version 4.0 · Last updated 2026-03-31
+> Version 4.3 · Last updated 2026-04-19
 
 ---
 
@@ -177,22 +177,49 @@ These races appear most frequently on the wheel.
 
 ## 5. Weapons
 
-Weapons are randomly assigned during character creation. Each weapon has a distinct fighting style.
+Weapons are randomly assigned during character creation. Each weapon has a distinct fighting style and a **scaling mechanic** that grows stronger as it lands hits.
 
-| Weapon | Emoji | Damage Type | Range | Notes |
-|--------|-------|------------|-------|-------|
-| **Sword** | 🗡️ | Slash | Medium | Balanced. 3 parry points for strong blocking. |
-| **Dagger** | 🔪 | Pierce | Short | Fast attack speed. Wide tip parry coverage. |
-| **Spear** | 🏹 | Thrust | Long | Longest melee reach. Outranges most weapons. |
-| **Axe** | 🪓 | Crush | Medium | Highest raw damage. Slow swing, harder to parry with. |
-| **Bow** | 🏹 | Pierce | Long | Ranged weapon. Fires arrows. STR = arrow size, SPD = starting ammo, IQ = aim cone. |
-| **Fists** | 👊 | Blunt | Short | Fast attacks but low damage. No weapon parry — relies on dodging. |
+### Melee Weapons
+
+| Weapon | Range | Scaling | Stat Bonus | Notes |
+|--------|-------|---------|------------|-------|
+| ⚔️ **Sword** | Medium | +1 dmg/hit | STR | Balanced. Strong parry coverage (3 hit points). |
+| 🗡️ **Dagger** | Short | +spin speed/hit | STR + MA | Fast. MA adds to base damage (×STR). High MA = deadlier dagger. |
+| 🔱 **Spear** | Long | +length +dmg/hit | STR | Longest reach. Grows longer every hit. |
+| 🌙 **Scythe** | Medium | Dual blade at 5 hits | STR | After 5 hits, gains a second blade for double coverage. |
+| 🔨 **Hammer** | Medium | +knockback/hit | STR | Massive knockback. Sends enemies flying further each hit. |
+| 🥊 **Fists** | Short | −0.5f cooldown/hit | STR + MA + SPD | Fastest attack speed. MA adds +0.5 flat damage per point (independent of STR). SPD reduces cooldown. |
+
+### Ranged Weapons
+
+| Weapon | Projectile | Scaling | Notes |
+|--------|-----------|---------|-------|
+| 🏹 **Bow** | Arrows | +1 arrow/hit | Multi-stream at MA≥5 (2 streams) and MA≥10 (3 streams). Soft aim assist scales with MA. |
+| ⭐ **Shuriken** | Stars | +1 star/hit | Bounces off walls up to 2× before disappearing. |
+
+### Rare / Unique Weapons *(Championship only)*
+
+| Weapon | Base | Special |
+|--------|------|---------|
+| 🌟 Excalibur | Sword | At ≤30% HP → 20s Transform: fires a piercing Sword Beam every 2s |
+| ✨ Gungnir | Spear | Auto-throws a tracking rune spear every 2s |
+| 🪄 Jingubang | Spear | Every 6 hits → 4s WHIRL MODE (360° spin, AoE) |
+| ⚡ Mjolnir | Hammer | On hit / wall bounce: 35% chance to fire a bouncing lightning bolt |
+| 🔥 Iron Fist | Fists | 5-Ember stacks → Combustion AoE burst (100px radius) |
+| 🌑 Shadowfang | Dagger | Poisons on hit. Backstab = guaranteed crit |
+| 💀 Harvester | Scythe | 5 Soul Shards → Soul Burst AoE (80px) ×3 damage |
+| ⚡ Caliburn | Rapier | 3 parry stacks → 5s speed boost + guaranteed crit |
+| 🐍 Medusa Bow | Bow | Each arrow: −1 target maxSpd. At 5 stacks: 2s weapon freeze |
+| 🌀 Fuma Shuriken | Shuriken | Each wall bounce: grows larger + ×1.6 damage |
+| 🩸 Muramasa | Katana | Frenzy stacks (−3 CD each). IAI Strike: ×4 damage, costs 8% HP |
+| 🤺 Rapier | — | Riposte: after parry → next hit deals (1.5 + IQ×0.15)× damage |
+| ⚔️ Katana | — | Momentum: 5 hits → IAI Strike (×3 damage); stacks reset on IAI |
 
 ### Bow Details
-- **Starting Arrows** = SPD value (SPD 7 = 7 arrows at match start)
-- **Arrow Size** (and damage bonus) scales with STR
-- **Auto-aim**: The bow has a soft aim assist — MA scales the tracking speed, IQ narrows the valid fire cone (high IQ = only fires when well-aimed)
-- Arrows are physical projectiles that can be blocked by other weapons
+- **Multi-stream:** MA≥5 → 2 arrow streams (+10° spread); MA≥10 → 3 streams (+20° spread)
+- **Auto-aim:** Weapon angle tracks nearest enemy at `MA × 0.003 rad/frame`
+- **Aim cone:** Only fires when enemy is within `(20 + IQ × 4)°` of weapon angle
+- Arrows are physical projectiles — can be blocked / deflected by other weapons
 
 ---
 

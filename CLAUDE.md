@@ -84,6 +84,43 @@
 | `style.css` | Main stylesheet | Layout, HUD, result screen, changelog tab |
 | `game.js` | **BACKUP — KHÔNG DÙNG** | File gốc monolithic, giữ để tham khảo logic cũ |
 
+### Audio
+| File/Folder | Chức năng | Ghi chú |
+|-------------|-----------|---------|
+| `audio.js` | SFX API công khai | `sfxHit(weaponId)`, `sfxParry()`, `sfxShoot()`, `sfxWallBounce()`, `sfxLightning()`, `sfxDeath()`, `sfxScale()`. Dùng `HTMLAudioElement` + `cloneNode()` (hoạt động với `file://`). Procedural fallback (Web Audio API) khi file không load được. |
+| `sfx/` | **Thư mục chứa tất cả file âm thanh** | Drop file mới vào đây rồi đổi tên là xong — không cần sửa code. |
+| `sfx/sfx_parry.mp3` | Tiếng parry | — |
+| `sfx/sfx_hit_sword.mp3` | Tiếng hit mặc định (sword/default) | — |
+| `sfx/sfx_hit_dagger.mp3` | Tiếng hit dagger + shadowfang | — |
+| `sfx/sfx_hit_spear.mp3` | Tiếng hit spear + gungnir | — |
+| `sfx/sfx_hit_fists.mp3` | Tiếng hit fists + iron_fist | — |
+| `sfx/sfx_hit_scythe.mp3` | Tiếng hit scythe + harvester | — |
+| `sfx/sfx_hit_generic.wav` | Fallback hit | — |
+| `sfx/sfx_shoot_bow.mp3` | Tiếng bắn bow / medusa_bow | — |
+| `sfx/sfx_shoot_shuriken.mp3` | Tiếng ném shuriken / fuma_shuriken | — |
+| `sfx/sfx_bounce_shuriken.mp3` | Tiếng shuriken nảy tường | — |
+| `sfx/sfx_wall_bounce.mp3` | Tiếng ball nảy tường | — |
+| `sfx/sfx_lightning.mp3` | Tiếng sét Mjolnir | — |
+
+---
+
+## Damage Formula Notes
+
+### Fists / Iron Fist — MA scaling (Patch 89)
+```js
+// MA cộng FLAT sau STR, không nhân vào base
+let dmg = (baseDamage * STR + bonusDamage) * rageMult;
+dmg += MA * 0.5;  // MA=10 → +5 flat
+```
+- **KHÔNG** còn `base += MA * 0.2` (đã bỏ vì triple-scale với STR)
+- Dagger vẫn giữ `base += MA * 0.15` (nhân STR) — chưa thay đổi
+
+### Parry / Stun Rework (Patch 88)
+- `parryStun(frames)` KHÔNG zero vx/vy nữa — velocity giữ nguyên
+- `_parryFrozen = stunTimer > 0 && parryStunReverse` — skip toàn bộ physics update khi frozen
+- `wallBoostFactor` decay skip khi frozen (tránh speed loss trong stun)
+- Stun expiry: reverse toward-enemy velocity component để tránh deep body bounce
+
 ---
 
 ## Skill Hooks — Tìm nhanh logic skill
@@ -101,6 +138,9 @@
 | Weapon special (Excalibur beam, Gungnir throw, Jingubang AoE…) | `ball.js` → `update()` |
 
 ---
+
+## Quy tắc viết lách — ÁP DỤNG MỌI NƠI
+- **Chữ cái đầu dòng/đầu ô/đầu mô tả luôn viết hoa** — kể cả sau dấu `—`, dấu `:`, hay sau ký hiệu `+`/`−`. Ví dụ: `— Chỉ xuất hiện...`, `20s: Mỗi 2s...`
 
 ## Patch Notes — QUY TẮC BẮT BUỘC
 - **Mỗi lần update code xong**, PHẢI ghi vào tab Changelogs trong `index.html`.

@@ -470,14 +470,20 @@ Parry detection uses multiple hit points per weapon:
 ### 13.1 Damage Formula
 
 ```
-finalDamage = (baseDamage + bonusDamage) × STR × critMultiplier
-            × (1 − mindBreakDebuff)
+base       = weapon.baseDamage
+           + (MA × 0.15)   if dagger/shadowfang   [scales with STR]
+dmg        = (base × STR + weapon.bonusDamage) × rageMult
+           + (MA × 0.5)    if fists/iron_fist     [FLAT — does NOT scale with STR]
+finalDamage = dmg × critMultiplier × (1 − mindBreakDebuff)
 ```
 
-- **STR multiplier:** `baseDamage × charSTR` (STR 1→×1, STR 10→×10)
+- **STR multiplier:** `base × charSTR` (STR 1→×1, STR 10→×10)
+- **Fists/Iron Fist MA bonus:** flat `+MA×0.5` added *after* STR multiplication — MA=10 → +5 flat regardless of STR
+- **Dagger/Shadowfang MA bonus:** `+MA×0.15` added to base *before* STR — MA=10, STR=10 → +15 to final damage
 - **critMultiplier** = 1.5 if `random < critChance (IQ × 0.05)`, else 1.0
 - **evadeCheck** = 0 if `random < evadeChance (BIQ × 0.03)` → full dodge + 60f immunity window
 - **mindBreakDebuff** = accumulated from opponent's Mind Break skill (max 60%)
+- **rageMult** = 1.5 when `matchTime ≥ 80 × 60` frames (Rage Phase)
 
 ### 13.2 Knockback
 
@@ -737,14 +743,25 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 
 ### 19.3 Sound Effects
 
-| Event | Description |
-|-------|-------------|
-| Hit | Sawtooth 200 Hz, 0.15 s |
-| Parry | Square 880 Hz + 660 Hz, 0.1–0.12 s |
-| Shoot | Sine 440 Hz, 0.08 s |
-| Death | Sawtooth 100 Hz + Square 60 Hz |
-| Scale up | Sine 1100 Hz, 0.15 s |
-| Skill activate | Tone 660 Hz, sine, 0.15 s |
+All SFX use **`HTMLAudioElement` + `cloneNode()`** (works on `file://` protocol). Procedural Web Audio API tones serve as fallback when files fail to load.
+
+Files are stored in `sfx/` folder. To swap a sound: replace the file in `sfx/` with the same name.
+
+| Event | File | Fallback (procedural) |
+|-------|------|-----------------------|
+| Parry | `sfx/sfx_parry.mp3` | Square 880 Hz + 660 Hz |
+| Hit — Sword / default | `sfx/sfx_hit_sword.mp3` → `sfx_hit_generic.wav` | Sawtooth 200 Hz |
+| Hit — Dagger / Shadowfang | `sfx/sfx_hit_dagger.mp3` | ↑ |
+| Hit — Spear / Gungnir | `sfx/sfx_hit_spear.mp3` | ↑ |
+| Hit — Fists / Iron Fist | `sfx/sfx_hit_fists.mp3` | ↑ |
+| Hit — Scythe / Harvester | `sfx/sfx_hit_scythe.mp3` | ↑ |
+| Shoot — Bow / Medusa Bow | `sfx/sfx_shoot_bow.mp3` | Sine 440 Hz |
+| Shoot — Shuriken / Fuma | `sfx/sfx_shoot_shuriken.mp3` | ↑ |
+| Shuriken wall bounce | `sfx/sfx_bounce_shuriken.mp3` | *(none)* |
+| Ball wall bounce | `sfx/sfx_wall_bounce.mp3` | *(none)* |
+| Mjolnir lightning | `sfx/sfx_lightning.mp3` | Sawtooth 120 Hz |
+| Death | *(procedural only)* | Sawtooth 100 Hz + Square 60 Hz |
+| Weapon scale up | *(procedural only)* | Sine 1100 Hz |
 
 ---
 
@@ -852,7 +869,16 @@ Mega-tournament mode supporting 128 or 256 players across 3 sequential phases.
 AutoRPNG battle/
 ├── index.html           — DOM: tabs, modals, HUD, wiki, changelog
 ├── style.css            — All styling (dark theme + Mirage variant)
-├── audio.js             — Web Audio API tone helpers
+├── audio.js             — SFX API (HTMLAudioElement + cloneNode; procedural fallback)
+│                           Public: sfxHit(weaponId), sfxParry(), sfxShoot(weaponId),
+│                                   sfxWallBounce(), sfxLightning(), sfxDeath(), sfxScale()
+├── sfx/                 — All SFX audio files (MP3/WAV). Swap files here — no code changes needed.
+│   ├── sfx_parry.mp3
+│   ├── sfx_hit_sword.mp3 / sfx_hit_dagger.mp3 / sfx_hit_spear.mp3
+│   ├── sfx_hit_fists.mp3 / sfx_hit_scythe.mp3 / sfx_hit_generic.wav
+│   ├── sfx_shoot_bow.mp3 / sfx_shoot_shuriken.mp3
+│   ├── sfx_bounce_shuriken.mp3 / sfx_wall_bounce.mp3
+│   └── sfx_lightning.mp3
 ├── constants.js         — CW/CH, BALL_R, ARENAS, BALL_COLORS, generateRadoserColor()
 ├── weapons.js           — WEAPON_DEFS array, getHitPoints(), _checkWeaponHit()
 ├── projectile.js        — Arrow & Shuriken classes, resolveProjectiles()

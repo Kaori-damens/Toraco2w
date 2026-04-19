@@ -209,6 +209,58 @@ WB players có lợi thế "chất lượng" — undefeated → build/stats gố
 
 ---
 
+## 🎬 Death Cam & Replay — Xem lại trận đấu
+
+*Khảo sát ngày 19 Apr 2026. Tạm hoãn — lưu backlog.*
+
+### Death Cam (10 giây trước kill)
+
+**Approach:** Ring Buffer Snapshots — mỗi frame clone toàn bộ state, giữ 600 frames cuối (~3.6 MB). Khi có death, playback từ frame -600.
+
+| Hạng mục | Ước tính |
+|---------|---------|
+| Bộ nhớ | ~3.6 MB (600f × 5KB/f) |
+| Độ khó | Medium |
+| Thời gian | 2–3 ngày |
+
+**Thách thức:**
+- `structuredClone()` mỗi frame → tốn ~0.3–1ms, cộng dồn 60fps là đáng lo
+- Phải capture **đủ** toàn bộ state (miss bất kỳ property nào → visual bug khi playback)
+- Particles không cần capture (ephemeral), nhưng cần spawn lại khi replay
+
+**Files cần sửa nếu implement:**
+- `game-loop.js` — thêm ring buffer `_deathCamBuffer[]` update mỗi frame trong `step()`
+- `ball.js` — `snapshotState()` helper: clone toàn bộ props của Ball + weapon
+- `result.js` — khi death detected, trigger playback mode từ buffer
+
+---
+
+### Full Match Replay
+
+**Hai hướng khả thi:**
+
+#### Hướng 1: Canvas Video Recording (MediaRecorder API) — Dễ
+```js
+const stream = canvas.captureStream(60);
+const recorder = new MediaRecorder(stream);
+// record → Blob → <video src=objectURL>
+```
+- ✅ Implement ~1 ngày, pixel-perfect, có thể download/share
+- ❌ Chỉ xem như video, không tua vật lý được, file lớn (~50–200 MB/10 phút)
+
+#### Hướng 2: Physics State Replay — Khó
+- Cần **Custom Seeded RNG** thay thế `Math.random()` toàn game (refactor lớn)
+- Vì: crit, evade, skill procs, Dragon sweep... đều dùng `Math.random()` — không re-seed được natively
+- Sau khi có custom RNG: record seed + initial state → re-simulate chính xác 100%
+- Hoặc: snapshot mỗi 10 frame (6fps) + interpolate → ~18 MB cho trận 10 phút
+
+**Files cần sửa nếu implement Hướng 2:**
+- Toàn game: thay `Math.random()` bằng `seededRandom()` (custom LCG/Xorshift)
+- `state.js` — thêm `rngSeed`, `rngState`, `replayBuffer[]`
+- `game-loop.js` — record mode vs playback mode
+
+---
+
 ## 📋 Ghi chú
 
 - Cả 2 vũ khí đều dùng `reverseOnHit: true` (xem thảo luận ngày 2 Apr 2026)

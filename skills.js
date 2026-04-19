@@ -20,9 +20,9 @@ const SKILL_DEFS = [
   { id: 'phoenix',     name: 'Phoenix',     icon: '🔥', type: 'in_combat',  desc: 'Once per round, survive a killing blow with 1 HP remaining' },
   { id: 'counter',     name: 'Counter',     icon: '↩️', type: 'in_combat',  desc: 'After your attack is parried, next hit deals ×(1.5 + BIQ×0.05) damage. [BIQ=1: ×1.55 / BIQ=10: ×2.0]' },
   { id: 'vampiric',    name: 'Vampiric',    icon: '🧛', type: 'in_combat',  desc: 'Each hit heals you for 5% of the damage you deal' },
-  { id: 'parry_tech_1', name: 'Parry Technique I',   icon: '🔄', type: 'in_combat',  desc: 'On parry: instantly reverse your weapon spin direction.' },
+  { id: 'parry_tech_1', name: 'Parry Technique I',   icon: '🔄', type: 'in_combat',  desc: 'On parry: instantly reverse weapon spin. Each reverse stacks +5% spin speed (max 3 stacks = +15%).' },
   { id: 'parry_tech_2', name: 'Parry Technique II',  icon: '🗡️', type: 'in_combat',  desc: 'On parry: no knockback + spin boost (60+BIQ×6 frames) + counter window (BIQ×4 frames). [BIQ=5: 90f spin / 20f counter | BIQ=10: 120f spin / 40f counter]' },
-  { id: 'parry_tech_3', name: 'Parry Technique III', icon: '🛡️', type: 'in_combat',  desc: 'Your entire weapon body can parry (not just the tip). Fists users: take 50% damage on parry clashes.' },
+  { id: 'parry_tech_3', name: 'Parry Technique III', icon: '🛡️', type: 'passive',    desc: 'Your entire weapon body can parry (not just the tip). Fists users: take 50% damage on parry clashes.' },
   { id: 'momentum',    name: 'Momentum',    icon: '🌀', type: 'in_combat',  desc: 'Each kill in FFA increases your speed by 10%, up to 5 kills' },
   { id: 'shadow_step', name: 'Shadow Step', icon: '👻', type: 'in_combat',  desc: 'When you dodge a hit, instantly teleport to a random safe position' },
   { id: 'blood_frenzy',name: 'Blood Frenzy',icon: '💉', type: 'in_combat',  desc: 'Restore 25 HP each time you defeat an opponent' },
@@ -38,7 +38,7 @@ const SKILL_DEFS = [
   { id: 'veteran',       name: 'Veteran',       icon: '🏅', type: 'post_combat', desc: 'On win: permanently gain +1 to a random stat' },
   { id: 'mastery',       name: 'Mastery',       icon: '🌙', type: 'post_combat', desc: 'Win while injured: MA×3% chance to permanently boost weapon base damage' },
   { id: 'perfectionist', name: 'Perfectionist', icon: '💎', type: 'post_combat', desc: 'Win at high HP: +15% damage next round. Win while injured: -10% damage instead' },
-  { id: 'blood_mark',    name: 'Blood Mark',    icon: '🩸', type: 'post_combat', desc: 'On loss: curse the winner — they start their next match at only 80% HP' },
+  { id: 'blood_mark',    name: 'Blood Mark',    icon: '🩸', type: 'post_combat', desc: 'On loss: curse the winner — They start their next match at only 80% HP' },
   { id: 'copycat',       name: 'Copycat',       icon: '🎭', type: 'post_combat', desc: 'On win: BIQ×5% chance to copy a random skill from the opponent' },
 
   // ── UNIQUE SKILLS (Championship only — removed from pool once rolled) ──────
@@ -84,7 +84,7 @@ const SKILL_DEFS = [
 
   // 🌙 Scythe
   { id: 'reapers_mark',    name: "Reaper's Mark",     icon: '💀', type: 'in_combat',  weapon: 'scythe',
-    desc: 'Deal 80% more damage to enemies below 30% HP — execute the wounded' },
+    desc: 'Deal 80% more damage to enemies below 30% HP — Execute the wounded' },
   { id: 'soul_harvest',    name: 'Soul Harvest',      icon: '✨', type: 'in_combat',  weapon: 'scythe',
     desc: 'Each kill restores 10 HP (stacks freely in FFA)' },
   { id: 'grim_presence',   name: 'Grim Presence',     icon: '☠️', type: 'passive',    weapon: 'scythe',
@@ -203,6 +203,7 @@ function initRoundSkillState(ball) {
     sk_dagHitCount:    0,
     sk_shadowTimer:    0,
     shadowStrikeCrit:  false,
+    pt1Stacks:         0,
     parryPunishActive: false,
     parryPunishTimer:  0,
     hammerStacks:      0,
@@ -263,7 +264,7 @@ function skillOnPreCombat(ball) {
       if (other === ball || !other.alive) continue;
       other.maxSpd     = Math.max(2, other.maxSpd - 3);
       other.baseMaxSpd = Math.max(2, other.baseMaxSpd - 3);
-      spawnDamageNumber(other.x, other.y - other.radius - 14, '🧊 -2 SPD', '#88ccff');
+      spawnDamageNumber(other.x, other.y - other.radius - 14, '🧊 -3 Move Spd', '#88ccff');
     }
   }
 
@@ -496,10 +497,16 @@ function skillOnParry(b1, b2) {
       spawnDamageNumber(ball.x, ball.y - ball.radius, 'COUNTER!', '#ff8833');
       flashSkillHUD(ball, SKILL_MAP['counter']);
     }
-    // Parry Technique I: reverse weapon spin direction on parry
+    // Parry Technique I: reverse weapon spin + stack +5% spin speed (max 3 stacks)
     if (ball.skills?.includes('parry_tech_1')) {
       ball.weapon.spinDir = (ball.weapon.spinDir || 1) * -1;
-      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🔄 SPIN REVERSE!', '#88ddff');
+      if (ball.skillState) {
+        ball.skillState.pt1Stacks = Math.min(3, (ball.skillState.pt1Stacks || 0) + 1);
+        const pct = ball.skillState.pt1Stacks * 5;
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 14, `🔄 ×${ball.skillState.pt1Stacks} (+${pct}%)`, '#88ddff');
+      } else {
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🔄 SPIN REVERSE!', '#88ddff');
+      }
       flashSkillHUD(ball, SKILL_MAP['parry_tech_1']);
     }
     // Parry Technique II: no knockback + spin boost BIQ-scaled + counter window BIQ-scaled
@@ -970,7 +977,31 @@ function updateRaceSkills(ball, players, rstate) {
       ball.vy = Math.sin(ang) * relSpd;
     }
   }
-  if (ball.stunTimer  > 0) ball.stunTimer--;
+  if (ball.stunTimer > 0) {
+    ball.stunTimer--;
+    // Parry stun expired → reverse weapon spin + set parryCooldown 10f
+    if (ball.stunTimer === 0 && ball.parryStunReverse) {
+      ball.parryStunReverse = false;
+      // Parry Tech I already reversed spinDir instantly on parry — don't reverse again
+      if (!ball.skills?.includes('parry_tech_1')) {
+        ball.weapon.spinDir *= -1;
+      }
+      ball.weapon.parryCooldown = 10;
+      // Reverse the toward-enemy velocity so balls separate cleanly (prevent deep body-bounce overlap)
+      const stEnemy = players.filter(p => p !== ball && p.alive)
+        .sort((a, b) => Math.hypot(a.x-ball.x, a.y-ball.y) - Math.hypot(b.x-ball.x, b.y-ball.y))[0];
+      if (stEnemy) {
+        const eDx = stEnemy.x - ball.x, eDy = stEnemy.y - ball.y;
+        const eD  = Math.hypot(eDx, eDy) || 1;
+        const eNx = eDx/eD, eNy = eDy/eD;
+        const toward = ball.vx * eNx + ball.vy * eNy;
+        if (toward > 0) { // moving toward enemy — flip that component
+          ball.vx -= 2 * toward * eNx;
+          ball.vy -= 2 * toward * eNy;
+        }
+      }
+    }
+  }
 
   if (!ball.raceSkillDef) return;
   const race = ball.charRace;

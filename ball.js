@@ -64,8 +64,9 @@ class Ball {
     this._killedBy       = null;  // attacker ball reference (for Adaptation)
 
     // Race skill state (rs_* props added dynamically by initRaceSkillState)
-    this.netTrapped   = 0;    // frames frozen by Troll Net
-    this.stunTimer    = 0;    // frames stunned by Angel Smite (weapon locked)
+    this.netTrapped         = 0;     // frames frozen by Troll Net
+    this.stunTimer          = 0;     // frames stunned by Angel Smite / parry (weapon locked + ball frozen)
+    this.parryStunReverse   = false; // reverse weapon spinDir when parry stun ends
     this.raceSkillDef = null;
   }
 
@@ -159,7 +160,8 @@ class Ball {
     const caliburnBoost = (this.weapon.caliburnSpeedTimer > 0) ? 1.4 : 1.0; // Caliburn: 3s speed boost
     const netDebuff    = this.netTrapped > 0 ? 0.70 : 1.0;              // -30% from Troll Net
     const stuckDebuff  = (this.rs_weaponStuck > 0 || this.stunTimer > 0) ? 0 : 1; // Void Grip / Smite stun
-    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff * lbExhausted;
+    const pt1Boost     = this.skills?.includes('parry_tech_1') ? 1 + (this.skillState?.pt1Stacks || 0) * 0.05 : 1; // +5% per stack
+    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff * lbExhausted * pt1Boost;
   }
 
   getDamage() {
@@ -169,9 +171,9 @@ class Ball {
     const ma  = this.charMA  ?? 0;
     const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0;
     let base = def.baseDamage;
-    if (bwid === 'fists')  base += ma * 0.2;   // MA=10 → +2 base (×STR)
     if (bwid === 'dagger') base += ma * 0.15;  // MA=10 → +1.5 base (×STR)
     let dmg = (base * str + this.weapon.bonusDamage) * rageMult;
+    if (bwid === 'fists')  dmg += ma * 0.5;    // MA flat bonus: MA=10 → +5 (không nhân STR)
     // Skills that modify outgoing damage
     if (this.skills.includes('berserker') && this.hp / this.maxHp < 0.30) dmg *= (1.2 + (this.charIQ ?? 5) * 0.03);
     if (this.skillState?.warCryReady)  dmg *= (1.5 + (this.charIQ ?? 5) * 0.05);
@@ -249,15 +251,28 @@ class Ball {
     return this.radius + def.baseLength + this.weapon.bonusLength;
   }
 
+  // Parry stun: freeze ball + lock weapon for `frames` frames, reverse spin on release
+  parryStun(frames) {
+    this.stunTimer            = frames;
+    this.parryStunReverse     = true;
+    this.weapon.parryCooldown = frames; // prevent re-trigger during stun
+  }
+
   update(arena, opponent, projectiles, gravity) {
     if (!this.alive) return;
+
+    // Parry stun: skip position update — velocity preserved so balls naturally separate on stun end
+    // (matches reference game: only block physics movement, not velocity itself)
+    const _parryFrozen = this.stunTimer > 0 && this.parryStunReverse;
 
     // No AI steering — pure physics only
 
     // Physics — friction: ~99% after 1s, ~91% after 10s, ~84% after 20s
-    if (gravity) this.vy += 0.15;
-    this.vx *= 0.99985;
-    this.vy *= 0.99985;
+    if (!_parryFrozen) {
+      if (gravity) this.vy += 0.15;
+      this.vx *= 0.99985;
+      this.vy *= 0.99985;
+    }
 
     // Limit max speed (per-ball, influenced by chargen SPD stat)
     let effectiveMaxSpd = this.maxSpd;
@@ -274,15 +289,19 @@ class Ball {
     if (spd > effectiveMaxSpd) { this.vx = this.vx/spd*effectiveMaxSpd; this.vy = this.vy/spd*effectiveMaxSpd; }
 
     const preX = this.x, preY = this.y;
-    this.x += this.vx;
-    this.y += this.vy;
+    if (!_parryFrozen) {
+      this.x += this.vx;
+      this.y += this.vy;
+    }
 
-    // Arena walls — detect bounce for sparks + speed boost
-    clampToBall(this, arena);
-    const wallHitX = Math.abs(this.x - preX - this.vx) > 1;
-    const wallHitY = Math.abs(this.y - preY - this.vy) > 1;
+    // Arena walls — detect bounce for sparks + speed boost (skip when parry-frozen)
+    if (_parryFrozen) { if (this.bounceCooldown > 0) this.bounceCooldown--; }
+    if (!_parryFrozen) clampToBall(this, arena);
+    const wallHitX = !_parryFrozen && Math.abs(this.x - preX - this.vx) > 1;
+    const wallHitY = !_parryFrozen && Math.abs(this.y - preY - this.vy) > 1;
     if ((wallHitX || wallHitY) && spd > 0.5) {
       spawnSparks(this.x, this.y, 6);
+      sfxWallBounce();
       this.bounceCooldown = 12;
       // +20% speed boost, refresh mỗi lần chạm tường
       this.vx *= 1.1;
@@ -328,7 +347,7 @@ class Ball {
     // 0.9747^180 ≈ 0.01 → boost gần như tan hết sau 3s
     // Blessed by Raijin: skip decay — momentum is permanent until hit/parried
     const isGodSpeed = this.charRace === 'god' && this.charSubrace?.label === 'Blessed by Raijin';
-    if (!isGodSpeed && this.wallBoostFactor > 1.0005) {
+    if (!_parryFrozen && !isGodSpeed && this.wallBoostFactor > 1.0005) {
       const prev = this.wallBoostFactor;
       this.wallBoostFactor = 1.0 + (prev - 1.0) * 0.9747;
       const ratio = this.wallBoostFactor / prev;  // hệ số giảm tốc frame này
@@ -455,6 +474,7 @@ class Ball {
       if ((wasHitX || wasHitY) && Math.random() < 0.25) this.weapon.lightningPending = true;
       if (this.weapon.lightningPending) {
         this.weapon.lightningPending = false;
+        sfxLightning();
         const lAngle = Math.random() * Math.PI * 2;
         const bolt = new Projectile(
           this.x, this.y,
@@ -702,7 +722,7 @@ class Ball {
       const speed = Math.sqrt(origVx*origVx + origVy*origVy);
       return { vx: (dx/dist)*speed, vy: (dy/dist)*speed };
     };
-    sfxShoot();
+    sfxShoot(def.id);
     if (def.id === 'bow' || def.id === 'medusa_bow') {
       // Arrow speed scales with SPD (arm strength) and IQ (technique)
       const baseSpd = def.arrowSpeed + (this.weapon.arrowSpeedBonus || 0)

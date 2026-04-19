@@ -213,6 +213,12 @@ function _pvpOnLand() {
   // Apply reward + get outcome string (in-tournament only, does NOT sync to roster)
   const outcome = _pvpApplyReward(_pvpFighter, _pvpReward);
 
+  // Persist championship state AFTER reward is applied (not before — recordChampionshipMatchResult
+  // saves earlier, before this runs, so skills/stats gained here would be lost on page reload)
+  if (typeof state !== 'undefined' && state?.championship && typeof saveChampionshipProgress === 'function') {
+    saveChampionshipProgress();
+  }
+
   // Show result panel
   document.getElementById('pvp-reward-res-label').textContent   = _pvpReward.label;
   document.getElementById('pvp-reward-res-outcome').textContent = outcome;
@@ -393,6 +399,9 @@ function _ccOnLand() {
   } else {
     if (resLabel)  resLabel.textContent  = '❌ MISS — No copy this time.';
     if (resOut)    resOut.textContent    = '';
+  }
+  if (typeof state !== 'undefined' && state?.championship && typeof saveChampionshipProgress === 'function') {
+    saveChampionshipProgress();
   }
   document.getElementById('cc-result').style.display = '';
   document.getElementById('cc-continue-btn').style.display = '';

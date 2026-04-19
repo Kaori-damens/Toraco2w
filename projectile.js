@@ -48,6 +48,7 @@ class Projectile {
         if (hit.nx !== 0) this.vx = -this.vx;
         if (hit.ny !== 0) this.vy = -this.vy;
         this.bounces++;
+        if (this.type === 'shuriken' || this.type === 'fuma_shuriken') sfxShurikenBounce();
         // Fuma Shuriken: grow on each bounce
         if (this.type === 'fuma_shuriken') {
           this.r = Math.min(this.r + 4, 20);
