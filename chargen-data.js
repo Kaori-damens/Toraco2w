@@ -16,7 +16,7 @@ const STAT_COLORS = [
 // Races available (13 specified)
 const CG_RACES = [
   { id:'goblin',    name:'Goblin',          emoji:'👺', weight:6.5,  subKey:'goblinHorde', trait:null },
-  { id:'gnome',     name:'Gnome',           emoji:'🧙', weight:6.5,  subKey:null,          trait:null },
+  { id:'gnome',     name:'Gnome',           emoji:'🧙', weight:0,    subKey:null,          trait:null }, // DISABLED — placeholder, no unique trait yet
   { id:'human',     name:'Human',           emoji:'👤', weight:6.5,  subKey:'humanSkin',   trait:null },
   { id:'dwarf',     name:'Dwarf',           emoji:'⛏️', weight:6.5,  subKey:null,          trait:null },
   { id:'skeleton',  name:'Skeleton',        emoji:'💀', weight:5.25, subKey:'boneLineage',  trait:'2 PvP wins → Lich (IQ fixed 8). 4 wins → Lich King (+1 all stats). Immune to AIDS.' },
@@ -32,7 +32,7 @@ const CG_RACES = [
 
 const CG_SUBRACES = {
   goblinHorde: [
-    { label:'×1',      weight:5,  desc:'Nhận -1 all stats. [Trong tournament] Sau mỗi combat PvP thắng, nhận +1 all stats.' },
+    { label:'×1',      weight:5,  desc:'Nhận -1 all stats. [Trong tournament] Sau mỗi game thắng: +2 vào 3 random stats (có thể trùng).' },
     { label:'×50',     weight:10, desc:'Nhận -1 all stats.' },
     { label:'×100',    weight:25, desc:'Bạn là 1 con Goblin (không có hiệu ứng gì cả).' },
     { label:'×1,000',  weight:25, desc:'Nhận +1 Strength.' },
@@ -61,10 +61,10 @@ const CG_SUBRACES = {
   angelRank: [
     { label:'Angels',        weight:40, desc:'Nothing special.' },
     { label:'Archangels',    weight:21, desc:'+2 Speed, +1 Martial Arts.' },
-    { label:'Principalities',weight:9,  desc:'After combat: +2 to lowest stat.' },
-    { label:'Powers',        weight:8,  desc:'Archetype "Paladin", +2 MA.' },
-    { label:'Virtues',       weight:7,  desc:'Cannot be debuffed.' },
-    { label:'Dominions',     weight:6,  desc:'2 skills.' },
+    { label:'Principalities',weight:9,  desc:'Sau mỗi PvP thắng: +2 stat thấp nhất (nhận trước PvP reward).' },
+    { label:'Powers',        weight:8,  desc:'+1 MA, +1 extra skill (cộng vào số skill từ vòng quay).' },
+    { label:'Virtues',       weight:7,  desc:'Miễn nhiễm toàn bộ debuffs: stat debuffs, skill drain/seal, weapon steal, DoT.' },
+    { label:'Dominions',     weight:6,  desc:'+3 extra skills (cộng vào số skill từ vòng quay).' },
     { label:'Ophanim',       weight:5,  desc:'+1 all stats.' },
     { label:'Cherubim',      weight:4,  desc:'+2 all stats.' },
   ],
@@ -75,13 +75,13 @@ const CG_SUBRACES = {
     { label:'Earth', weight:25, desc:'Nhận +1 Dura, +1 STR.' },
   ],
   demonSin: [
-    { label:'Lucifer',    weight:14.28, desc:'Archetype "Egoist". Skill wheel maxes at 4.' },
-    { label:'Beelzebub',  weight:14.28, desc:'Quirk "Slow Metabolism". 1 random stat maxes at 10.' },
-    { label:'Leviathan',  weight:14.28, desc:'6 players gain Gear "Leviathan\'s Mark". When all die: +6 lowest stat.' },
-    { label:'Behemoth',   weight:14.28, desc:'Lose: 1 random stat → 0. Win: 1 random stat +2.' },
-    { label:'Mammon',     weight:14.28, desc:'-2 all stats. Win: 2 PvP rewards.' },
-    { label:'Belphegor',  weight:14.28, desc:'First 2 rounds: 66% no point on win. +1 starting point.' },
-    { label:'Asmodeus',   weight:14.28, desc:'Skill "AIDS" (incurable). vs AIDS opponent: +1 starting point.' },
+    { label:'Lucifer',    weight:14.28, desc:'(Pride) +2 all stats. Mỗi lần thua tournament: −1 all stats permanent.' },
+    { label:'Beelzebub',  weight:14.28, desc:'(Gluttony) Mỗi combat win: +1 random stat permanent. Bắt đầu với 0 skills.' },
+    { label:'Leviathan',  weight:14.28, desc:'(Envy) Pre-combat: đối thủ −6 vào 1 stat ngẫu nhiên (chỉ trong trận). Không thể nhận stat bonuses từ PvP rewards (chỉ nhận skill rewards).' },
+    { label:'Behemoth',   weight:14.28, desc:'(Wrath) Sau mỗi trận đấu: −1 DUR permanent. Khi HP < 35%: +3 STR, +2 SPD, +2 MA, −1 BIQ, −1 IQ (chỉ trong trận).' },
+    { label:'Mammon',     weight:14.28, desc:'(Greed) −2 all stats. Win: nhận 2 PvP rewards thay vì 1.' },
+    { label:'Belphegor',  weight:14.28, desc:'(Sloth) SPD −4. Không thể nhận skill từ Copycat hoặc PvP rewards (vẫn quay nhưng không nhận). Mỗi round survive: +1 DUR permanent.' },
+    { label:'Asmodeus',   weight:14.28, desc:'(Lust) −1 all stats. Vô hiệu hóa N skills của đối thủ (N = số skill mình có); nếu số skill của mình nhiều hơn đối thủ: đối thủ thêm −1 all stats. Đối thủ khởi đầu với 1 điểm (chỉ BO3/BO5+, không kích hoạt ở BO1/Battle Royale).' },
   ],
   godGift: [
     { label:'Blessed by Surtr', weight:1, desc:'Wheel STR: chắc chắn ≥10. Quay ra đúng 10 → STR nhân đôi (→20). Thua sau 1m46s nếu đối thủ không phải demon/god.' },

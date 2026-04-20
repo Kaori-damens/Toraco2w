@@ -62,6 +62,7 @@ class Ball {
     this.adaptResist     = null;  // weapon id to resist (from Adaptation)
     this.adrenalineUntil = -1;    // matchTime frame when Adrenaline expires
     this._killedBy       = null;  // attacker ball reference (for Adaptation)
+    this._behemothRaging = false; // Demon Behemoth: rage triggered once when HP < 35%
 
     // Race skill state (rs_* props added dynamically by initRaceSkillState)
     this.netTrapped         = 0;     // frames frozen by Troll Net
@@ -355,6 +356,24 @@ class Ball {
       this.vy *= ratio;
     } else if (!isGodSpeed) {
       this.wallBoostFactor = 1.0;
+    }
+
+    // Behemoth (Wrath): rage triggers once when HP drops below 35%
+    if (this.charRace === 'demon' && this.charSubrace?.label === 'Behemoth'
+        && !this._behemothRaging && this.hp < this.maxHp * 0.35) {
+      this._behemothRaging = true;
+      this.charSTR = (this.charSTR ?? 5) + 3;
+      this.charMA  = (this.charMA  ?? 5) + 2;
+      this.charBIQ = Math.max(0, (this.charBIQ ?? 5) - 1);
+      this.charIQ  = Math.max(0, (this.charIQ  ?? 5) - 1);
+      this.maxSpd     += 3;   // +2 SPD × 1.5 factor
+      this.baseMaxSpd  = this.maxSpd;
+      this.evadeChance  = this.charBIQ * 0.03;
+      this.critChance   = this.charIQ  * 0.05;
+      this.deflectChance = this.charMA * 0.02;
+      spawnDamageNumber(this.x, this.y - this.radius - 18, '😈 WRATH RAGE!', '#ff4400');
+      spawnBigAnnouncement?.('😈 BEHEMOTH RAGE!', '#ff4400');
+      if (typeof spawnSparks === 'function') spawnSparks(this.x, this.y, 18);
     }
 
     // Weapon rotation

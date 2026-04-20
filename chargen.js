@@ -68,12 +68,37 @@ function renderCgStep() {
     return;
   }
   if (s === 'subrace') {
-    const sr = CG_SUBRACES[cgState.race.subKey];
-    if (!sr) { advanceCg(); return; }
-    cgRenderSpin(box, `${cgState.race.emoji} Sub-Race`, sr.map((r,i) => ({ label:r.label, weight:r.weight, color:wColor(i) })), (w,idx) => { cgState.subrace = { ...sr[idx] }; advanceCg(); }, null, `${cgState.race.emoji} ${cgState.race.name}`);
-    _cgDebug(box, 'Pick Sub-Race', sr.map((r,i) => ({
+    const srAll = CG_SUBRACES[cgState.race.subKey];
+    if (!srAll) { advanceCg(); return; }
+
+    // Demon in championship draft: filter wheel to available sins only
+    let sr = srAll;
+    if (cgState.race.id === 'demon' && cgDraftMode && typeof getAvailableDemonSins === 'function') {
+      sr = getAvailableDemonSins();
+      if (sr.length === 0) {
+        // All sins claimed → sinless demon, skip subrace step
+        cgState.subrace = null;
+        advanceCg();
+        return;
+      }
+    }
+
+    const onPick = (idx) => {
+      cgState.subrace = { ...sr[idx] };
+      // Claim sin from pool when in championship draft
+      if (cgState.race.id === 'demon' && cgDraftMode && typeof claimDemonSin === 'function') {
+        claimDemonSin(cgState.subrace.label);
+      }
+      advanceCg();
+    };
+
+    cgRenderSpin(box, `${cgState.race.emoji} Sub-Race`,
+      sr.map((r,i) => ({ label:r.label, weight:r.weight, color:wColor(i) })),
+      (w, idx) => onPick(idx),
+      null, `${cgState.race.emoji} ${cgState.race.name}`);
+    _cgDebug(box, 'Pick Sub-Race', sr.map((r, i) => ({
       label: r.label,
-      onClick: () => { cgState.subrace = { ...sr[i] }; advanceCg(); }
+      onClick: () => onPick(i),
     })));
     return;
   }
@@ -495,6 +520,7 @@ function getSubraceStatDeltas() {
   }
   if (race === 'angel') {
     if      (srLabel === 'Archangels') { d.speed = (d.speed||0)+2; d.ma = (d.ma||0)+1; }
+    else if (srLabel === 'Powers')     { d.ma = (d.ma||0)+1; }
     else if (srLabel === 'Ophanim')    all(1);
     else if (srLabel === 'Cherubim')   all(2);
   }
@@ -505,9 +531,11 @@ function getSubraceStatDeltas() {
 function getSubraceSkillBonus() {
   const race    = cgState.race?.id || '';
   const srLabel = cgState.subrace?.label || '';
-  if (race === 'dragon'    && srLabel === 'Flame')    return 1;
-  if (race === 'dragon'    && srLabel === 'Amethyst') return 4;
-  if (race === 'primordial'&& srLabel === 'Fire')     return 1;
+  if (race === 'dragon'    && srLabel === 'Flame')      return 1;
+  if (race === 'dragon'    && srLabel === 'Amethyst')   return 4;
+  if (race === 'primordial'&& srLabel === 'Fire')       return 1;
+  if (race === 'angel'     && srLabel === 'Powers')     return 1;
+  if (race === 'angel'     && srLabel === 'Dominions')  return 3;
   return 0;
 }
 
@@ -552,8 +580,15 @@ function cgRenderSpin(box, title, items, onResult, currentStats, resultPrefix, r
       btn.textContent = 'Next →';
       btn.className = 'cg-btn primary';
       btn.disabled = false;
-      btn.onclick = () => onResult(items[lastWinIdx], lastWinIdx);
-      if (quickCreateMode) setTimeout(() => btn.click(), 600);
+      let _spinAdvanced = false;
+      const doAdvance = () => {
+        if (_spinAdvanced) return;
+        _spinAdvanced = true;
+        try { onResult(items[lastWinIdx], lastWinIdx); }
+        catch(e) { console.error('[CG] spin advance error:', e); _spinAdvanced = false; }
+      };
+      btn.onclick = doAdvance;
+      if (quickCreateMode) setTimeout(doAdvance, 600);
     });
   };
   document.getElementById('cgSpinBtn').onclick = doSpin;
@@ -618,14 +653,20 @@ function cgRenderSkillPick(box) {
       btn.textContent = spinNum < total ? 'Next Skill →' : 'Done ✓';
       btn.className = 'cg-btn primary';
       btn.disabled = false;
-      btn.onclick = () => {
-        if (!pickedSkill) return;
-        if (cgDraftMode && pickedSkill.unique) claimUnique(pickedSkill.id);
-        cgState.skills.push(pickedSkill);
-        if (cgState.skills.length >= total) { advanceCg(); }
-        else { renderCgStep(); }
+      let _skillAdvanced = false;
+      const doSkillAdvance = () => {
+        if (_skillAdvanced) return;
+        _skillAdvanced = true;
+        try {
+          if (!pickedSkill) { _skillAdvanced = false; return; }
+          if (cgDraftMode && pickedSkill.unique) claimUnique(pickedSkill.id);
+          cgState.skills.push(pickedSkill);
+          if (cgState.skills.length >= total) { advanceCg(); }
+          else { renderCgStep(); }
+        } catch(e) { console.error('[CG] skill advance error:', e); _skillAdvanced = false; }
       };
-      if (quickCreateMode) setTimeout(() => btn.click(), 600);
+      btn.onclick = doSkillAdvance;
+      if (quickCreateMode) setTimeout(doSkillAdvance, 600);
     });
   };
 

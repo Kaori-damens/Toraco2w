@@ -210,8 +210,22 @@ function _pvpOnLand() {
   if (_pvpApplied || !_pvpReward || !_pvpFighter) return;
   _pvpApplied = true;
 
-  // Apply reward + get outcome string (in-tournament only, does NOT sync to roster)
-  const outcome = _pvpApplyReward(_pvpFighter, _pvpReward);
+  // Demon subrace reward filters
+  const _demonSrl   = _pvpFighter.charStats?.subrace?.label;
+  const _isStatRwd  = ['str1','spd1','dur1','iq1','biq1','ma1','low2','high2','rnd3','rnd6','all1'].includes(_pvpReward.id);
+  const _isSkillRwd = ['pow1','pow2','pow3'].includes(_pvpReward.id);
+
+  let outcome;
+  if (_demonSrl === 'Leviathan' && _isStatRwd) {
+    // Leviathan cannot gain stat bonuses from PvP rewards
+    outcome = `😈 Leviathan's Envy — stat reward ignored`;
+  } else if (_demonSrl === 'Belphegor' && _isSkillRwd) {
+    // Belphegor cannot gain skills from PvP rewards
+    outcome = `😈 Belphegor's Sloth — skill reward ignored`;
+  } else {
+    // Apply reward + get outcome string (in-tournament only, does NOT sync to roster)
+    outcome = _pvpApplyReward(_pvpFighter, _pvpReward);
+  }
 
   // Persist championship state AFTER reward is applied (not before — recordChampionshipMatchResult
   // saves earlier, before this runs, so skills/stats gained here would be lost on page reload)
@@ -277,6 +291,27 @@ function _pvpClose() {
   const cb = _pvpOnCloseCallback;
   _pvpOnCloseCallback = null;
   if (cb) { setTimeout(cb, 200); return; }
+
+  // Mammon (Greed): spin a second reward wheel if not already done
+  if (_pvpFighter?.charStats?.subrace?.label === 'Mammon' && !_pvpFighter._mammonBonusSpun) {
+    _pvpFighter._mammonBonusSpun = true;
+    const ftr = _pvpFighter;
+    setTimeout(() => {
+      showPVPRewardWheel(ftr);
+      // After bonus spin closes, clear flag and show Copycat if pending
+      pvpRewardSetOnClose(() => {
+        delete ftr._mammonBonusSpun;
+        if (ftr._copycatWheel) {
+          const wheel = ftr._copycatWheel;
+          ftr._copycatWheel = null;
+          setTimeout(() => showCopycatWheel(ftr, wheel), 200);
+        }
+      });
+    }, 200);
+    return;
+  }
+  delete _pvpFighter?._mammonBonusSpun;
+
   // If winner has Copycat pending → show Copycat Wheel next
   if (_pvpFighter?._copycatWheel) {
     const wheel = _pvpFighter._copycatWheel;
@@ -457,4 +492,210 @@ document.getElementById('cc-spin-btn')?.addEventListener('click', () => {
 
 document.getElementById('cc-continue-btn')?.addEventListener('click', () => {
   document.getElementById('copycat-modal').style.display = 'none';
+});
+
+// ============================================================
+// ANGEL BLESSING — Principalities: +2 lowest stat before PVP reward
+// ============================================================
+function showAngelBlessing(fighter, statKey, onClose) {
+  const SHORT = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+  const modal = document.getElementById('angel-blessing-modal');
+  if (!modal) { if (onClose) onClose(); return; }
+
+  const nameEl = document.getElementById('ab-winner-name');
+  if (nameEl) nameEl.textContent =
+    `${fighter.charEmoji ?? '👼'} ${fighter.charName ?? 'Angel'} — Principalities`;
+  const statEl = document.getElementById('ab-stat-gained');
+  if (statEl) statEl.textContent = `+2 ${SHORT[statKey] ?? statKey.toUpperCase()}`;
+
+  modal.style.display = 'flex';
+
+  const btn = document.getElementById('ab-continue-btn');
+  if (btn) {
+    btn.onclick = () => {
+      modal.style.display = 'none';
+      if (onClose) setTimeout(onClose, 200);
+    };
+  }
+}
+
+// ============================================================
+// PRIMORDIAL ELEMENTAL WHEEL — fires before PVP reward for Primordial winners
+// ============================================================
+const ELEM_ENTRIES = [
+  { label:'Air',   emoji:'💨', color:'#3366bb', weight:25, desc:'+1 stat thấp nhất' },
+  { label:'Water', emoji:'💧', color:'#1144aa', weight:25, desc:'+1 stat cao nhất'  },
+  { label:'Fire',  emoji:'🔥', color:'#bb3311', weight:25, desc:'+1 Skill ngẫu nhiên' },
+  { label:'Earth', emoji:'🌍', color:'#664422', weight:25, desc:'+1 DUR, +1 STR'    },
+];
+const _EW = 280, _EH = 280, _ER = 115, _ECX = 140, _ECY = 140;
+let _ewCtx = null, _ewSpinning = false, _ewApplied = false;
+let _ewFighter = null, _ewChosen = null, _ewOnClose = null;
+let _ewRotation = 0, _ewSpinTarget = 0, _ewStartTime = null;
+const _ewSpinDur = 3500;
+
+function _ewEase(t) { return 1 - Math.pow(1 - t, 4); }
+
+function _ewDraw(rot) {
+  if (!_ewCtx) return;
+  const ctx   = _ewCtx;
+  const sweep = (Math.PI * 2) / ELEM_ENTRIES.length; // 4 equal sectors
+  ctx.clearRect(0, 0, _EW, _EH);
+  ELEM_ENTRIES.forEach((e, idx) => {
+    const start = rot + idx * sweep;
+    ctx.beginPath();
+    ctx.moveTo(_ECX, _ECY);
+    ctx.arc(_ECX, _ECY, _ER, start, start + sweep);
+    ctx.closePath();
+    ctx.fillStyle = e.color;
+    ctx.fill();
+    ctx.strokeStyle = '#07071a'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Label
+    const mid = start + sweep / 2;
+    ctx.save();
+    ctx.translate(_ECX + Math.cos(mid) * _ER * 0.62, _ECY + Math.sin(mid) * _ER * 0.62);
+    const normMid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const flip = normMid > Math.PI / 2 && normMid < 3 * Math.PI / 2;
+    ctx.rotate(mid + (flip ? Math.PI : 0));
+    ctx.fillStyle = '#fff';
+    ctx.font      = 'bold 12px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+    ctx.fillText(e.label, 0, 0);
+    ctx.restore();
+  });
+  // Outer ring
+  ctx.beginPath(); ctx.arc(_ECX, _ECY, _ER, 0, Math.PI * 2);
+  ctx.strokeStyle = '#2a2a5a'; ctx.lineWidth = 5; ctx.stroke();
+  // Center cap
+  const grad = ctx.createRadialGradient(_ECX, _ECY, 2, _ECX, _ECY, 18);
+  grad.addColorStop(0, '#3a3a7a'); grad.addColorStop(1, '#09091a');
+  ctx.beginPath(); ctx.arc(_ECX, _ECY, 18, 0, Math.PI * 2);
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = '#4a4a9a'; ctx.lineWidth = 2; ctx.stroke();
+  // Pointer (green tint for Primordial)
+  ctx.save();
+  ctx.shadowColor = '#44ffaa'; ctx.shadowBlur = 10;
+  ctx.fillStyle   = '#22cc88'; ctx.strokeStyle = '#aaffcc'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(_ECX,      _ECY - _ER + 16);
+  ctx.lineTo(_ECX - 12, _ECY - _ER - 14);
+  ctx.lineTo(_ECX + 12, _ECY - _ER - 14);
+  ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+}
+
+function _ewAnimate(ts) {
+  if (!_ewStartTime) _ewStartTime = ts;
+  const t = Math.min((ts - _ewStartTime) / _ewSpinDur, 1);
+  _ewRotation = _ewEase(t) * _ewSpinTarget;
+  _ewDraw(_ewRotation);
+  if (t < 1) { requestAnimationFrame(_ewAnimate); }
+  else {
+    _ewSpinning = false;
+    _ewDraw(_ewSpinTarget);
+    _ewOnLand();
+  }
+}
+
+function _ewOnLand() {
+  if (_ewApplied || !_ewChosen || !_ewFighter) return;
+  _ewApplied = true;
+  const cs = _ewFighter.charStats;
+  const SK = ['strength','speed','durability','iq','battleiq','ma'];
+  let resultText = '';
+  switch (_ewChosen.label) {
+    case 'Air': {
+      const k = SK.reduce((a, b) => (cs[a] ?? 0) < (cs[b] ?? 0) ? a : b);
+      cs[k] = (cs[k] ?? 0) + 1;
+      resultText = `+1 ${k.toUpperCase()} (stat thấp nhất)`;
+      break;
+    }
+    case 'Water': {
+      const k = SK.reduce((a, b) => (cs[a] ?? 0) > (cs[b] ?? 0) ? a : b);
+      cs[k] = (cs[k] ?? 0) + 1;
+      resultText = `+1 ${k.toUpperCase()} (stat cao nhất)`;
+      break;
+    }
+    case 'Fire': {
+      const has  = new Set(_ewFighter.skills || []);
+      const pool = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS : [])
+        .filter(s => !s.unique && !has.has(s.id));
+      if (pool.length > 0) {
+        const sk = pool[Math.floor(Math.random() * pool.length)];
+        if (!_ewFighter.skills) _ewFighter.skills = [];
+        _ewFighter.skills.push(sk.id);
+        resultText = `+1 Skill: ${sk.icon ?? '✦'} ${sk.name}`;
+      } else {
+        resultText = 'Không còn skill trong pool';
+      }
+      break;
+    }
+    case 'Earth': {
+      cs.durability = (cs.durability ?? 0) + 1;
+      cs.strength   = (cs.strength   ?? 0) + 1;
+      resultText = '+1 DUR, +1 STR';
+      break;
+    }
+  }
+  if (typeof saveChampionshipProgress === 'function' && typeof state !== 'undefined' && state?.championship) {
+    saveChampionshipProgress();
+  }
+  document.getElementById('ew-result-label').textContent   = `${_ewChosen.emoji} ${_ewChosen.label}`;
+  document.getElementById('ew-result-outcome').textContent = resultText;
+  document.getElementById('ew-result').style.display       = '';
+  document.getElementById('ew-spin-btn').style.display     = 'none';
+  document.getElementById('ew-continue-btn').style.display = '';
+}
+
+function showPrimordialElementalWheel(fighter, onClose) {
+  _ewFighter   = fighter;
+  _ewOnClose   = onClose;
+  _ewApplied   = false;
+  _ewSpinning  = false;
+  _ewStartTime = null;
+  _ewRotation  = 0;
+
+  // Pre-pick element (equal weight — just pick randomly)
+  const idx   = Math.floor(Math.random() * ELEM_ENTRIES.length);
+  _ewChosen   = ELEM_ENTRIES[idx];
+
+  // Calculate spin target so pointer (top = 3π/2) lands on chosen sector center
+  const sweep     = (Math.PI * 2) / ELEM_ENTRIES.length;
+  const segCenter = idx * sweep + sweep / 2;
+  let land = (3 * Math.PI / 2) - segCenter;
+  while (land < 0) land += Math.PI * 2;
+  land += 5 * Math.PI * 2; // extra full spins for drama
+  land += (Math.random() - 0.5) * sweep * 0.6; // small jitter within sector
+  _ewSpinTarget = land;
+
+  // Winner label
+  const nameEl = document.getElementById('ew-winner-name');
+  if (nameEl) nameEl.textContent =
+    `🌌 ${fighter.charEmoji ?? '🌌'} ${fighter.charName ?? 'Primordial'} — Elemental Blessing!`;
+
+  // Reset UI
+  document.getElementById('ew-result').style.display       = 'none';
+  const spinBtn = document.getElementById('ew-spin-btn');
+  spinBtn.style.display = ''; spinBtn.disabled = false; spinBtn.textContent = '🌀 SPIN!';
+  document.getElementById('ew-continue-btn').style.display = 'none';
+
+  // Show modal & draw initial wheel
+  document.getElementById('elemental-wheel-modal').style.display = 'flex';
+  _ewCtx = document.getElementById('elemental-wheel-canvas').getContext('2d');
+  _ewDraw(0);
+}
+
+document.getElementById('ew-spin-btn')?.addEventListener('click', () => {
+  if (_ewSpinning || _ewApplied) return;
+  _ewSpinning = true; _ewStartTime = null;
+  const btn = document.getElementById('ew-spin-btn');
+  btn.disabled = true; btn.textContent = '🌀 Spinning…';
+  requestAnimationFrame(_ewAnimate);
+});
+
+document.getElementById('ew-continue-btn')?.addEventListener('click', () => {
+  document.getElementById('elemental-wheel-modal').style.display = 'none';
+  const cb = _ewOnClose;
+  _ewOnClose = null;
+  if (cb) setTimeout(cb, 200);
 });

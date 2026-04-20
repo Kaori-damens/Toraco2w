@@ -120,14 +120,38 @@ function _updatePillar(p, players) {
     const dx = ball.x - p.x, dy = ball.y - p.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const minDist = p.r + ball.radius;
+
+    // Ball body vs pillar — fully elastic bounce (no damping)
     if (dist < minDist && dist > 0) {
       const nx = dx / dist, ny = dy / dist;
       ball.x = p.x + nx * minDist;
       ball.y = p.y + ny * minDist;
       const dot = ball.vx * nx + ball.vy * ny;
       if (dot < 0) {
-        ball.vx -= 2 * dot * nx * 0.85;
-        ball.vy -= 2 * dot * ny * 0.85;
+        ball.vx -= 2 * dot * nx;
+        ball.vy -= 2 * dot * ny;
+      }
+    }
+
+    // Melee weapon tip vs pillar — parry-like: recoil + cooldown reset, no text/stun
+    const wdef = ball.weaponDef;
+    if (!wdef || wdef.aiType === 'ranged') continue; // ranged weapons don't get parried by pillars
+    if (ball.weapon.cooldown > 0) continue;          // weapon not in attack window — skip
+    const pts = wdef.getHitPoints(ball);
+    for (const pt of pts) {
+      const wdx = pt.x - p.x, wdy = pt.y - p.y;
+      if (wdx * wdx + wdy * wdy < (p.r + pt.r) * (p.r + pt.r)) {
+        // Push ball away from pillar center
+        const repelNx = dist > 0 ? dx / dist : 1;
+        const repelNy = dist > 0 ? dy / dist : 0;
+        ball.vx += repelNx * 3.5;
+        ball.vy += repelNy * 3.5;
+        // Treat as parry: lock weapon for full attack cooldown, deflect weapon angle
+        ball.weapon.cooldown = ball.weapon.attackCooldown;
+        ball.weapon.angle   += Math.PI * 0.15;
+        // Small sparks at weapon contact point — no "Parry" text
+        spawnSparks(pt.x, pt.y, 6);
+        break;
       }
     }
   }

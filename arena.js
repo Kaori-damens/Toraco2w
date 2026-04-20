@@ -1,7 +1,8 @@
 // ============================================================
 // ARENA HELPERS
 // ============================================================
-function checkArenaWall(x, y, r, arena) {
+// skipHoles = true → projectiles fly over inner holes (only outer boundary applies)
+function checkArenaWall(x, y, r, arena, skipHoles = false) {
   if (arena.type === 'circle') {
     const dx = x - arena.cx, dy = y - arena.cy;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -42,42 +43,52 @@ function checkArenaWall(x, y, r, arena) {
       if (y + r > cy+arm) return { nx: 0, ny: 1 };
     }
   } else if (arena.type === 'hole') {
-    // Outer square walls
+    // Outer square walls (always enforced)
     if (x - r < arena.x) return { nx: -1, ny: 0 };
     if (x + r > arena.x + arena.w) return { nx: 1, ny: 0 };
     if (y - r < arena.y) return { nx: 0, ny: -1 };
     if (y + r > arena.y + arena.h) return { nx: 0, ny: 1 };
-    // Inner circular hole — ball bounces outward
-    const hdx = x - arena.holeCx, hdy = y - arena.holeCy;
-    const hdist = Math.sqrt(hdx*hdx + hdy*hdy);
-    if (hdist < arena.holeR + r && hdist > 0) {
-      return { nx: hdx/hdist, ny: hdy/hdist };
+    // Inner circular hole — skip for projectiles (they fly over)
+    if (!skipHoles) {
+      const hdx = x - arena.holeCx, hdy = y - arena.holeCy;
+      const hdist = Math.sqrt(hdx*hdx + hdy*hdy);
+      if (hdist < arena.holeR + r && hdist > 0) {
+        return { nx: hdx/hdist, ny: hdy/hdist };
+      }
     }
   } else if (arena.type === 'hole_sq' || arena.type === 'hole_re') {
+    // Outer walls (always enforced)
     if (x - r < arena.x) return { nx: -1, ny: 0 };
     if (x + r > arena.x + arena.w) return { nx: 1, ny: 0 };
     if (y - r < arena.y) return { nx: 0, ny: -1 };
     if (y + r > arena.y + arena.h) return { nx: 0, ny: 1 };
-    for (const h of (arena.holes || [])) {
-      if (h.shape === 'circle') {
-        const hdx = x - h.cx, hdy = y - h.cy, hd = Math.sqrt(hdx*hdx + hdy*hdy);
-        if (hd < h.r + r && hd > 0) return { nx: hdx/hd, ny: hdy/hd };
-      } else if (h.shape === 'square') {
-        const hx1 = h.x - r, hy1 = h.y - r, hx2 = h.x + h.w + r, hy2 = h.y + h.h + r;
-        if (x > hx1 && x < hx2 && y > hy1 && y < hy2) {
-          const dL = x-hx1, dR = hx2-x, dT = y-hy1, dB = hy2-y, m = Math.min(dL,dR,dT,dB);
-          if (m===dL) return {nx:-1,ny:0}; if (m===dR) return {nx:1,ny:0};
-          if (m===dT) return {nx:0,ny:-1}; return {nx:0,ny:1};
+    // Inner holes — skip for projectiles (they fly over)
+    if (!skipHoles) {
+      for (const h of (arena.holes || [])) {
+        if (h.shape === 'circle') {
+          const hdx = x - h.cx, hdy = y - h.cy, hd = Math.sqrt(hdx*hdx + hdy*hdy);
+          if (hd < h.r + r && hd > 0) return { nx: hdx/hd, ny: hdy/hd };
+        } else if (h.shape === 'square') {
+          const hx1 = h.x - r, hy1 = h.y - r, hx2 = h.x + h.w + r, hy2 = h.y + h.h + r;
+          if (x > hx1 && x < hx2 && y > hy1 && y < hy2) {
+            const dL = x-hx1, dR = hx2-x, dT = y-hy1, dB = hy2-y, m = Math.min(dL,dR,dT,dB);
+            if (m===dL) return {nx:-1,ny:0}; if (m===dR) return {nx:1,ny:0};
+            if (m===dT) return {nx:0,ny:-1}; return {nx:0,ny:1};
+          }
         }
       }
     }
   } else if (arena.type === 'hole_ci') {
+    // Outer circle boundary (always enforced)
     const dx = x - arena.cx, dy = y - arena.cy, dist = Math.sqrt(dx*dx + dy*dy);
     if (dist + r > arena.r && dist > 0) { const n = 1/dist; return { nx: dx*n, ny: dy*n }; }
-    for (const h of (arena.holes || [])) {
-      if (h.shape === 'circle') {
-        const hdx = x - h.cx, hdy = y - h.cy, hd = Math.sqrt(hdx*hdx + hdy*hdy);
-        if (hd < h.r + r && hd > 0) return { nx: hdx/hd, ny: hdy/hd };
+    // Inner holes — skip for projectiles (they fly over)
+    if (!skipHoles) {
+      for (const h of (arena.holes || [])) {
+        if (h.shape === 'circle') {
+          const hdx = x - h.cx, hdy = y - h.cy, hd = Math.sqrt(hdx*hdx + hdy*hdy);
+          if (hd < h.r + r && hd > 0) return { nx: hdx/hd, ny: hdy/hd };
+        }
       }
     }
   }

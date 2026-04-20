@@ -808,6 +808,184 @@
 
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">20 Apr 2026</span>
+          <span class="changelog-badge">Patch 104</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🎡 <b>Spin Wheel — ẩn label weight=0</b>: Race/item có weight=0 (vd: Gnome) không còn hiện text trên vòng quay chargen</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">20 Apr 2026</span>
+          <span class="changelog-badge">Patch 103</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Fix: Championship chargen đứng hoàn toàn sau spin</b>: Root cause thật sự — <code>playTone</code> không được định nghĩa trong bản modular (chỉ có trong <code>game.js</code> backup), khiến exception throw bên trong RAF callback của SpinWheel trước khi <code>btn.onclick = doAdvance</code> kịp set — nút "Next →" mãi không có handler. Fixed bằng cách thêm <code>playTone()</code> public vào <code>audio.js</code> làm alias cho <code>_tone()</code>; sửa luôn cho <code>particles.js</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">20 Apr 2026</span>
+          <span class="changelog-badge">Patch 102</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Fix: Championship chargen bị đứng sau spin</b>: Sau khi vòng quay hiện kết quả, nút "Next →" không phản hồi — fixed bằng cách gọi trực tiếp hàm advance thay vì dùng btn.click(); thêm one-shot guard chống double-advance và try-catch để surface lỗi ẩn</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">20 Apr 2026</span>
+          <span class="changelog-badge">Patch 101</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>👼 <b>Angel: Principalities</b>: Sau mỗi PvP thắng → +2 stat thấp nhất permanent, hiện qua "Divine Favor" modal trước PvP reward wheel</li>
+              <li>👼 <b>Angel: Powers</b>: Chargen +1 MA + +1 extra skill (cộng vào kết quả vòng quay skill)</li>
+              <li>👼 <b>Angel: Virtues</b>: Miễn nhiễm toàn bộ debuffs — Ice Troll SPD debuff, Leviathan stat drain, Asmodeus skill seal, Lich Troll skill drain, Usurp weapon steal, Shadowfang poison, Mind Break</li>
+              <li>👼 <b>Angel: Dominions</b>: Chargen +3 extra skills (cộng vào kết quả vòng quay skill)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">20 Apr 2026</span>
+          <span class="changelog-badge">Patch 100</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🌌 <b>Primordial trait — Elemental Blessing</b>: Sau mỗi lần thắng, quay Elemental Wheel (Air/Water/Fire/Earth) để nhận bonus permanent trước khi quay PvP reward wheel</li>
+              <li>🧟 <b>Lich Troll — Soul Drain</b>: Đầu mỗi trận, 75% chance drain 1 random active skill của từng đối thủ (passive skills không bị ảnh hưởng)</li>
+              <li>💀 <b>Skeleton — Lich Ascension</b>: Sau 2 lần thắng match → IQ raised lên tối thiểu 8</li>
+              <li>💀 <b>Skeleton — Double Elimination bonus</b>: Lần đầu rơi xuống losers bracket (thua winners bracket) → +1 all stats permanent</li>
+              <li>👺 <b>Goblin ×1 — Win bonus</b>: Sau mỗi game thắng → +2 vào 3 random stats (có thể trùng)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">20 Apr 2026</span>
+          <span class="changelog-badge">Patch 99</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⏹ <b>Stop Auto — In-game button</b>: Nút "Stop Auto" giờ hiển thị ngay trong màn hình combat khi đang ở chế độ Auto championship — có thể dừng bất cứ lúc nào mà không cần chờ về bracket</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 98</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>😈 <b>Demon Sin Pool — Championship draft</b>: Mỗi trong 7 sins chỉ có thể được chọn 1 lần duy nhất trong 1 championship. Khi pool cạn kiệt, Demon vẫn có thể được roll nhưng sẽ là "sinless" (không có subrace)</li>
+              <li>😈 <b>Sin Pool — Chargen wheel</b>: Vòng quay subrace của Demon chỉ hiển thị các sins còn trong pool. Nếu pool rỗng, bước subrace bị skip hoàn toàn</li>
+              <li>😈 <b>Sin Pool — Fill Remaining</b>: <code>bulkCreateOne()</code> kiểm tra pool trước khi roll subrace Demon; claim sin ngay sau khi chọn; sinless nếu pool đã hết</li>
+              <li>😈 <b>Sin Pool — Remove player</b>: Xoá nhân vật Demon khỏi draft trả lại sin vào pool</li>
+              <li>😈 <b>Sin Pool — Save/Resume</b>: Pool được serialize/restore cùng với draft progress</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 97</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>😈 <b>Leviathan — Pre-combat</b>: Đầu mỗi trận đối thủ bị −6 vào 1 stat ngẫu nhiên (chỉ trong trận). Không nhận stat bonuses từ PvP rewards</li>
+              <li>😈 <b>Asmodeus — Pre-combat</b>: Seal N skills của đối thủ (N = số skill mình có); nếu nhiều hơn đối thủ → đối thủ thêm −1 all stats. Đối thủ bắt đầu với 1 điểm trong BO3/BO5+. Không kích hoạt ở BO1/Battle Royale</li>
+              <li>😈 <b>Behemoth — Rage</b>: Khi HP &lt; 35%: +3 STR, +2 SPD, +2 MA, −1 BIQ, −1 IQ kích hoạt một lần. Sau mỗi trận: −1 DUR permanent</li>
+              <li>😈 <b>Lucifer — Series loss</b>: Thua series → −1 all stats permanent</li>
+              <li>😈 <b>Beelzebub — Game win</b>: Thắng mỗi game → +1 random stat permanent</li>
+              <li>😈 <b>Belphegor — Survive</b>: Thắng mỗi game → +1 DUR permanent. Không nhận skill từ Copycat hay PvP rewards</li>
+              <li>😈 <b>Mammon — Double reward</b>: Thắng → quay PvP reward wheel 2 lần</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 96</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>😈 <b>Demon subrace — Redesign toàn bộ</b>: 7 tội lỗi được viết lại với upside và cost rõ ràng — Lucifer (Pride), Beelzebub (Gluttony), Leviathan (Envy), Behemoth (Wrath), Mammon (Greed), Belphegor (Sloth), Asmodeus (Lust)</li>
+              <li>😈 <b>Demon — Stat delta in bulkCreateOne</b>: Lucifer (+2 all), Mammon (−2 all), Asmodeus (−1 all), Belphegor (−4 SPD), Beelzebub (0 skills) được áp dụng đúng khi Fill tạo Demon</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 95</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🎲 <b>Fill — Skill loạn xạ</b>: Sửa bug Fill tạo radoser với skill sai vũ khí (vd bow lại có skill dagger) — pool skill giờ chỉ lấy skill phù hợp với vũ khí được roll</li>
+              <li>★ <b>Fill — Unique skill bị rò rỉ</b>: Sửa bug Fill gán unique skill (Cướp Đoạt, Shadow Clone) cho radoser mà không trừ unique pool — fill giờ loại hoàn toàn unique skills khỏi pool</li>
+              <li>🧬 <b>Fill — Hiện sub-race trên card</b>: Draft card trong championship giờ hiển thị sub-race (ví dụ "· ×1,000", "· Ice Troll") cạnh tên radoser</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">19 Apr 2026</span>
+          <span class="changelog-badge">Patch 94</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏛️ <b>Pillar — Arrow biến mất</b>: Arrow (và các projectile thẳng: sword_beam, gungnir, lightning) biến mất khi va chạm pillar</li>
+              <li>⭐ <b>Pillar — Shuriken bounce</b>: Shuriken / Fuma Shuriken nảy khỏi pillar như nảy tường — tính vào bounce limit, Fuma Shuriken vẫn tăng size/damage khi nảy</li>
+              <li>⚔️ <b>Pillar — Melee parry</b>: Vũ khí melee chạm vào pillar gây hiệu ứng parry — recoil + reset cooldown tấn công + 6 sparks, không hiện text "Parry"</li>
+              <li>🕳️ <b>Hole arena — Projectile bay qua</b>: Arrow và Shuriken giờ bay qua hole mà không bị ảnh hưởng — chỉ ball (Radoser) mới bị bounce ra khỏi hole</li>
+              <li>🏛️ <b>Pillar — Ball bounce elastic</b>: Bỏ damping ×0.85 khi ball va chạm pillar — giờ là bounce hoàn toàn elastic (không mất tốc độ)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">19 Apr 2026</span>
           <span class="changelog-badge">Patch 93</span>
           <span class="changelog-chevron">▼</span>
@@ -2306,6 +2484,7 @@
         <div class="game-ctrl">
           <button class="g-btn" id="pauseBtn">⏸ Pause</button>
           <button class="g-btn" id="menuBtn">← Menu</button>
+          <button class="g-btn cs-auto-btn active" id="champAutoStopBtn" style="display:none" onclick="toggleChampAuto()">⏹ Stop Auto</button>
           <button class="g-btn" id="gravBtn">🌍 Gravity: Off</button>
           <div class="g-slider-wrap">
             <span class="g-slider-icon">🔍</span>
@@ -2548,6 +2727,32 @@
       <div class="pvp-rw-res-outcome" id="cc-res-outcome"></div>
     </div>
     <button class="pvp-rw-cont-btn" id="cc-continue-btn" style="display:none">✓ Continue</button>
+  </div>
+</div>
+
+<div id="angel-blessing-modal" style="display:none">
+  <div id="angel-blessing-box">
+    <div class="pvp-rw-title">⚡ Divine Favor</div>
+    <div class="pvp-rw-winner" id="ab-winner-name">— Principalities —</div>
+    <div id="ab-stat-gained" style="font-size:2em;font-weight:bold;color:#ffee66;text-shadow:0 0 20px #ffaa00;margin:8px 0;">+2 STAT</div>
+    <div style="color:#aabbcc;font-size:0.85em;margin-bottom:4px;">Stat thấp nhất · Nhận trước PvP reward</div>
+    <button class="pvp-rw-cont-btn" id="ab-continue-btn">✓ Accept &amp; Continue</button>
+  </div>
+</div>
+
+<div id="elemental-wheel-modal" style="display:none">
+  <div id="elemental-wheel-box">
+    <div class="pvp-rw-title">🌌 Elemental Blessing</div>
+    <div class="pvp-rw-winner" id="ew-winner-name">— Primordial —</div>
+    <canvas id="elemental-wheel-canvas" width="280" height="280"></canvas>
+    <div class="pvp-rw-spin-row">
+      <button id="ew-spin-btn" class="pvp-spin-btn">🌀 SPIN!</button>
+    </div>
+    <div id="ew-result" style="display:none">
+      <div class="pvp-rw-res-label"   id="ew-result-label"></div>
+      <div class="pvp-rw-res-outcome" id="ew-result-outcome"></div>
+    </div>
+    <button class="pvp-rw-cont-btn" id="ew-continue-btn" style="display:none">✓ Continue</button>
   </div>
 </div>
 

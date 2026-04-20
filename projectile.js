@@ -41,8 +41,8 @@ class Projectile {
       if (newSpd > spd * 1.02) { this.vx = this.vx/newSpd*spd; this.vy = this.vy/newSpd*spd; }
     }
 
-    // Arena collision
-    const hit = checkArenaWall(this.x, this.y, this.r, arena);
+    // Arena collision — skipHoles=true so projectiles fly over inner holes
+    const hit = checkArenaWall(this.x, this.y, this.r, arena, true);
     if (hit) {
       if (this.bounces < this.maxBounces) {
         if (hit.nx !== 0) this.vx = -this.vx;
@@ -58,6 +58,38 @@ class Projectile {
         this.alive = false;
       }
     }
+
+    // Pillar collision (PvP only) — arrow disappears, shuriken bounces like wall
+    if (this.alive && !state.pveMode && state.trapObjects?.length) {
+      for (const trap of state.trapObjects) {
+        if (trap.kind !== 'pillar') continue;
+        const pdx = this.x - trap.x, pdy = this.y - trap.y;
+        const pd  = Math.sqrt(pdx * pdx + pdy * pdy);
+        if (pd < trap.r + this.r) {
+          if (this.type === 'shuriken' || this.type === 'fuma_shuriken') {
+            // Shuriken: bounce off pillar (counts toward bounce limit, same as wall)
+            if (this.bounces < this.maxBounces) {
+              const nx = pdx / (pd || 1), ny = pdy / (pd || 1);
+              const dot = this.vx * nx + this.vy * ny;
+              if (dot < 0) { this.vx -= 2 * dot * nx; this.vy -= 2 * dot * ny; }
+              this.bounces++;
+              if (typeof sfxShurikenBounce === 'function') sfxShurikenBounce();
+              if (this.type === 'fuma_shuriken') {
+                this.r = Math.min(this.r + 4, 20);
+                this.damage *= 1.6;
+              }
+            } else {
+              this.alive = false;
+            }
+          } else {
+            // Arrow, lightning, sword_beam, gungnir → disappear on pillar contact
+            this.alive = false;
+          }
+          break;
+        }
+      }
+    }
+
     this.angle = Math.atan2(this.vy, this.vx);
   }
 

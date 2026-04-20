@@ -3800,6 +3800,37 @@ canvas#gameCanvas {
   background: rgba(0,0,0,0.88);
   display: flex; align-items: center; justify-content: center;
 }
+#angel-blessing-modal {
+  position: fixed; inset: 0; z-index: 9160;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+}
+#angel-blessing-box {
+  background: #0a0e1a;
+  border: 2px solid #5555cc;
+  border-radius: 20px;
+  padding: 28px 36px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+  box-shadow: 0 0 80px rgba(120,120,255,0.45);
+  max-width: 320px; width: 100%;
+  text-align: center;
+}
+#elemental-wheel-modal {
+  position: fixed; inset: 0; z-index: 9150;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+}
+#elemental-wheel-box {
+  background: #090f1a;
+  border: 2px solid #1a4a3a;
+  border-radius: 20px;
+  padding: 24px 28px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+  box-shadow: 0 0 80px rgba(30,180,100,0.35);
+  max-width: 360px; width: 100%;
+}
 #copycat-box {
   background: #0d0b1e;
   border: 2px solid #4a2a6a;

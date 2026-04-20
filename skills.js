@@ -215,9 +215,138 @@ function initRoundSkillState(ball) {
   };
 }
 
+// ── Demon subrace pre-combat helper ───────────────────────
+function _demonPreCombat(ball) {
+  const srlabel = ball.charSubrace?.label;
+  if (!srlabel) return;
+  const opponents = state.players.filter(p => p !== ball && p.alive &&
+    (ball.teamId >= 0 ? p.teamId !== ball.teamId : true));
+  if (!opponents.length) return;
+
+  // Leviathan (Envy): opponent −6 to 1 random stat (in-combat only — Ball recreated each match)
+  if (srlabel === 'Leviathan') {
+    const SK = ['strength','speed','durability','iq','battleiq','ma'];
+    const SH = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+    for (const opp of opponents) {
+      if (_isVirtues(opp)) {
+        spawnDamageNumber(opp.x, opp.y - opp.radius - 14, '👼 Virtues — immune!', '#aaccff');
+        continue;
+      }
+      const stat = SK[Math.floor(Math.random() * SK.length)];
+      switch (stat) {
+        case 'strength':
+          opp.charSTR = Math.max(0, (opp.charSTR ?? 5) - 6); break;
+        case 'speed':
+          opp.charSPD    = Math.max(0, (opp.charSPD ?? 5) - 6);
+          opp.maxSpd     = Math.max(2, opp.maxSpd - 9);
+          opp.baseMaxSpd = opp.maxSpd;
+          break;
+        case 'durability':
+          opp.charDUR = Math.max(0, (opp.charDUR ?? 5) - 6);
+          opp.maxHp   = Math.max(1, opp.maxHp - 60);
+          opp.hp      = Math.min(opp.hp, opp.maxHp);
+          break;
+        case 'iq':
+          opp.charIQ     = Math.max(0, (opp.charIQ ?? 5) - 6);
+          opp.critChance = opp.charIQ * 0.05;
+          break;
+        case 'battleiq':
+          opp.charBIQ     = Math.max(0, (opp.charBIQ ?? 5) - 6);
+          opp.evadeChance = opp.charBIQ * 0.03;
+          break;
+        case 'ma':
+          opp.charMA        = Math.max(0, (opp.charMA ?? 5) - 6);
+          opp.deflectChance = opp.charMA * 0.02;
+          break;
+      }
+      spawnDamageNumber(opp.x, opp.y - opp.radius - 18, `😈 −6 ${SH[stat]}!`, '#9933ff');
+    }
+    spawnBigAnnouncement?.('😈 ENVY — stat corrupted!', '#9933ff');
+  }
+
+  // Asmodeus (Lust): disable N opponent skills + optional −1 all stats (BO3+ only, not BR)
+  if (srlabel === 'Asmodeus') {
+    const isBO3Plus = !!(state.bo3 && (state.bo3.winsNeeded ?? 2) > 1);
+    const isBR      = state.matchMode === 'ffa';
+    if (!isBO3Plus || isBR) return;
+
+    // Count only active (non-passive) skills for Asmodeus comparisons
+    const _isActive = sid => {
+      const sdef = typeof SKILL_DEFS !== 'undefined' && SKILL_DEFS.find(s => s.id === sid);
+      return sdef && sdef.type !== 'passive';
+    };
+    const ownN = (ball.skills || []).filter(_isActive).length;
+    for (const opp of opponents) {
+      if (_isVirtues(opp)) {
+        spawnDamageNumber(opp.x, opp.y - opp.radius - 14, '👼 Virtues — immune!', '#aaccff');
+        continue;
+      }
+      const oppN = (opp.skills || []).filter(_isActive).length;
+      // Disable N random ACTIVE skills only — passive skills are already baked into
+      // the Ball at applySkillPassives() time (HP, speed, etc.) so removing them here
+      // would have no effect. Only active (triggerable) skills can be sealed.
+      const activeSkills   = (opp.skills || []).filter(sid => {
+        const sdef = typeof SKILL_DEFS !== 'undefined' && SKILL_DEFS.find(s => s.id === sid);
+        return sdef && sdef.type !== 'passive';
+      });
+      const passiveSkills  = (opp.skills || []).filter(sid => !activeSkills.includes(sid));
+      if (ownN > 0 && activeSkills.length > 0) {
+        const n = Math.min(ownN, activeSkills.length);
+        const shuffled = [...activeSkills];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        opp.skills = [...passiveSkills, ...shuffled.slice(n)]; // keep passives + unsealed actives
+        spawnDamageNumber(opp.x, opp.y - opp.radius - 18,
+          `😈 ${n} skill${n > 1 ? 's' : ''} sealed!`, '#ff44aa');
+      }
+      // If Asmodeus has more skills than opponent → opponent −1 all stats (in-combat)
+      if (ownN > oppN) {
+        opp.charSTR = Math.max(0, (opp.charSTR ?? 5) - 1);
+        opp.charSPD = Math.max(0, (opp.charSPD ?? 5) - 1);
+        opp.charDUR = Math.max(0, (opp.charDUR ?? 5) - 1);
+        opp.charIQ  = Math.max(0, (opp.charIQ  ?? 5) - 1);
+        opp.charBIQ = Math.max(0, (opp.charBIQ ?? 5) - 1);
+        opp.charMA  = Math.max(0, (opp.charMA  ?? 5) - 1);
+        opp.maxSpd     = Math.max(2, opp.maxSpd - 1.5);
+        opp.baseMaxSpd = opp.maxSpd;
+        opp.maxHp      = Math.max(1, opp.maxHp - 10);
+        opp.hp         = Math.min(opp.hp, opp.maxHp);
+        opp.evadeChance   = (opp.charBIQ ?? 0) * 0.03;
+        opp.critChance    = (opp.charIQ  ?? 0) * 0.05;
+        opp.deflectChance = (opp.charMA  ?? 0) * 0.02;
+        spawnDamageNumber(opp.x, opp.y - opp.radius - 28, `😈 −1 all stats!`, '#ff44aa');
+      }
+    }
+    spawnBigAnnouncement?.('😈 LUST — skills sealed!', '#ff44aa');
+  }
+}
+
+// Called from ui.js + championship.js right after state.bo3 is created:
+// gives opponent 1 starting win if Asmodeus is in the match (BO3+ only).
+function applyAsmodeusBo3Bonus() {
+  const bo3 = state.bo3;
+  if (!bo3 || (bo3.winsNeeded ?? 2) <= 1) return;
+  (bo3.fighters || []).forEach((f, idx) => {
+    if (f?.charStats?.subrace?.label !== 'Asmodeus') return;
+    const oppIdx = 1 - idx;
+    const cap = (bo3.winsNeeded ?? 2) - 1; // don't let opponent win instantly
+    bo3.wins[oppIdx] = Math.min((bo3.wins[oppIdx] ?? 0) + 1, cap);
+  });
+}
+
 // ── PRE-COMBAT hook ────────────────────────────────────────
 // Called for each ball when the countdown ends → playing begins.
+// Virtues (Angel rank 5): immune to all debuffs
+function _isVirtues(ball) {
+  return ball?.charRace === 'angel' && ball?.charSubrace?.label === 'Virtues';
+}
+
 function skillOnPreCombat(ball) {
+  // Demon subrace effects fire regardless of own skill count
+  if (ball.charRace === 'demon' && typeof state !== 'undefined') _demonPreCombat(ball);
+
   if (!ball.skills || ball.skills.length === 0) return;
 
   // Passive skills: handled by .always-active CSS class set in buildHUD() — no flash needed here.
@@ -232,7 +361,8 @@ function skillOnPreCombat(ball) {
   if (ball.skills.includes('usurp') && typeof state !== 'undefined') {
     const enemies = state.players.filter(p => p !== ball && p.alive
       && (ball.teamId >= 0 ? p.teamId !== ball.teamId : true)
-      && p.weaponDef.id !== 'fists');
+      && p.weaponDef.id !== 'fists'
+      && !_isVirtues(p)); // Virtues immune to weapon steal
     if (enemies.length > 0) {
       // Pick nearest enemy
       const target = enemies.reduce((best, p) =>
@@ -262,10 +392,42 @@ function skillOnPreCombat(ball) {
   if (ball.charRace === 'troll' && ball.charSubrace?.label === 'Ice Troll') {
     for (const other of state.players) {
       if (other === ball || !other.alive) continue;
+      if (_isVirtues(other)) {
+        spawnDamageNumber(other.x, other.y - other.radius - 14, '👼 Virtues — immune!', '#aaccff');
+        continue;
+      }
       other.maxSpd     = Math.max(2, other.maxSpd - 3);
       other.baseMaxSpd = Math.max(2, other.baseMaxSpd - 3);
       spawnDamageNumber(other.x, other.y - other.radius - 14, '🧊 -3 Move Spd', '#88ccff');
     }
+  }
+
+  // Lich Troll: 75% chance to drain 1 random active skill from each opponent at round start
+  if (ball.charRace === 'troll' && ball.charSubrace?.label === 'Lich Troll') {
+    const _ltIsActive = sid => {
+      const sdef = typeof SKILL_DEFS !== 'undefined' && SKILL_DEFS.find(s => s.id === sid);
+      return sdef && sdef.type !== 'passive';
+    };
+    let anyDrained = false;
+    for (const opp of state.players) {
+      if (opp === ball || !opp.alive) continue;
+      if (ball.teamId >= 0 && ball.teamId === opp.teamId) continue;
+      if (_isVirtues(opp)) {
+        spawnDamageNumber(opp.x, opp.y - opp.radius - 14, '👼 Virtues — immune!', '#aaccff');
+        continue;
+      }
+      if (Math.random() >= 0.75) {
+        spawnDamageNumber(opp.x, opp.y - opp.radius - 14, '🧟 Curse resisted!', '#887755');
+        continue;
+      }
+      const active = (opp.skills || []).filter(_ltIsActive);
+      if (active.length === 0) continue;
+      const drained = active[Math.floor(Math.random() * active.length)];
+      opp.skills = opp.skills.filter(s => s !== drained);
+      spawnDamageNumber(opp.x, opp.y - opp.radius - 18, '🧟 1 skill drained!', '#aa44ff');
+      anyDrained = true;
+    }
+    if (anyDrained) spawnBigAnnouncement?.('🧟 LICH TROLL — soul drain!', '#aa44ff');
   }
 
   // Predator: check HP once at round start — lock in for entire round
@@ -284,6 +446,7 @@ function skillOnPreCombat(ball) {
     for (const other of state.players) {
       if (other === ball || !other.alive) continue;
       if (ball.teamId >= 0 && ball.teamId === other.teamId) continue;
+      if (_isVirtues(other)) continue; // Virtues immune
       const myIQ = ball.charIQ || 1;
       const theirIQ = other.charIQ || 1;
       if (myIQ > theirIQ) {
@@ -704,7 +867,9 @@ function skillOnPostCombat(ball, won, fighter) {
     }
 
     // Copycat: BIQ×3.5% chance to learn 1 random skill from an opponent
-    if (ball.skills.includes('copycat')) {
+    // Belphegor (Sloth): too lazy to learn — block entirely
+    const _belphegorBlock = ball.charRace === 'demon' && ball.charSubrace?.label === 'Belphegor';
+    if (ball.skills.includes('copycat') && !_belphegorBlock) {
       const chance = (ball.charBIQ ?? 5) * 0.035;
       const candidateSkills = [...new Set(
         state.players.flatMap(other => {

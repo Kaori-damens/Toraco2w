@@ -1,6 +1,6 @@
 # AutoRPNG Battle (TORACO) — Game Design Document (English)
 
-> **Version**: 4.2 | **Engine**: Vanilla HTML5 Canvas + Web Audio API | **Files**: `index.html` · `style.css` · 30+ JS modules
+> **Version**: 4.3 | **Engine**: Vanilla HTML5 Canvas + Web Audio API | **Files**: `index.html` · `style.css` · 30+ JS modules
 
 ---
 
@@ -378,11 +378,24 @@ Five preset arena shapes plus a custom arena builder.
 | Circle | Circle | radius = 220 px |
 | Rectangle | Rectangle | 600 × 400 px |
 | Cross | Cross (+) | arm = 240, thick = 300 |
-| Hole | Square + inner obstacle | 1000 × 1000, hole radius = 70 |
+| Hole (4 variants) | Outer boundary + inner holes | See §10.1 |
 
 **Custom Arena Builder** — max dimensions: square/rect 1000 px, circle/hole radius 600 px, cross arm 500 px.
 
 **Wall bounce:** perfectly elastic (`WALL_BOUNCE = 1.0`).
+
+### 10.1 Hole Arena Variants
+
+| Arena ID | Outer boundary | Inner holes | Notes |
+|----------|---------------|-------------|-------|
+| `hole` | Square (legacy) | 1 circular hole at center | Older type |
+| `hole_sq` | Square | Multiple circle or square holes | Most common |
+| `hole_re` | Rectangle | Multiple circle or square holes | Rectangular outer boundary |
+| `hole_ci` | Circle | Multiple circle holes | Both boundary and holes are circular |
+
+**Hole mechanics:** When a ball (Radoser) enters a hole, it is **bounced back outward** — it does not die from falling. Velocity is reflected away from the hole center.
+
+**Projectiles and holes:** Arrows and shurikens fly over holes without being affected — they exist on a separate layer from the arena floor.
 
 ---
 
@@ -553,7 +566,34 @@ Both counters are **separate** — a projectile hit only resets `projImmunityFra
 
 ### 14.4 Ice Troll Debuff (Subrace)
 
-At round start, all opponents permanently lose −2 SPD (−3 maxSpd) for that round. Displayed as `🧊 -2 SPD` floating text.
+At round start, all opponents permanently lose −2 SPD (−3 maxSpd) for that round. Displayed as `🧊 -3 Move Spd` floating text.
+
+### 14.5 Arena Pillars
+
+Pillars are static solid circular obstacles placed randomly within the arena. They are physical blockers with no damage of their own.
+
+| Property | Value |
+|----------|-------|
+| Radius | 28 px |
+| Damage | None — physical obstacle only |
+| Placement | Random, minimum 130 px from center |
+
+**Interaction by object type:**
+
+| Object | Behavior on pillar contact |
+|--------|---------------------------|
+| Ball (Radoser) | Collides normally (arena physics) |
+| Arrow | Disappears immediately |
+| Shuriken / Fuma Shuriken | Counts as a wall bounce |
+| Melee weapon swing | Triggers parry effect (no "Parry" text shown) |
+
+**Pillar count by arena size:**
+
+| Size | Pillars | Additional traps |
+|------|---------|-----------------|
+| Small | 1 | None |
+| Medium | 3 | Lightning trap or Scythe |
+| Large | 5 | Scythe (rotating, 8 dmg) |
 
 ---
 
@@ -664,6 +704,8 @@ Effect: The attacker's weapon gets "stuck in the void" — pulled toward the Pri
 | Speed | 7.5 + weapon speed bonus px/frame |
 | Visual radius | Scales with STR (higher STR = larger arrows) |
 | Wall behavior | Disappears on wall contact |
+| Pillar behavior | Disappears on pillar contact |
+| Hole behavior | Flies over holes — not affected |
 | Deflectable | Yes — weapon tip contact redirects + transfers ownership |
 | Starting count | = SPD stat (not fixed 1) |
 | Burst | `arrowCount` arrows per cycle, 4-frame delay between |
@@ -676,6 +718,8 @@ Effect: The attacker's weapon gets "stuck in the void" — pulled toward the Pri
 | Speed | 3 px/frame |
 | Radius | 8 px |
 | Wall bounces | Up to 2 |
+| Pillar behavior | Counts as a wall bounce |
+| Hole behavior | Flies over holes — not affected |
 | Deflectable | Yes |
 | Burst | `shurikenCount` per cycle, 4-frame delay between |
 | Immunity | 8 frames projectile immunity on hit |
@@ -738,7 +782,7 @@ Each weapon tracks a **hits counter**. Every confirmed hit (not evaded) triggers
 | Limit Break stack | `⚡ ×N` gold |
 | Flame Breath | `🔥 FLAME BREATH!` orange |
 | Net trap | `🕸️ TRAPPED!` gold |
-| Ice Troll | `🧊 -2 SPD` blue |
+| Ice Troll | `🧊 -3 Move Spd` blue |
 | Mind Break | `🧿 MIND BREAK -X%` purple |
 
 ### 19.3 Sound Effects
@@ -934,4 +978,4 @@ AutoRPNG battle/
 
 ---
 
-*AutoRPNG Battle (TORACO) — GDD v4.2*
+*AutoRPNG Battle (TORACO) — GDD v4.3*

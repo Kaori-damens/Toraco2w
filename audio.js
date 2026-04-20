@@ -118,3 +118,8 @@ function sfxDeath() {
 function sfxScale() {
   _tone(1100, 'sine', 0.15, 0.15, 0.8);
 }
+
+// ── Legacy alias (used by chargen.js + particles.js) ─────────
+function playTone(freq, type, duration, vol, decay) {
+  _tone(freq, type, duration, vol, decay);
+}

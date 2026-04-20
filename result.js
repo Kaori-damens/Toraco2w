@@ -105,7 +105,18 @@ function showResult() {
       }
       // ── PVP Reward Wheel (tournament matches only) ──
       if (typeof showPVPRewardWheel === 'function' && (state.tournament || state.tournament2v2 || state.championship)) {
-        setTimeout(() => showPVPRewardWheel(mw), 500);
+        const _pvpShow = () => showPVPRewardWheel(mw);
+        if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
+          setTimeout(() => showPrimordialElementalWheel(mw, _pvpShow), 500);
+        } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
+          const _abCs = mw.charStats, _abSK = ['strength','speed','durability','iq','battleiq','ma'];
+          const _abK = _abSK.reduce((a, b) => (_abCs[a]??0) < (_abCs[b]??0) ? a : b);
+          _abCs[_abK] = (_abCs[_abK]??0) + 2;
+          if (typeof saveChampionshipProgress==='function' && typeof state!=='undefined' && state?.championship) saveChampionshipProgress();
+          setTimeout(() => showAngelBlessing(mw, _abK, _pvpShow), 500);
+        } else {
+          setTimeout(_pvpShow, 500);
+        }
       }
     } else {
       const gameNum = bo3.gameNum;
@@ -129,7 +140,20 @@ function showResult() {
       if (mw) {
         recordChampionshipMatchResult(mw);
         if (state.championship.completed) bracketB.textContent = '🏆 Championship Over';
-        if (typeof showPVPRewardWheel === 'function') setTimeout(() => showPVPRewardWheel(mw), 500);
+        if (typeof showPVPRewardWheel === 'function') {
+          const _pvpShowBO1 = () => showPVPRewardWheel(mw);
+          if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
+            setTimeout(() => showPrimordialElementalWheel(mw, _pvpShowBO1), 500);
+          } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
+            const _abCs2 = mw.charStats, _abSK2 = ['strength','speed','durability','iq','battleiq','ma'];
+            const _abK2 = _abSK2.reduce((a, b) => (_abCs2[a]??0) < (_abCs2[b]??0) ? a : b);
+            _abCs2[_abK2] = (_abCs2[_abK2]??0) + 2;
+            if (typeof saveChampionshipProgress==='function' && typeof state!=='undefined' && state?.championship) saveChampionshipProgress();
+            setTimeout(() => showAngelBlessing(mw, _abK2, _pvpShowBO1), 500);
+          } else {
+            setTimeout(_pvpShowBO1, 500);
+          }
+        }
       }
     }
   }
@@ -147,7 +171,20 @@ function showResult() {
       const winnerFighter = state.fighters[winnerIdx] ?? null;
       if (winnerFighter) {
         recordChampionshipFfaResult(winnerFighter);
-        if (typeof showPVPRewardWheel === 'function') setTimeout(() => showPVPRewardWheel(winnerFighter), 500);
+        if (typeof showPVPRewardWheel === 'function') {
+          const _pvpShowFfa = () => showPVPRewardWheel(winnerFighter);
+          if (winnerFighter?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
+            setTimeout(() => showPrimordialElementalWheel(winnerFighter, _pvpShowFfa), 500);
+          } else if (winnerFighter?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
+            const _abCs3 = winnerFighter.charStats, _abSK3 = ['strength','speed','durability','iq','battleiq','ma'];
+            const _abK3 = _abSK3.reduce((a, b) => (_abCs3[a]??0) < (_abCs3[b]??0) ? a : b);
+            _abCs3[_abK3] = (_abCs3[_abK3]??0) + 2;
+            if (typeof saveChampionshipProgress==='function' && typeof state!=='undefined' && state?.championship) saveChampionshipProgress();
+            setTimeout(() => showAngelBlessing(winnerFighter, _abK3, _pvpShowFfa), 500);
+          } else {
+            setTimeout(_pvpShowFfa, 500);
+          }
+        }
       }
       if (state.championship.completed) bracketB.textContent = '🏆 Championship Over';
     }
@@ -199,6 +236,114 @@ function showResult() {
         const k = _OS.reduce((a, b) => (cs[b] ?? 0) > (cs[a] ?? 0) ? b : a);
         cs[k] = Math.max(0, (cs[k] ?? 0) - 3);
         spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `🗡️ ORC -3 ${_SH[k]}!`, '#995522');
+      }
+    });
+  }
+
+  // ── Race trait: Demon subraces (permanent stat changes) ──────────────
+  // Per-game effects (Beelzebub win, Behemoth any, Belphegor win): fire every game.
+  // Per-series effects (Lucifer loss): fire only when series is decided.
+  const _DS = ['strength','speed','durability','iq','battleiq','ma'];
+  const _DSH = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+  state.players.forEach((ball, i) => {
+    if (ball.charRace !== 'demon') return;
+    const fi = state.fighters?.[i];
+    if (!fi?.charStats) return;
+    const cs  = fi.charStats;
+    const srl = ball.charSubrace?.label;
+    const gameWon = state.matchMode === '2v2'
+      ? (ball.teamId === state.winTeam)
+      : (ball === state.winner);
+    const isDraw = state.winner === 'draw' || (state.matchMode === '2v2' && state.winTeam === -1);
+
+    // Beelzebub: each game WIN → +1 random stat permanent
+    if (srl === 'Beelzebub' && gameWon && !isDraw) {
+      const k = _DS[Math.floor(Math.random() * _DS.length)];
+      cs[k] = (cs[k] ?? 0) + 1;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `😈 GLUTTONY +1 ${_DSH[k]}!`, '#ff8800');
+    }
+
+    // Behemoth: after each game (win OR lose) → −1 DUR permanent
+    if (srl === 'Behemoth') {
+      cs.durability = Math.max(0, (cs.durability ?? 0) - 1);
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '😈 WRATH −1 DUR', '#cc4400');
+    }
+
+    // Belphegor: each game WIN (survive) → +1 DUR permanent
+    if (srl === 'Belphegor' && gameWon && !isDraw) {
+      cs.durability = (cs.durability ?? 0) + 1;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '😈 SLOTH +1 DUR', '#4488cc');
+    }
+
+    // Lucifer: series LOSS → −1 all stats permanent (only when match is decided)
+    if (srl === 'Lucifer' && _orcMatchDone && !_isDraw) {
+      let seriesLost;
+      if (state.bo3) {
+        const wn3 = state.bo3.winsNeeded ?? 2;
+        const mwi = state.bo3.wins[0] >= wn3 ? 0 : 1;
+        seriesLost = state.matchMode === '2v2' ? (ball.teamId !== state.winTeam) : (i !== mwi);
+      } else {
+        seriesLost = !gameWon;
+      }
+      if (seriesLost) {
+        for (const k of _DS) cs[k] = Math.max(0, (cs[k] ?? 0) - 1);
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '😈 PRIDE −1 ALL!', '#9900cc');
+      }
+    }
+  });
+
+  // ── Race trait: Goblin ×1 (each game win → +2 to 3 random stats, can repeat) ──
+  if (_inTournament) {
+    const _G1S  = ['strength','speed','durability','iq','battleiq','ma'];
+    const _G1SH = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+    state.players.forEach((ball, i) => {
+      if (ball.charRace !== 'goblin' || ball.charSubrace?.label !== '×1') return;
+      const fi = state.fighters?.[i];
+      if (!fi?.charStats) return;
+      const cs = fi.charStats;
+      const gameWon = state.matchMode === '2v2'
+        ? (ball.teamId === state.winTeam)
+        : (ball === state.winner);
+      const isDraw = state.winner === 'draw' || (state.matchMode === '2v2' && state.winTeam === -1);
+      if (!gameWon || isDraw) return;
+      const gained = {};
+      for (let r = 0; r < 3; r++) {
+        const k = _G1S[Math.floor(Math.random() * _G1S.length)];
+        cs[k] = (cs[k] ?? 0) + 2;
+        gained[k] = (gained[k] || 0) + 2;
+      }
+      const msg = Object.entries(gained).map(([k, v]) => `+${v} ${_G1SH[k]}`).join(' ');
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 20, `👺 ×1 ${msg}`, '#88ff44');
+    });
+  }
+
+  // ── Race trait: Skeleton (win counter → Lich at 2 wins) ──
+  // Only when a full match/series is decided (same guard as Orc).
+  if (_inTournament && _orcMatchDone && !_isDraw) {
+    const _SKS = ['strength','speed','durability','iq','battleiq','ma'];
+    state.players.forEach((ball, i) => {
+      if (ball.charRace !== 'skeleton') return;
+      const fi = state.fighters?.[i];
+      if (!fi?.charStats) return;
+      const cs = fi.charStats;
+      // Determine series winner
+      let seriesWon;
+      if (state.bo3) {
+        const wn3 = state.bo3.winsNeeded ?? 2;
+        const mwi = state.bo3.wins[0] >= wn3 ? 0 : 1;
+        seriesWon = state.matchMode === '2v2' ? (ball.teamId === state.winTeam) : (i === mwi);
+      } else {
+        seriesWon = ball === state.winner;
+      }
+      if (!seriesWon) return;
+      cs.skeletonWins = (cs.skeletonWins || 0) + 1;
+      // At 2 wins: become Lich → IQ raised to minimum 8
+      if (cs.skeletonWins === 2 && !cs.isLich) {
+        cs.isLich = true;
+        const oldIQ = cs.iq ?? 0;
+        cs.iq = Math.max(oldIQ, 8);
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 24, '💀 LICH ASCENSION!', '#8844ff');
+        spawnBigAnnouncement?.('💀 SKELETON → LICH!', '#8844ff');
       }
     });
   }

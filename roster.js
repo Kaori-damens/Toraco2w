@@ -915,8 +915,20 @@ function bulkCreateOne() {
   // 3. Subrace (weighted, or null)
   let subrace = null;
   if (race.subKey && CG_SUBRACES[race.subKey]) {
-    const sr = CG_SUBRACES[race.subKey];
-    subrace = { ...sr[_wcRandIdx(sr.map(s => s.weight))] };
+    let sr = CG_SUBRACES[race.subKey];
+    // Demon: filter to available sins from championship sin pool
+    if (race.id === 'demon' && state.championship?.demonSinPool !== undefined) {
+      const pool = state.championship.demonSinPool;
+      sr = (pool && pool.size > 0) ? sr.filter(s => pool.has(s.label)) : [];
+    }
+    if (sr.length > 0) {
+      subrace = { ...sr[_wcRandIdx(sr.map(s => s.weight))] };
+      // Claim the sin from the pool so no other fill character can take it
+      if (race.id === 'demon' && subrace?.label && typeof claimDemonSin === 'function') {
+        claimDemonSin(subrace.label);
+      }
+    }
+    // sr.length === 0 → subrace stays null (sinless demon)
   }
 
   const raceId  = race.id;
@@ -946,8 +958,15 @@ function bulkCreateOne() {
   }
   if (raceId === 'angel') {
     if      (srLabel === 'Archangels') { deltas.speed = (deltas.speed || 0) + 2; deltas.ma = (deltas.ma || 0) + 1; }
+    else if (srLabel === 'Powers')     { deltas.ma = (deltas.ma || 0) + 1; }
     else if (srLabel === 'Ophanim')    allD(1);
     else if (srLabel === 'Cherubim')   allD(2);
+  }
+  if (raceId === 'demon') {
+    if      (srLabel === 'Lucifer')   allD(2);
+    else if (srLabel === 'Mammon')    allD(-2);
+    else if (srLabel === 'Asmodeus')  allD(-1);
+    else if (srLabel === 'Belphegor') deltas.speed = (deltas.speed || 0) - 4;
   }
 
   // 5. Roll each stat
@@ -1003,14 +1022,24 @@ function bulkCreateOne() {
   const scWeights = CG_SKILL_COUNT_WEIGHTS[raceId] || Array(5).fill(20);
   let skillCount = _wcRandIdx(scWeights);
   // Subrace skill bonus — mirrors getSubraceSkillBonus()
-  if (raceId === 'dragon'     && srLabel === 'Flame')    skillCount += 1;
-  if (raceId === 'dragon'     && srLabel === 'Amethyst') skillCount += 4;
-  if (raceId === 'primordial' && srLabel === 'Fire')     skillCount += 1;
+  if (raceId === 'dragon'     && srLabel === 'Flame')     skillCount += 1;
+  if (raceId === 'dragon'     && srLabel === 'Amethyst')  skillCount += 4;
+  if (raceId === 'primordial' && srLabel === 'Fire')      skillCount += 1;
+  if (raceId === 'angel'      && srLabel === 'Powers')    skillCount += 1;
+  if (raceId === 'angel'      && srLabel === 'Dominions') skillCount += 3;
+  // Demon Beelzebub: always 0 skills
+  if (raceId === 'demon'      && srLabel === 'Beelzebub') skillCount = 0;
 
   // 9. Pick skills (Fisher-Yates shuffle, no replacement)
+  // Filter: must match weapon type (or be universal), never include unique skills
+  // (fill players bypass the unique pool — claimUnique is never called, so unique pool
+  //  would never decrement; and cs.uniquePool is null during fill anyway)
   const skills = [];
   if (skillCount > 0 && typeof SKILL_DEFS !== 'undefined') {
-    const pool = SKILL_DEFS.map(s => s.id);
+    const effectiveWeapon = (typeof WEAPON_MAP !== 'undefined' && WEAPON_MAP[weapon]?.baseWeapon) || weapon;
+    const pool = SKILL_DEFS
+      .filter(s => !s.unique && (!s.weapon || s.weapon === effectiveWeapon))
+      .map(s => s.id);
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];

@@ -237,6 +237,13 @@ function resolveProjectiles(players, projectiles) {
           proj.owner.stats.damageDone += dmg;
           sfxHit(proj.owner?.weaponDef?.id);
           const ka = Math.atan2(target.y - proj.y, target.x - proj.x);
+          // Cancel inward velocity first (same as melee knockback) so knockback
+          // always pushes the target away — prevents speed drop when target runs into the projectile
+          const kbInward = target.vx * -Math.cos(ka) + target.vy * -Math.sin(ka);
+          if (kbInward > 0) {
+            target.vx += Math.cos(ka) * kbInward;
+            target.vy += Math.sin(ka) * kbInward;
+          }
           target.vx += Math.cos(ka) * 4.5;
           target.vy += Math.sin(ka) * 4.5;
           target.bounceCooldown = 14;
@@ -365,13 +372,17 @@ function _checkWeaponHit(attacker, defender) {
         defender.vx += Math.cos(ka) * kb * 1.4;
         defender.vy += Math.sin(ka) * kb * 1.4;
         defender.bounceCooldown = 18;   // defender AI backs off after being hit
-        // Shadowfang: every melee hit applies poison
+        // Shadowfang: every melee hit applies poison (Virtues immune)
         if (def.id === 'shadowfang') {
-          defender.sk_poisonDuration = 12 * 60;
-          defender.sk_poisonTick     = 0;
-          defender.sk_poisonDmg      = 2.0;
-          defender.sk_poisonOwner    = attacker;
-          spawnDamageNumber(defender.x, defender.y - defender.radius - 14, '🌑 VENOM!', '#9933ff');
+          if (defender.charRace === 'angel' && defender.charSubrace?.label === 'Virtues') {
+            spawnDamageNumber(defender.x, defender.y - defender.radius - 14, '👼 Virtues — immune!', '#aaccff');
+          } else {
+            defender.sk_poisonDuration = 12 * 60;
+            defender.sk_poisonTick     = 0;
+            defender.sk_poisonDmg      = 2.0;
+            defender.sk_poisonOwner    = attacker;
+            spawnDamageNumber(defender.x, defender.y - defender.radius - 14, '🌑 VENOM!', '#9933ff');
+          }
         }
         // Scaling
         def.onHit(attacker.weapon);

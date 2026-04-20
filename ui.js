@@ -368,6 +368,7 @@ document.getElementById('nextMatchBtn').addEventListener('click', () => {
   state.teamIds   = [];
   state.arenaId   = randomArena();
   state.bo3 = { wins: [0, 0], gameNum: 1, fighters: [match.p1, match.p2], winsNeeded: Math.ceil(bo / 2) };
+  if (typeof applyAsmodeusBo3Bonus === 'function') applyAsmodeusBo3Bonus();
   updateBO3Display();
   showScreen('game');
   startGame();

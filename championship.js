@@ -44,6 +44,34 @@ function isUniqueAvailable(id) {
   return state.championship.uniquePool.has(id);
 }
 
+// ── Demon Sin Pool ─────────────────────────────────────────────
+// Each of the 7 deadly sins can only be claimed once per championship draft.
+// When pool is exhausted, new demons roll without a subrace (sinless demon).
+function initDemonSinPool() {
+  state.championship.demonSinPool = new Set(
+    (CG_SUBRACES?.demonSin || []).map(s => s.label)
+  );
+}
+
+function claimDemonSin(label) {
+  state.championship?.demonSinPool?.delete(label);
+}
+
+function returnDemonSin(label) {
+  if ((CG_SUBRACES?.demonSin || []).some(s => s.label === label)) {
+    state.championship?.demonSinPool?.add(label);
+  }
+}
+
+// Returns sin entries still available in the pool.
+// If no pool exists (not in draft context), returns all 7 sins.
+function getAvailableDemonSins() {
+  const pool = state.championship?.demonSinPool;
+  const all  = CG_SUBRACES?.demonSin || [];
+  if (!pool) return all;
+  return all.filter(s => pool.has(s.label));
+}
+
 // ── Draft phase callbacks ──────────────────────────────────────
 function onDraftPlayerCreated(char) {
   const cs = state.championship;
@@ -69,6 +97,8 @@ function removeDraftPlayer(idx) {
     const sDef = SKILL_DEFS.find(s => s.id === sid);
     if (sDef?.unique && cs.uniquePool) cs.uniquePool.add(sid);
   }
+  // Return demon sin to pool
+  if (ch.race === 'demon' && ch.subrace?.label) returnDemonSin(ch.subrace.label);
   cs.draftRoster.splice(idx, 1);
   saveDraftProgress();   // persist after removal
   buildChampionshipSetup();
@@ -79,8 +109,12 @@ function saveDraftProgress() {
   const cs = state.championship;
   if (!cs || cs.phases) return; // only for draft phase
   try {
-    // uniquePool is a Set — convert to Array for JSON
-    const toSave = { ...cs, uniquePool: cs.uniquePool ? [...cs.uniquePool] : null };
+    // Sets must be serialized as Arrays for JSON
+    const toSave = {
+      ...cs,
+      uniquePool:    cs.uniquePool    ? [...cs.uniquePool]    : null,
+      demonSinPool:  cs.demonSinPool  ? [...cs.demonSinPool]  : null,
+    };
     localStorage.setItem(CS_SAVE_KEY, JSON.stringify(toSave));
   } catch(e) {}
 }
@@ -337,8 +371,16 @@ function recordChampionshipMatchResult(matchWinner) {
   } else if (phase.type==='de') {
     const {b,r,i} = phase.seq[phase.currentSeqIdx];
     const m = b==='gf' ? phase.gf : phase[b][r][i];
+    const matchLoser = m.p1 === matchWinner ? m.p2 : m.p1;
     const advanceFn = phase.n === 8 ? _deAdvance8 : _deAdvance16;
-    advanceFn(phase, matchWinner, m.p1===matchWinner ? m.p2 : m.p1);
+    advanceFn(phase, matchWinner, matchLoser);
+    // Skeleton: first UB loss → entering losers bracket → +1 all stats
+    if (b === 'ub' && matchLoser?.charStats?.race === 'skeleton' && !matchLoser.charStats._skeletonLbBonus) {
+      matchLoser.charStats._skeletonLbBonus = true;
+      ['strength','speed','durability','iq','battleiq','ma'].forEach(k => {
+        matchLoser.charStats[k] = (matchLoser.charStats[k] ?? 0) + 1;
+      });
+    }
     if (phase.done) { cs.completed=true; cs.champion=phase.champion; clearChampionshipSave(); }
   }
   cs.viewPhaseIdx=cs.currentPhaseIdx; saveChampionshipProgress();
@@ -377,7 +419,8 @@ function resumeChampionship() {
     const cs=JSON.parse(raw);
     // Draft phase restore — uniquePool was serialized as Array, restore to Set
     if (!cs.phases && cs.draftRoster) {
-      if (Array.isArray(cs.uniquePool)) cs.uniquePool = new Set(cs.uniquePool);
+      if (Array.isArray(cs.uniquePool))   cs.uniquePool   = new Set(cs.uniquePool);
+      if (Array.isArray(cs.demonSinPool)) cs.demonSinPool = new Set(cs.demonSinPool);
       state.championship = cs;
       buildChampionshipSetup();
       showScreen('championship-setup');
@@ -403,8 +446,15 @@ function toggleChampAuto() {
     btn.textContent = state.champAuto ? '⏹ Stop Auto' : '⚡ Auto';
     btn.classList.toggle('active', state.champAuto);
   }
+  _syncChampAutoStopBtn();
   // If just turned on, start immediately
   if (state.champAuto) _champAutoLaunch();
+}
+
+function _syncChampAutoStopBtn() {
+  const stopBtn = document.getElementById('champAutoStopBtn');
+  if (!stopBtn) return;
+  stopBtn.style.display = state.champAuto ? '' : 'none';
 }
 
 // Called from result.js after showResult() records the match
@@ -487,11 +537,13 @@ function _champAutoLaunch() {
 
 function _updateChampAutoBtn() {
   const btn = document.getElementById('champAutoBtn');
-  if (!btn) return;
-  btn.textContent = '⚡ Auto';
-  btn.classList.remove('active');
+  if (btn) {
+    btn.textContent = '⚡ Auto';
+    btn.classList.remove('active');
+  }
   const nmBtn = document.getElementById('nextMatchBtn');
   if (nmBtn) nmBtn.style.animation = '';
+  _syncChampAutoStopBtn();
 }
 
 // ── Launch next match from bracket screen ─────────────────────
@@ -506,8 +558,9 @@ function launchNextChampionshipMatch() {
     state.fighters=[info.p1,info.p2]; state.matchMode='1v1';
     const bo=info.bo??1;
     state.bo3 = bo>1 ? {wins:[0,0],gameNum:1,fighters:[info.p1,info.p2],winsNeeded:Math.ceil(bo/2),bo} : null;
+    if (typeof applyAsmodeusBo3Bonus === 'function') applyAsmodeusBo3Bonus();
   }
-  updateBO3Display(); showScreen('game'); startGame();
+  updateBO3Display(); _syncChampAutoStopBtn(); showScreen('game'); startGame();
 }
 
 // ── Rendering ─────────────────────────────────────────────────
@@ -767,6 +820,7 @@ function _buildChampionshipDraft(cs) {
   if (!cs.draftRoster) {
     cs.draftRoster = [];
     initUniquePool();
+    initDemonSinPool();
     saveDraftProgress();   // persist initial empty draft
   }
   const draft = cs.draftRoster;
@@ -814,6 +868,17 @@ function _buildChampionshipDraft(cs) {
     listEl.appendChild(poolEl);
   }
 
+  // Demon sin pool indicator
+  if (cs.demonSinPool) {
+    const totalSins = CG_SUBRACES?.demonSin?.length ?? 7;
+    const sinLeft   = cs.demonSinPool.size;
+    const sinEl = document.createElement('div');
+    sinEl.className = 'cs-unique-pool-info';
+    sinEl.style.color = sinLeft > 0 ? '#cc88ff' : '#666';
+    sinEl.innerHTML = `😈 Demon sins: <b>${sinLeft}</b> / ${totalSins} available${sinLeft === 0 ? ' — sinless only' : ''}`;
+    listEl.appendChild(sinEl);
+  }
+
   // Separator
   if (draft.length > 0) {
     const sep = document.createElement('div');
@@ -836,12 +901,13 @@ function _buildChampionshipDraft(cs) {
       const uniqueWBadge = wDef?.unique ? ' <span class="unique-badge">★ UNIQUE</span>' : '';
       const uniqueSkillCount = (ch.skills || []).filter(sid => SKILL_DEFS.find(s => s.id === sid)?.unique).length;
       const uniqueSBadge = uniqueSkillCount > 0 ? ` <span class="unique-badge">★ ${uniqueSkillCount} unique</span>` : '';
+      const srText = ch.subrace?.label ? ` <span style="color:#6688aa;font-size:11px">· ${ch.subrace.label}</span>` : '';
 
       const card = document.createElement('div');
       card.className = 't-roster-card selected';
       card.innerHTML = `
         <span class="t-slot-dot" style="background:${ch.color||'#888'}"></span>
-        <span class="t-card-name" style="color:${ch.color||'#aac'}">${ch.raceEmoji||''} ${ch.name||'?'}</span>
+        <span class="t-card-name" style="color:${ch.color||'#aac'}">${ch.raceEmoji||''} ${ch.name||'?'}${srText}</span>
         <span style="font-size:12px;color:#8899aa">${wIcon} ${ch.weapon||''}${uniqueWBadge}${uniqueSBadge}</span>
         <button onclick="removeDraftPlayer(${idx})" class="cs-draft-remove" title="Remove from draft">✕</button>`;
       listEl.appendChild(card);
