@@ -40,13 +40,13 @@ class Ball {
     this.scale = 1;
     this.bounceCooldown = 0;   // frames after a collision where AI backs off
     this.wallBoostFactor = 1.0; // speed multiplier from wall boost (decays back to 1.0)
-    this.evadeChance   = biq !== null ? biq * 0.03 : 0.10;  // BIQ×0.03, default 10%
+    this.evadeChance   = biq !== null ? biq * 0.02 : 0.10;  // BIQ×0.02, default 10%
     this.deflectChance = ma  !== null ? ma  * 0.02 : 0;     // MA×0.02, Deflection skill
     this.mindBreakDebuff = 0;  // % outgoing damage reduction (set by opponent's Mind Break)
     this.evadeFrames = 0;
 
-    this.critChance  = iq  !== null ? iq  * 0.05 : 0.20;  // IQ×0.05,  default 20%
-    this.critMult    = 1.5;
+    this.critChance  = iq  !== null ? iq  * 0.03 : 0.15;  // IQ×0.03 (IQ=10→30%, IQ=15→45%), default 15%
+    this.critMult    = 1.5 + Math.max(0, (iq !== null ? iq : 5) - 10) * 0.1;  // base 1.5, +0.1/IQ above 10 (IQ=20→×2.5)
 
     this.weapon = this._initWeapon(weaponId);
     this.weaponDef = WEAPON_MAP[weaponId];
@@ -78,7 +78,7 @@ class Ball {
     // For unique weapons, derive from baseWeapon if not explicitly set
     const bwid = def.baseWeapon || def.id;
     let ac = def.attackCooldown;
-    if      (bwid === 'fists')   ac = Math.max(2, 13 - spd);
+    if      (bwid === 'fists')   ac = Math.max(5, 15 - spd);
     else if (bwid === 'sword')   ac = Math.max(2, 28 - spd);
     else if (bwid === 'dagger')  ac = Math.max(2, 18 - spd);
     else if (bwid === 'spear')   ac = Math.max(2, 38 - spd);
@@ -368,8 +368,9 @@ class Ball {
       this.charIQ  = Math.max(0, (this.charIQ  ?? 5) - 1);
       this.maxSpd     += 3;   // +2 SPD × 1.5 factor
       this.baseMaxSpd  = this.maxSpd;
-      this.evadeChance  = this.charBIQ * 0.03;
-      this.critChance   = this.charIQ  * 0.05;
+      this.evadeChance  = this.charBIQ * 0.02;
+      this.critChance   = this.charIQ  * 0.03;
+      this.critMult     = 1.5 + Math.max(0, this.charIQ - 10) * 0.1;
       this.deflectChance = this.charMA * 0.02;
       spawnDamageNumber(this.x, this.y - this.radius - 18, '😈 WRATH RAGE!', '#ff4400');
       spawnBigAnnouncement?.('😈 BEHEMOTH RAGE!', '#ff4400');
@@ -940,7 +941,7 @@ class Ball {
       this.rs_active        = true;
       this.rs_triggered     = true;
       this.rs_stacks        = 0;
-      this.rs_lbTimer       = 15 * 60;  // 15s duration
+      this.rs_lbTimer       = 8 * 60;   // 8s duration
       this.rs_lbDrainTimer  = 2  * 60;  // first drain tick in 2s
       this.rs_lbExhausted   = false;
       spawnDamageNumber(this.x, this.y - this.radius - 26, '⚡ LIMIT BREAK!', '#ffdd00');
@@ -1178,7 +1179,14 @@ class Ball {
     if (def.id === 'dagger')   return `💨 Spin: ${(def.baseSpeed + (w.spinBonus||0)).toFixed(3)}`;
     if (def.id === 'spear')    return `📏 Len+${(w.bonusLength||0).toFixed(0)} Dmg+${(w.bonusDamage||0).toFixed(1)}`;
     if (def.id === 'bow')      return `🏹 Arrows: ${w.arrowCount||1}  Spd: ${(def.arrowSpeed + (w.arrowSpeedBonus||0)).toFixed(1)}`;
-    if (def.id === 'scythe')   return w.hits >= 5 ? '🌙 DUAL BLADES' : `🌙 Hits: ${w.hits}/5`;
+    if (def.id === 'scythe') {
+      const h = w.hits;
+      if (h < 5)  return `🌙 Hits: ${h}/5`;
+      if (h < 10) return `🌙 +Dmg ${h}/10`;
+      if (h < 15) return `🌙 +Spd ${h}/15`;
+      if (h < 20) return `🌙 DUAL ${h}/20`;
+      return `🌙 REAPER`;
+    }
     if (def.id === 'hammer')   return `💥 KB: ${(def.baseKnockback + (w.bonusKnockback||0)).toFixed(1)}`;
     if (def.id === 'shuriken') return `⭐ Stars: ${w.shurikenCount||1}`;
     return '';

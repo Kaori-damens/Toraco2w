@@ -2,7 +2,12 @@
 // ============================================================
 // RADOSER TITLE GENERATOR
 // ============================================================
+// ── Title system temporarily disabled — pending redesign ──
+// To re-enable: remove the early return and uncomment the logic below.
 function getRadoserTitle(stats) {
+  return null;
+
+  /* --- OLD TITLE LOGIC (outdate) ---
   const str = stats.strength  ?? 0;
   const spd = stats.speed     ?? 0;
   const dur = stats.durability?? 0;
@@ -13,23 +18,16 @@ function getRadoserTitle(stats) {
   const maxStat = Math.max(str, spd, dur, iq, biq, ma);
   const tens   = [str, spd, dur, iq, biq, ma].filter(v => v === 10).length;
 
-  // ── Perfect / Near-perfect ──
   if (total === 60)  return { title: 'GOAT',       icon: '🐐', color: '#ffd700' };
   if (total >= 55)   return { title: 'Legend',     icon: '🌟', color: '#ff88ff' };
-
-  // ── Multiple 10s ──
   if (tens >= 4)     return { title: 'Demigod',    icon: '⚡', color: '#ff6644' };
   if (tens >= 3)     return { title: 'Prodigy',    icon: '🔥', color: '#ff9944' };
-
-  // ── Single stat = 10 ──
   if (spd === 10)    return { title: 'Speedster',  icon: '💨', color: '#44eeff' };
   if (str === 10)    return { title: 'Destroyer',  icon: '💪', color: '#ff4444' };
   if (dur === 10)    return { title: 'Iron Wall',  icon: '🛡️', color: '#88aaff' };
   if (iq  === 10)    return { title: 'Mastermind', icon: '🧠', color: '#cc88ff' };
   if (biq === 10)    return { title: 'Phantom',    icon: '👻', color: '#88ffcc' };
   if (ma  === 10)    return { title: 'Whirlwind',  icon: '🌪️', color: '#aaffaa' };
-
-  // ── Combination builds ──
   if (str >= 8 && dur >= 8)           return { title: 'Tank',         icon: '🏋️', color: '#ff8866' };
   if (spd >= 8 && dur <= 3)           return { title: 'Glass Cannon', icon: '💥', color: '#ffcc44' };
   if (str >= 8 && spd <= 3)           return { title: 'Berserker',    icon: '🐂', color: '#ff6644' };
@@ -39,13 +37,12 @@ function getRadoserTitle(stats) {
   if ([str,spd,dur,iq,biq,ma].every(v => v >= 7)) return { title: 'All-Rounder', icon: '⚖️', color: '#ffd700' };
   if ([str,spd,dur,iq,biq,ma].every(v => v >= 5)) return { title: 'Balanced',    icon: '🟢', color: '#88cc88' };
   if (maxStat >= 8 && total <= 25)    return { title: 'One-Trick',    icon: '🎪', color: '#ffaa44' };
-
-  // ── Total stats fallback ──
   if (total >= 45)   return { title: 'Veteran',    icon: '⚔️',  color: '#ffaa44' };
   if (total >= 35)   return { title: 'Warrior',    icon: '🔥',  color: '#ff8844' };
   if (total >= 25)   return { title: 'Average',    icon: '📊',  color: '#8888aa' };
   if (total >= 15)   return { title: 'Mid',        icon: '😐',  color: '#666688' };
   return               { title: 'Rookie',      icon: '🌱',  color: '#44aa66' };
+  --- END OLD LOGIC --- */
 }
 
 // ── Roster filter state ──────────────────────────────────────
@@ -183,7 +180,7 @@ function renderRoster() {
       <div class="rc-race">${ch.raceName}${ch.subrace ? ' · '+ch.subrace.label : ''}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <div class="rc-weapon">${wepLabel(ch.weapon)}</div>
-        <span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44">${t.title}</span>
+        ${t ? `<span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44">${t.title}</span>` : ''}
         ${ch.championshipTag ? `<span class="rc-guild-tag" title="${ch.championshipName||''}">[${ch.championshipTag}]</span>` : ''}
       </div>
       <div class="rc-total">
@@ -251,7 +248,7 @@ function showCharStats(idx) {
   const t = getRadoserTitle(ch.stats);
   document.getElementById('smo-name').innerHTML =
     `<span style="color:${ch.color}">${ch.raceEmoji} ${ch.name}</span>
-     <span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44;font-size:12px">${t.title}</span>
+     ${t ? `<span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44;font-size:12px">${t.title}</span>` : ''}
      ${ch.championshipTag ? `<span class="rc-guild-tag" title="${ch.championshipName||''}">[${ch.championshipTag}]</span>` : ''}`;
   document.getElementById('smo-race').textContent =
     ch.raceName + (ch.subrace ? ' · ' + ch.subrace.label : '');
@@ -310,7 +307,7 @@ function showCharStats(idx) {
           cardsHtml += `
             <div class="smo-skill-card" style="--sc:${col}">
               <div class="smo-skill-top">
-                <span class="smo-skill-name">${def.icon ?? '✦'} ${def.name}</span>
+                <span class="smo-skill-name">${def.name}</span>
                 <span class="smo-skill-type">${lbl}</span>
               </div>
               ${def.desc ? `<div class="smo-skill-desc">${def.desc}</div>` : ''}
@@ -556,7 +553,7 @@ function renderHeroShowcase() {
           <div class="sc-name" style="color:${ch.color}">${ch.name}</div>
           <div class="sc-race-line">${ch.raceName ?? ''}${subText}</div>
           <div class="sc-title-wrap">
-            <span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44">${t.title}</span>
+            ${t ? `<span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44">${t.title}</span>` : ''}
             ${ch.championshipTag ? `<span class="rc-guild-tag" title="${ch.championshipName||''}">[${ch.championshipTag}]</span>` : ''}
           </div>
         </div>

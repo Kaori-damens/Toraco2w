@@ -7,6 +7,7 @@ let cgRoster = JSON.parse(localStorage.getItem('cgRoster') || '[]');
 let quickCreateMode = false;
 let quickCreateName = ''; // custom name from prompt
 let cgDraftMode = false;  // true when creating for championship draft
+let _cgpAnimId = null;    // rAF handle for preview ball animation
 
 // ── DEBUG HELPER ─────────────────────────────────────────────
 // Appends a debug quick-pick panel below any chargen spin wheel.
@@ -26,6 +27,9 @@ function _cgDebug(box, title, items) {
 }
 
 function initChargen() {
+  if (_cgpAnimId) { cancelAnimationFrame(_cgpAnimId); _cgpAnimId = null; }
+  // Remove done-step layout modifier if present
+  document.querySelector('.cg-layout')?.classList.remove('cg-layout-done');
   cgState = {
     step: 'name', name: '', race: null, subrace: null,
     stats: { strength:null, speed:null, durability:null, iq:null, battleiq:null, ma:null },
@@ -38,6 +42,9 @@ function initChargen() {
   showScreen('chargen');
   renderCgDots();
   renderCgStep();
+  // Clear preview panel on fresh start
+  const panel = document.getElementById('cg-preview');
+  if (panel) panel.innerHTML = '';
 }
 
 function renderCgDots() {
@@ -292,7 +299,7 @@ function renderCgStep() {
       }
     }
 
-    cgRenderSpin(box, `${sd.emoji} ${sd.label}${constraintNote}`, items, onStatResult, cgState.stats, null, statTransform);
+    cgRenderSpin(box, `${sd.emoji} ${sd.label}${constraintNote}`, items, onStatResult, null, null, statTransform);
     // Debug: pick value 1-10 directly (applies onStatResult logic including giant/god transforms)
     _cgDebug(box, `Pick ${ABBR[sk]}`, Array.from({length:10}, (_,i) => ({
       label: String(i+1),
@@ -456,6 +463,197 @@ function advanceCg() {
   if (order[next] === 'skillpick' && cgState.skillCount === 0) next++;
   cgState.step = order[Math.min(next, order.length - 1)];
   renderCgStep();
+  cgUpdatePreview();
+}
+
+// ── LIVE PREVIEW PANEL ────────────────────────────────────────
+// Renders the progressive character card in #cg-preview.
+// Called after every advanceCg() so the panel stays in sync
+// with whatever has been committed in cgState.
+function cgUpdatePreview() {
+  const panel = document.getElementById('cg-preview');
+  if (!panel || !cgState) return;
+
+  // Cancel any running preview ball animation
+  if (_cgpAnimId) { cancelAnimationFrame(_cgpAnimId); _cgpAnimId = null; }
+
+  // Nothing to show yet (name step, name still empty)
+  if (!cgState.name) {
+    panel.innerHTML = '';
+    return;
+  }
+
+  const s = cgState;
+  const previewColor = generateRadoserColor(cgDraftMode
+    ? (state.championship?.draftRoster?.length ?? 0)
+    : cgRoster.length);
+
+  let html = `<div class="cg-preview-card">`;
+
+  // ── Name ───────────────────────────────────────────────────
+  html += `<div class="cgp-name">${s.race?.emoji ?? '🎲'} ${s.name}</div>`;
+
+  // ── Ball + Race ─────────────────────────────────────────────
+  const isDone = s.step === 'done';
+  if (s.race) {
+    const ballSz = isDone ? 140 : 120;
+    html += `<canvas id="cgp-ball-canvas" class="cgp-ball-canvas" width="${ballSz}" height="${ballSz}"></canvas>`;
+    html += `<div class="cgp-race">${s.race.name}${s.subrace ? ' · ' + s.subrace.label : ''}</div>`;
+
+    // Race skill
+    const raceSk = (typeof RACE_SKILL_DEFS !== 'undefined') ? RACE_SKILL_DEFS[s.race.id] : null;
+    if (raceSk) {
+      const descAttr = raceSk.desc ? ` data-desc="${raceSk.desc.replace(/"/g,'&quot;')}"` : '';
+      html += `<div class="cgp-section-label">👑 Race Skill</div>
+               <div class="cgp-skill-badge fcard-skill-tip"${descAttr}>${raceSk.name}</div>`;
+    }
+
+    // Subrace trait
+    if (s.subrace?.desc) {
+      html += `<div class="cgp-section-label">⬡ Sub-Race</div>
+               <div class="cgp-trait">${s.subrace.desc}</div>`;
+    }
+  }
+
+  // ── Stats grid ──────────────────────────────────────────────
+  const STAT_STEP_IDS = ['str','spd','dur','iq','biq','ma'];
+  const isOnStatStep = STAT_STEP_IDS.includes(s.step);
+  const hasAnyStats  = s.stats && Object.values(s.stats).some(v => v !== null);
+  if (hasAnyStats || isOnStatStep) {
+    const statStepMap = { strength:'str', speed:'spd', durability:'dur', iq:'iq', battleiq:'biq', ma:'ma' };
+    html += `<div class="cgp-section-label">📊 Stats</div>
+             <div class="cg-stats-grid">`;
+    STAT_DISPLAY.forEach(sd => {
+      const v = s.stats[sd.key];
+      const isActive = s.step === statStepMap[sd.key];
+      html += `<div class="cg-sc ${isActive ? 'cg-active' : v !== null ? 'cg-done' : ''}">
+        <div class="cg-sc-lbl">${sd.emoji} ${sd.label}</div>
+        <div class="cg-sc-val${v === null ? ' cg-pending' : ''}">${v !== null ? v : '—'}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Weapon ──────────────────────────────────────────────────
+  if (s.weapon && s.weapon !== 'fists') {
+    const wepDef = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[s.weapon] : null;
+    const isUnique = wepDef?.unique === true;
+    html += `<div class="cgp-section-label">⚔️ Weapon</div>
+             <div class="cgp-weapon-name">${wepDef?.icon ?? '⚔️'} ${wepDef?.name ?? s.weapon}${isUnique ? ' <span class="unique-badge">★ UNIQUE</span>' : ''}</div>
+             <canvas id="cgp-wep-canvas" class="cgp-wep-canvas" width="200" height="60"></canvas>`;
+  } else if (s.weapon === 'fists' || s.hasWeapon === false) {
+    html += `<div class="cgp-section-label">⚔️ Weapon</div>
+             <div class="cgp-weapon-name">👊 Fists (Unarmed)</div>`;
+  }
+
+  // ── Skills ──────────────────────────────────────────────────
+  if (s.skills?.length > 0) {
+    html += `<div class="cgp-section-label">✦ Skills</div><div class="cgp-skills">`;
+    s.skills.forEach(sk => {
+      const descAttr = sk.desc ? ` data-desc="${sk.desc.replace(/"/g,'&quot;')}"` : '';
+      const typeAttr = sk.type ? ` data-type="${sk.type}"` : '';
+      html += `<div class="cgp-skill-badge fcard-skill-tip${sk.unique ? ' cgp-skill-unique' : ''}"${descAttr}${typeAttr}>${sk.name}${sk.unique ? ' <span style="font-size:10px">★</span>' : ''}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Empty placeholder (very first render after name) ────────
+  if (!s.race && !hasAnyStats && !isOnStatStep && !s.weapon) {
+    html += `<div class="cgp-empty">— Spin to reveal —</div>`;
+  }
+
+  html += `</div>`;
+  panel.innerHTML = html;
+
+  // ── Skill tooltips (reuse fighter-card tooltip infrastructure) ──
+  if (typeof _fcardWireSkillTooltips === 'function') _fcardWireSkillTooltips(panel);
+
+  // ── Animated ball canvas ────────────────────────────────────
+  if (s.race) {
+    const canvas = document.getElementById('cgp-ball-canvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      const SZ = canvas.width;
+      const CX = SZ / 2, CY = SZ / 2, R = Math.round(SZ * 0.3);
+      const fakeBall = {
+        x: CX, y: CY, radius: R,
+        color: previewColor,
+        charRace: s.race.id,
+        charSubrace: s.subrace ?? null,
+        _deco_fa: 0,
+        vx: 0, vy: 0,
+        alive: true, hitFlash: 0,
+        squashX: 1, squashY: 1, scale: 1,
+        immunityFrames: 0, projImmunityFrames: 0,
+        evadeFrames: 0, wallBoostFactor: 1.0,
+        teamId: -1, speechText: null,
+      };
+      const loop = () => {
+        _cgpAnimId = requestAnimationFrame(loop);
+        ctx.clearRect(0, 0, SZ, SZ);
+        // Draw simple ball body
+        ctx.beginPath();
+        ctx.arc(CX, CY, R, 0, Math.PI * 2);
+        ctx.fillStyle = previewColor;
+        ctx.shadowColor = previewColor;
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // Shine
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.beginPath();
+        ctx.ellipse(CX - R*0.28, CY - R*0.3, R*0.28, R*0.18, -Math.PI*0.3, 0, Math.PI*2);
+        ctx.fill();
+        // Race decoration
+        if (typeof drawRaceDecoration === 'function') drawRaceDecoration(ctx, fakeBall);
+        fakeBall._deco_fa += 0.018;
+      };
+      loop();
+    }
+  }
+
+  // ── Weapon canvas ───────────────────────────────────────────
+  if (s.weapon && s.weapon !== 'fists') {
+    const wCanvas = document.getElementById('cgp-wep-canvas');
+    const wepDef  = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[s.weapon] : null;
+    if (wCanvas && wepDef?.draw) {
+      const ctx = wCanvas.getContext('2d');
+      ctx.clearRect(0, 0, 200, 60);
+      const CW = 200, CH = 60, R = 12;
+      const isFists  = false;
+      const isRanged = wepDef.aiType === 'ranged';
+      const bLen     = wepDef.baseLength ?? 40;
+      const bx = isRanged ? CW / 2 - R - 6
+               : Math.max(R + 4, CW / 2 - R - bLen / 2);
+      const fakeBallW = {
+        x: bx, y: CH / 2, radius: R,
+        color: previewColor,
+        charRace: s.race?.id ?? '', charSubrace: s.subrace ?? null,
+        vx: 0, vy: 0,
+        weapon: {
+          angle: Math.PI * 0.1, hits: 0,
+          length: wepDef.baseLength ?? 40,
+          tipX: 0, tipY: 0, midX: 0, midY: 0,
+          cd: 0, maxCd: 30, spinDir: 1, spinSpeed: 0.06,
+          projCd: 0, projMaxCd: 30,
+          reachAngle: Math.PI * 0.6,
+        },
+        weaponDef: wepDef,
+        alive: true, hitFlash: 0,
+        stunTimer: 0, _parryFrozen: false,
+        squashX: 1, squashY: 1,
+        immunityFrames: 0,
+      };
+      // Compute tip position from angle
+      const ang = fakeBallW.weapon.angle;
+      const len = fakeBallW.weapon.length;
+      fakeBallW.weapon.tipX = bx + Math.cos(ang) * (R + len);
+      fakeBallW.weapon.tipY = CH / 2 + Math.sin(ang) * (R + len);
+      fakeBallW.weapon.midX = bx + Math.cos(ang) * (R + len * 0.5);
+      fakeBallW.weapon.midY = CH / 2 + Math.sin(ang) * (R + len * 0.5);
+      try { wepDef.draw(ctx, fakeBallW); } catch(e) { /* silent */ }
+    }
+  }
 }
 
 function cgRenderName(box) {
@@ -613,12 +811,12 @@ function cgRenderSkillPick(box) {
 
   const pickedHtml = picked.length > 0
     ? `<div class="cg-skills-picked">${picked.map(s =>
-        `<span class="cg-skill-tag" title="${s.desc}">${s.icon} ${s.name}</span>`
+        `<span class="cg-skill-tag" title="${s.desc}">${s.name}</span>`
       ).join('')}</div>`
     : '';
 
   const items = available.map((s, i) => ({
-    label: s.icon + ' ' + s.name,
+    label: s.name,
     weight: 1,
     color: wColor(i),
   }));
@@ -662,7 +860,7 @@ function cgRenderSkillPick(box) {
           if (cgDraftMode && pickedSkill.unique) claimUnique(pickedSkill.id);
           cgState.skills.push(pickedSkill);
           if (cgState.skills.length >= total) { advanceCg(); }
-          else { renderCgStep(); }
+          else { renderCgStep(); cgUpdatePreview(); }
         } catch(e) { console.error('[CG] skill advance error:', e); _skillAdvanced = false; }
       };
       btn.onclick = doSkillAdvance;
@@ -675,12 +873,12 @@ function cgRenderSkillPick(box) {
 
   // Debug: pick any available skill directly
   _cgDebug(box, `Pick Skill ${spinNum}/${total}`, available.map(sk => ({
-    label: sk.icon + ' ' + sk.name,
+    label: sk.name,
     onClick: () => {
       if (cgDraftMode && sk.unique) claimUnique(sk.id);
       cgState.skills.push(sk);
       if (cgState.skills.length >= total) { advanceCg(); }
-      else { renderCgStep(); }
+      else { renderCgStep(); cgUpdatePreview(); }
     }
   })));
 }
@@ -690,36 +888,16 @@ function cgRenderSkillPick(box) {
 function applySubraceEffects(_cgState) { /* no-op */ }
 
 function cgRenderDone(box) {
-  const r = cgState.race, sr = cgState.subrace, st = cgState.stats;
-  const wep = CG_WEAPONS.find(w => w.id === cgState.weapon)
-           ?? WEAPON_DEFS.find(w => w.id === cgState.weapon);
-  const raceSk = (typeof RACE_SKILL_DEFS !== 'undefined') ? RACE_SKILL_DEFS[r.id] : null;
+  // On the done step, expand the preview panel to be the main info display
+  const layout = document.querySelector('.cg-layout');
+  if (layout) layout.classList.add('cg-layout-done');
+
   box.innerHTML = `
-    <div class="cg-card">
-      <div class="cg-label" style="font-size:20px;color:#fff;font-weight:900">${r.emoji} ${cgState.name}</div>
-      <div style="color:#7a9ac0;font-size:14px">${r.name}${sr ? ' · '+sr.label : ''}</div>
-      <div class="cg-summary">
-        <div class="cg-sum-row"><span class="cg-sum-lbl">Weapon</span><span class="cg-sum-val">${(wep?.icon ? wep.icon + ' ' : '') + (wep?.name ?? wep?.label ?? '—')}${wep?.unique ? ' <span class="unique-badge">★ UNIQUE</span>' : ''}</span></div>
-        ${sr ? `<div class="cg-sum-row"><span class="cg-sum-lbl">Sub-Race</span><span class="cg-sum-val">${sr.label}</span></div>` : ''}
-        ${STAT_DISPLAY.map(sd => `<div class="cg-sum-row"><span class="cg-sum-lbl">${sd.emoji} ${sd.label}</span><span class="cg-sum-val" style="color:${STAT_COLORS[(st[sd.key]||1)-1]}">${st[sd.key] ?? '—'}</span></div>`).join('')}
-      ${cgState.skills?.length > 0 ? cgState.skills.map(s => `<div class="cg-sum-row"><span class="cg-sum-lbl">Skill</span><span class="cg-sum-val">${s.icon} ${s.name}${s.unique ? ' <span class="unique-badge">★ UNIQUE</span>' : ''}</span></div>`).join('') : '<div class="cg-sum-row"><span class="cg-sum-lbl">Skills</span><span class="cg-sum-val" style="color:#555">None</span></div>'}
+    <div class="cg-card cg-done-action-card">
+      <div class="cg-done-banner">
+        <span class="cg-done-check">✅</span>
+        <span class="cg-done-title">Radoser ready!!</span>
       </div>
-      ${raceSk ? `
-      <div class="cg-race-skill-box">
-        <div class="cg-race-skill-header">
-          <span class="cg-race-skill-crown">👑</span>
-          <span class="cg-race-skill-title">Race Skill</span>
-        </div>
-        <div class="cg-race-skill-body">
-          <span class="cg-race-skill-icon">${raceSk.icon}</span>
-          <div>
-            <div class="cg-race-skill-name">${raceSk.name}</div>
-            <div class="cg-race-skill-desc">${raceSk.desc}</div>
-          </div>
-        </div>
-      </div>` : ''}
-      ${r.trait ? `<div class="cg-trait">${r.trait}</div>` : ''}
-      ${sr?.desc ? `<div class="cg-trait">Sub-Race bonus: ${sr.desc}</div>` : ''}
       <div class="cg-nav">
         <button class="cg-btn" id="cgRestart">↺ Restart</button>
         <button class="cg-btn primary" id="cgSave">${cgDraftMode ? '⚔️ Add to Draft' : '📜 Add to Radosers'}</button>
@@ -727,6 +905,7 @@ function cgRenderDone(box) {
     </div>`;
   document.getElementById('cgRestart').onclick = () => initChargen();
   const saveChar = () => {
+    document.querySelector('.cg-layout')?.classList.remove('cg-layout-done');
     const char = {
       id: Date.now() + Math.random(),
       name: cgState.name, race: cgState.race.id, raceName: cgState.race.name,
@@ -815,7 +994,7 @@ function openDebugRadoser() {
     <label style="display:flex;align-items:center;gap:5px;background:${bg};border:1px solid ${border};
                   border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;user-select:none;">
       <input type="checkbox" value="${s.id}" style="accent-color:${isUnique ? '#ffaa00' : '#9933ff'};" onchange="dbgLimitSkills()">
-      ${s.icon} ${s.name}${tag}
+      ${s.name}${tag}
     </label>`;
   }).join('');
 

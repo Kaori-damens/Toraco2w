@@ -746,8 +746,14 @@ function buildChampionshipSetup() {
   const cs   = state.championship;
   const size = cs.size || 128;
 
-  document.querySelectorAll('[data-cssize]').forEach(b =>
-    b.classList.toggle('sel', parseInt(b.dataset.cssize) === size));
+  const draftLocked = (cs.draftRoster?.length ?? 0) > 0;
+  document.querySelectorAll('[data-cssize]').forEach(b => {
+    b.classList.toggle('sel', parseInt(b.dataset.cssize) === size);
+    b.classList.toggle('cs-size-locked', draftLocked && parseInt(b.dataset.cssize) !== size);
+    b.title = (draftLocked && parseInt(b.dataset.cssize) !== size)
+      ? `🔒 Locked — ${cs.draftRoster.length} player(s) in draft`
+      : '';
+  });
 
   // Show name/tag form if not yet set
   if (!cs.tag) {

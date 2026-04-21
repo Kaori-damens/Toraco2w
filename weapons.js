@@ -310,21 +310,21 @@ const WEAPON_DEFS = [
   },
   {
     id: 'scythe', name: 'Scythe', icon: '🌙', color: '#cc44ff',
-    desc: 'Super: dual blades',
+    desc: '5h: +dmg/hit | 10h: faster | 15h: dual blades | 20h: +reach',
     aiType: 'melee',
     baseLength: 48, baseSpeed: 0.045, baseDamage: 1, baseKnockback: 5,
     hitRadius: 18, attackCooldown: 34,
-    scaling: { type: 'dual', threshold: 5 },
-    scalingLabel: 'Hits→Dual',
+    scaling: { type: 'multi', thresholds: [5, 10, 15, 20] },
+    scalingLabel: 'Hits→Power',
     draw(ctx, ball) {
       const w = ball.weapon;
-      this._drawBlade(ctx, ball, w.angle, w.hits >= 5);
-      if (w.hits >= 5) {
+      this._drawBlade(ctx, ball, w.angle, w.hits >= 15);
+      if (w.hits >= 15) {
         this._drawBlade(ctx, ball, w.angle + Math.PI, false);
       }
     },
     _drawBlade(ctx, ball, angle, glow) {
-      const len = ball.radius + this.baseLength;
+      const len = ball.radius + this.baseLength + (ball.weapon.bonusLength || 0);
       const cx = ball.x + Math.cos(angle) * (ball.radius + 10);
       const cy = ball.y + Math.sin(angle) * (ball.radius + 10);
       ctx.save();
@@ -358,15 +358,15 @@ const WEAPON_DEFS = [
     },
     getHitPoints(ball) {
       const w = ball.weapon;
-      const len = ball.radius + this.baseLength;
+      const len = ball.radius + this.baseLength + (w.bonusLength || 0);
       const pts = [];
       // primary blade arc sweep points
       for (let i = -2; i <= 2; i++) {
         const a = w.angle + i * 0.25;
         pts.push({ x: ball.x + Math.cos(a)*(len-8), y: ball.y + Math.sin(a)*(len-8), r: 16 });
       }
-      // dual blade
-      if (w.hits >= 5) {
+      // dual blade at 15 hits
+      if (w.hits >= 15) {
         for (let i = -2; i <= 2; i++) {
           const a = w.angle + Math.PI + i * 0.25;
           pts.push({ x: ball.x + Math.cos(a)*(len-8), y: ball.y + Math.sin(a)*(len-8), r: 16 });
@@ -374,7 +374,26 @@ const WEAPON_DEFS = [
       }
       return pts;
     },
-    onHit(w) { w.hits++; if (w.hits === 5) sfxScale(); }
+    onHit(w) {
+      w.hits++;
+      // Milestone 5: +0.3 bonus damage mỗi hit từ đây trở đi
+      if (w.hits >= 5) {
+        w.bonusDamage = (w.bonusDamage || 0) + 0.3;
+        if (w.hits === 5) sfxScale();
+      }
+      // Milestone 10: swing nhanh hơn (−6 cooldown, floor 14)
+      if (w.hits === 10) {
+        w.attackCooldown = Math.max(14, w.attackCooldown - 6);
+        sfxScale();
+      }
+      // Milestone 15: dual blades
+      if (w.hits === 15) sfxScale();
+      // Milestone 20: +12px blade reach
+      if (w.hits === 20) {
+        w.bonusLength = (w.bonusLength || 0) + 12;
+        sfxScale();
+      }
+    }
   },
   {
     id: 'hammer', name: 'Hammer', icon: '🔨', color: '#ff6633',

@@ -386,7 +386,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 190px;
+  width: 240px;
   flex-shrink: 0;
   padding-top: 4px;
 }
@@ -395,9 +395,9 @@ body {
 .hud-card {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: #0d0d20;
   border-radius: 8px;
   border: 1px solid #1a1a38;
@@ -411,7 +411,7 @@ body {
   gap: 4px;
 }
 .hud-card-name {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -419,13 +419,13 @@ body {
   flex: 1;
 }
 .hud-card-name .wep-sub {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   color: #6677aa;
   display: block;
 }
 .hp-fraction {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: #bbc;
   font-variant-numeric: tabular-nums;
@@ -434,7 +434,7 @@ body {
 }
 .hp-track {
   width: 100%;
-  height: 10px;
+  height: 11px;
   background: #1a1a2a;
   border-radius: 5px;
   overflow: hidden;
@@ -455,7 +455,7 @@ body {
   border-radius: 3px;
 }
 .hud-scale-tag {
-  font-size: 11px;
+  font-size: 12px;
   color: #778;
   white-space: nowrap;
   overflow: hidden;
@@ -474,16 +474,16 @@ body {
   align-items: center;
   background: rgba(255,255,255,0.04);
   border-radius: 4px;
-  padding: 3px 2px;
+  padding: 4px 2px;
 }
 .hud-sk {
-  font-size: 10px;
+  font-size: 11px;
   color: #7788aa;
   letter-spacing: 0.5px;
   font-weight: 700;
 }
 .hud-sv {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   color: #ccd;
 }
@@ -503,7 +503,7 @@ body {
   gap: 2px;
 }
 .hud-skill-desc {
-  font-size: 10px;
+  font-size: 11px;
   color: #667;
   line-height: 1.35;
   padding: 0 2px;
@@ -511,8 +511,8 @@ body {
 
 /* Default dim state — skills inactive */
 .hud-skill-badge {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 12px;
+  padding: 3px 10px;
   border-radius: 20px;
   border: 1px solid #22223a;
   color: #333350;
@@ -748,6 +748,15 @@ canvas#gameCanvas {
   border-color: #6644aa;
   background: #1a1230;
   color: #bb88ff;
+}
+.t-size-btn.cs-size-locked {
+  opacity: 0.38;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.t-size-btn.cs-size-locked::after {
+  content: ' 🔒';
+  font-size: 11px;
 }
 .t-roster-list {
   display: flex;
@@ -1061,6 +1070,91 @@ canvas#gameCanvas {
 
 /* ===== CHARGEN ===== */
 #chargen { gap: 16px; padding: 20px; max-width: 520px; width: 100%; }
+.cg-layout { position: relative; width: 100%; }
+#cg-content { width: 100%; }
+
+/* ── Preview panel: fixed on the right side of viewport ── */
+.cg-preview-panel {
+  position: fixed;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 280px;
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 50;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a5a transparent;
+}
+.cg-preview-card {
+  background: #0d0d20;
+  border: 1px solid #2a2a5a;
+  border-radius: 16px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+.cgp-name { font-size: 17px; font-weight: 900; color: #fff; text-align: center; word-break: break-word; }
+.cgp-ball-canvas { display: block; margin: 0 auto; }
+.cgp-race { font-size: 12px; color: #7a9ac0; text-align: center; margin-top: -4px; }
+.cgp-section-label { font-size: 10px; color: #4a5a7a; text-transform: uppercase; letter-spacing: 1px; border-top: 1px solid #1a1a3a; padding-top: 8px; margin-top: 2px; }
+.cgp-skill-badge { background: #141430; border: 1px solid #5566cc55; border-radius: 6px; padding: 4px 9px; font-size: 11px; color: #99aadd; cursor: default; }
+.cgp-skill-unique { border-color: #ffd700aa !important; color: #ffd700 !important; }
+.cgp-trait { font-size: 11px; color: #6a8aaa; line-height: 1.5; }
+.cgp-weapon-name { font-size: 13px; font-weight: 700; color: #dde; text-align: center; }
+.cgp-wep-canvas { display: block; margin: 0 auto; }
+.cgp-skills { display: flex; flex-direction: column; gap: 5px; }
+.cgp-empty { color: #2a2a4a; font-size: 12px; text-align: center; padding: 30px 0; letter-spacing: 1px; }
+/* Compact stats grid inside preview panel */
+.cg-preview-card .cg-stats-grid { gap: 5px; }
+.cg-preview-card .cg-sc { padding: 5px 2px; }
+.cg-preview-card .cg-sc-val { font-size: 17px; }
+.cg-preview-card .cg-sc-lbl { font-size: 9px; }
+/* Done step: panel drops below the banner inline, same width */
+.cg-layout-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.cg-layout-done #cg-content { width: 100%; max-width: 480px; }
+.cg-layout-done .cg-preview-panel {
+  position: static;
+  transform: none;
+  right: auto;
+  top: auto;
+  width: 100%;
+  max-width: 480px;
+  max-height: none;
+}
+.cg-layout-done .cg-preview-card {
+  border-color: #44cc8833;
+  box-shadow: 0 0 0 1px #44cc8822, 0 8px 32px rgba(0,0,0,0.6);
+}
+.cg-layout-done .cg-preview-card .cg-stats-grid { gap: 7px; }
+.cg-layout-done .cg-preview-card .cg-sc { padding: 8px 4px; }
+.cg-layout-done .cg-preview-card .cg-sc-val { font-size: 22px; }
+.cg-layout-done .cg-preview-card .cg-sc-lbl { font-size: 10px; }
+.cg-layout-done .cg-preview-card .cgp-name { font-size: 20px; }
+/* Done action card — slim horizontal banner */
+.cg-done-action-card {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  gap: 14px;
+  min-height: auto;
+}
+.cg-done-banner { display: flex; align-items: center; gap: 10px; }
+.cg-done-check { font-size: 26px; line-height: 1; }
+.cg-done-title { font-size: 16px; font-weight: 900; color: #44cc88; }
+.cg-done-action-card .cg-nav { margin: 0; flex-shrink: 0; }
+/* Hide on very narrow screens */
+@media (max-width: 760px) { .cg-preview-panel { display: none !important; } }
 .cg-header { text-align: center; font-size: 26px; font-weight: 900; background: linear-gradient(90deg,#ff6b6b,#ffd93d,#6bcb77,#4d96ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .cg-step-row { display: flex; gap: 6px; justify-content: center; align-items: center; }
 .cg-dot { width: 10px; height: 10px; border-radius: 50%; background: #2a2a4a; transition: background .3s; }
@@ -4438,4 +4532,29 @@ canvas#gameCanvas {
   #bracket-phase-nav  { max-width: 1720px; }
   .cs-bracket-view    { max-width: 1720px; }
   #tournament-stats-box { max-width: 1400px; }
+}
+
+/* ── LANG TOGGLE BUTTON ── */
+#lang-toggle-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  color: #a0b0c8;
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+#lang-toggle-btn:hover {
+  background: #252545;
+  border-color: #6677cc;
+  color: #dde8ff;
 }

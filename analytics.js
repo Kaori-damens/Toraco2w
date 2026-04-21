@@ -335,7 +335,7 @@ function _renderStats() {
   // ── Skill table ──
   const skillRows = _sortedTable(agg.skill).map(([k, v]) => {
     const def = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[k] : null;
-    return [def ? `${def.icon} ${def.name}` : k, v.wins, v.losses, v.total, `${_winPct(v)}%`];
+    return [def ? def.name : k, v.wins, v.losses, v.total, `${_winPct(v)}%`];
   });
 
   // ── Highlights ──
@@ -402,7 +402,7 @@ function _renderSim() {
     .map(id => `<option value="${id}">${SIM_WEAPON_DPS[id].label}</option>`).join('');
   const skillOpts = (typeof SKILL_DEFS !== 'undefined')
     ? SKILL_DEFS.filter(s => !s.weapon && !s.unique)
-        .map(s => `<option value="${s.id}">${s.icon} ${s.name}</option>`).join('')
+        .map(s => `<option value="${s.id}">${s.name}</option>`).join('')
     : '';
 
   const statInputs = (prefix) => ['STR','SPD','DUR','IQ','BIQ','MA'].map(s =>
@@ -445,7 +445,7 @@ function _renderHeuristic() {
 
   const rows = sorted.map(([id, pts, note]) => {
     const def = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[id] : null;
-    const name = def ? `${def.icon} ${def.name}` : id;
+    const name = def ? def.name : id;
     const bar = `<div class="an-bar-bg"><div class="an-bar-fill" style="width:${Math.round(pts/maxPts*100)}%;background:${pts>=10?'#44cc88':pts>=7?'#ffaa22':'#4488ff'}"></div></div>`;
     const tier = pts >= 12 ? '🔴 S' : pts >= 9 ? '🟠 A' : pts >= 7 ? '🟡 B' : pts >= 5 ? '🟢 C' : '⚪ D';
     return [name, `${pts}`, bar, tier, note];

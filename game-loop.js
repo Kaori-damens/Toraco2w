@@ -47,25 +47,68 @@ function gameLoop(now) {
       state.countdownFrame++;
       // 4 phases × 60f: "3" (0–59), "2" (60–119), "1" (120–179), "FIGHT!" (180–239)
       const cf = state.countdownFrame;
-      const ENTRY_FRAMES = 180; // balls travel during "3","2","1", then freeze at "FIGHT!"
 
-      // Animate entry: ease-out (sin curve)
-      for (const b of state.players) {
-        if (b._targetX == null) continue;
-        if (cf <= ENTRY_FRAMES) {
-          const t = Math.sin((cf / ENTRY_FRAMES) * Math.PI / 2); // 0→1 ease-out
-          b.x = b._entrySpawnX + (b._targetX - b._entrySpawnX) * t;
-          b.y = b._entrySpawnY + (b._targetY - b._entrySpawnY) * t;
-        } else {
-          b.x = b._targetX;
-          b.y = b._targetY;
+      // FIGHT! (frame 180): fire cannons
+      if (cf === 180) {
+        const ENTRY_SPEED = 10;
+        for (const b of state.players) {
+          if (!b._cannonEntry) continue;
+          b.vx = Math.cos(b._cannonAngle) * ENTRY_SPEED;
+          b.vy = Math.sin(b._cannonAngle) * ENTRY_SPEED;
+          spawnSparks(b._entrySpawnX, b._entrySpawnY, 18);
+          sfxWallBounce();
+        }
+      }
+
+      // Cannon ball physics (frames 181–239: in-flight inside arena)
+      if (cf > 180) {
+        for (const b of state.players) {
+          if (!b._cannonEntry) continue;
+          b.x += b.vx;
+          b.y += b.vy;
+          b._entryFlightFrames++;
+          // Grace period: skip wall clamp first 25 frames — ball passes through wall
+          if (b._entryFlightFrames >= 25) {
+            const snapX = b.x, snapY = b.y;
+            clampToBall(b, state.arena);
+            if (Math.abs(b.x - snapX) > 0.5 || Math.abs(b.y - snapY) > 0.5) {
+              spawnSparks(b.x, b.y, 5);
+              sfxWallBounce();
+            }
+          }
+          b.vx *= 0.988;
+          b.vy *= 0.988;
+        }
+
+        // Soft ball–ball collision during entry (elastic, no damage, no skills)
+        const entryBalls = state.players.filter(b => b._cannonEntry);
+        for (let i = 0; i < entryBalls.length - 1; i++) {
+          for (let j = i + 1; j < entryBalls.length; j++) {
+            const a = entryBalls[i], b = entryBalls[j];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const dist = Math.hypot(dx, dy);
+            const minD = a.radius + b.radius;
+            if (dist >= minD || dist < 0.01) continue;
+            // Separate positions
+            const nx = dx / dist, ny = dy / dist;
+            const push = (minD - dist) * 0.5;
+            a.x -= nx * push; a.y -= ny * push;
+            b.x += nx * push; b.y += ny * push;
+            // Elastic velocity exchange along collision normal (equal mass)
+            const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+            const dot = dvx * nx + dvy * ny;
+            if (dot > 0) {
+              a.vx -= dot * nx; a.vy -= dot * ny;
+              b.vx += dot * nx; b.vy += dot * ny;
+            }
+            spawnSparks((a.x + b.x) * 0.5, (a.y + b.y) * 0.5, 8);
+          }
         }
       }
 
       if (cf >= 240) {
         state.phase = 'playing';
         for (const b of state.players) {
-          if (b._targetX != null) { b.x = b._targetX; b.y = b._targetY; }
           b.vx = b._launchVx || 0;
           b.vy = b._launchVy || 0;
           skillOnPreCombat(b);
@@ -292,6 +335,9 @@ function render() {
 
   drawArena(ctx, state.arena);
 
+  // Entry cannons — drawn above arena, below balls
+  if (state.phase === 'countdown') drawEntryCannons(ctx);
+
   // PvP traps — drawn below balls
   if (!state.pveMode && state.trapObjects?.length) {
     drawTraps(ctx, state.trapObjects, state.frame);
@@ -352,6 +398,111 @@ function render() {
   }
   // Big announcements
   updateDrawBigAnnouncements(ctx);
+}
+
+// ── Entry Cannon Visual ──────────────────────────────────────────────────────
+function drawEntryCannons(ctx) {
+  const cf = state.countdownFrame;
+  for (const b of state.players) {
+    if (!b._cannonEntry) continue;
+    const bx = b._entrySpawnX, by = b._entrySpawnY;
+    const angle = b._cannonAngle;
+    const fired  = cf >= 180;
+    const charge = Math.min(1, cf / 179); // 0→1 during "3","2","1"
+
+    // Hide cannon body a few frames after firing (ball has left)
+    if (fired && b._entryFlightFrames > 6) continue;
+
+    ctx.save();
+    ctx.translate(bx, by);
+
+    // Charging glow
+    if (!fired && charge > 0.05) {
+      ctx.shadowColor = b.color;
+      ctx.shadowBlur  = 6 + charge * 22;
+    }
+
+    // Barrel (rectangle pointing toward arena)
+    ctx.save();
+    ctx.rotate(angle);
+    ctx.fillStyle = '#3a4455';
+    ctx.beginPath();
+    ctx.roundRect(4, -8, 34, 16, 4);
+    ctx.fill();
+    ctx.strokeStyle = '#6688aa';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Barrel ring at mouth
+    ctx.beginPath();
+    ctx.arc(38, 0, 8, 0, Math.PI * 2);
+    ctx.strokeStyle = '#99bbcc';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Wheel base (circle)
+    ctx.beginPath();
+    ctx.arc(0, 0, 17, 0, Math.PI * 2);
+    ctx.fillStyle = '#1e2235';
+    ctx.fill();
+    ctx.strokeStyle = '#445566';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Spokes
+    for (let s = 0; s < 4; s++) {
+      const a = s * Math.PI / 4;
+      ctx.strokeStyle = '#445566';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * -13, Math.sin(a) * -13);
+      ctx.lineTo(Math.cos(a) *  13, Math.sin(a) *  13);
+      ctx.stroke();
+    }
+
+    // Ball sitting in barrel during 3-2-1 (pulsing)
+    if (!fired) {
+      const pulse = 0.88 + 0.12 * Math.sin(cf * 0.35);
+      const bpx   = Math.cos(angle) * (10 + charge * 14);
+      const bpy   = Math.sin(angle) * (10 + charge * 14);
+      ctx.beginPath();
+      ctx.arc(bpx, bpy, b.radius * (0.55 + charge * 0.25) * pulse, 0, Math.PI * 2);
+      ctx.fillStyle   = b.color;
+      ctx.globalAlpha = 0.55 + charge * 0.45;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Muzzle flash burst at fire moment (frames 180-184)
+    if (fired && b._entryFlightFrames <= 4) {
+      const t     = b._entryFlightFrames;
+      const alpha = Math.max(0, 1 - t * 0.28);
+      const len   = 28 + t * 14;
+      const mx    = bx + Math.cos(angle) * 42;
+      const my    = by + Math.sin(angle) * 42;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#ffff99';
+      ctx.lineWidth   = Math.max(1, 10 - t * 2.5);
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(mx + Math.cos(angle) * len, my + Math.sin(angle) * len);
+      ctx.stroke();
+      // Side sparks
+      const perpA = angle + Math.PI / 2;
+      ctx.lineWidth = Math.max(1, 4 - t);
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(mx, my);
+        ctx.lineTo(mx + Math.cos(angle + side * 0.5) * (len * 0.6),
+                   my + Math.sin(angle + side * 0.5) * (len * 0.6));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
 }
 
 function renderCountdown() {
@@ -547,7 +698,7 @@ function buildHUD() {
         badge.className = 'hud-skill-badge' + (isRace ? ' hud-skill-race' : (def.type === 'passive' ? ' always-active' : ''));
         badge.dataset.skillId = sid;
         if (!isRace) badge.style.setProperty('--skill-color', _skillTriggerColor(def.type));
-        badge.textContent = `${def.icon ?? '✦'} ${def.name}`;
+        badge.textContent = def.name;
         item.appendChild(badge);
         if (def.desc) {
           const desc = document.createElement('div');

@@ -165,11 +165,10 @@ document.getElementById('gravBtn').addEventListener('click', () => {
   document.getElementById('gravBtn').textContent = `🌍 Gravity: ${state.gravity ? 'On' : 'Off'}`;
 });
 
-// Zoom slider (50%–100%)
-const zoomWrapper = document.getElementById('game-zoom-wrapper');
+// Zoom slider (50%–100%) — only scales the arena canvas, HUD panels unaffected
 document.getElementById('zoomSlider').addEventListener('input', e => {
-  const z = e.target.value / 100;
-  zoomWrapper.style.transform = `scale(${z})`;
+  _arenaZoom = e.target.value / 100;
+  _applyArenaZoom();
   document.getElementById('zoomLabel').textContent = `${e.target.value}%`;
 });
 
@@ -522,6 +521,19 @@ document.getElementById('csStartBtn').addEventListener('click', () => {
 
 document.querySelectorAll('[data-cssize]').forEach(btn => {
   btn.addEventListener('click', () => {
+    // Lock size once draft has at least 1 player — prevent accidental data loss
+    const draftCount = state.championship?.draftRoster?.length ?? 0;
+    if (draftCount > 0) {
+      // Flash the button red briefly as visual feedback
+      btn.style.transition = 'background .15s';
+      btn.style.background = '#5a1a1a';
+      btn.style.borderColor = '#ff4455';
+      setTimeout(() => { btn.style.background = ''; btn.style.borderColor = ''; }, 600);
+      // Show lock tooltip
+      _csShowSizeLockWarning(btn, draftCount);
+      return;
+    }
+
     const newSize  = parseInt(btn.dataset.cssize);
     const prevTag  = state.championship?.tag;
     const prevName = state.championship?.name;
@@ -544,6 +556,30 @@ document.querySelectorAll('[data-cssize]').forEach(btn => {
     buildChampionshipSetup();
   });
 });
+
+// Show a brief warning tooltip when size is locked due to draft in progress
+function _csShowSizeLockWarning(anchor, draftCount) {
+  let tip = document.getElementById('cs-size-lock-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'cs-size-lock-tip';
+    tip.style.cssText = [
+      'position:fixed','z-index:9999','background:#1a0a0a','border:1px solid #ff445588',
+      'border-radius:8px','padding:8px 14px','font-size:12px','color:#ff8888',
+      'pointer-events:none','box-shadow:0 4px 16px #0008','white-space:nowrap',
+      'transition:opacity .2s',
+    ].join(';');
+    document.body.appendChild(tip);
+  }
+  tip.textContent = `🔒 Size locked — ${draftCount} player${draftCount > 1 ? 's' : ''} already in draft`;
+  tip.style.opacity = '1';
+  // Position near the anchor
+  const r = anchor.getBoundingClientRect();
+  tip.style.left = r.left + 'px';
+  tip.style.top  = (r.bottom + 6) + 'px';
+  clearTimeout(tip._hideTimer);
+  tip._hideTimer = setTimeout(() => { tip.style.opacity = '0'; }, 2200);
+}
 
 // ============================================================
 // ARENA BUILDER

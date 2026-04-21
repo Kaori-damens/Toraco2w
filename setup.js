@@ -56,15 +56,18 @@ function initGame() {
     const side = i === 0 ? 'left' : 'right';
     const tId  = (state.matchMode === '2v2' && state.teamIds) ? (state.teamIds[i] ?? -1) : -1;
 
-    // Entry animation: spawn outside arena, animate inward during countdown
-    const entryAngle  = Math.atan2(pos.y - cy, pos.x - cx);
-    const ENTRY_OFFSET = 420;
-    const entrySpawnX = pos.x + Math.cos(entryAngle) * ENTRY_OFFSET;
-    const entrySpawnY = pos.y + Math.sin(entryAngle) * ENTRY_OFFSET;
+    // Cannon entry: place cannon just outside arena wall (visible on canvas)
+    const entryAngle = Math.atan2(pos.y - cy, pos.x - cx);
+    // Arena edge distance from center — varies by type
+    let _arenaEdge;
+    if (arenaConfig.r)   _arenaEdge = arenaConfig.r;
+    else if (arenaConfig.arm) _arenaEdge = arenaConfig.arm;
+    else _arenaEdge = Math.min(arenaConfig.w ?? 400, arenaConfig.h ?? 400) / 2;
+    const CANNON_CLEARANCE = 60; // px outside arena wall
+    const entrySpawnX = cx + Math.cos(entryAngle) * (_arenaEdge + CANNON_CLEARANCE);
+    const entrySpawnY = cy + Math.sin(entryAngle) * (_arenaEdge + CANNON_CLEARANCE);
 
     const ball = new Ball(entrySpawnX, entrySpawnY, fighter.color, fighter.weaponId, side, fighter.charStats || null, tId);
-    ball._targetX     = pos.x;
-    ball._targetY     = pos.y;
     ball._entrySpawnX = entrySpawnX;
     ball._entrySpawnY = entrySpawnY;
     ball.charName  = fighter.charName  || null;
@@ -94,9 +97,17 @@ function initGame() {
     // Store launch velocity — applied after countdown
     ball._launchVx = Math.cos(launchAngle) * launchSpd;
     ball._launchVy = Math.sin(launchAngle) * launchSpd;
+
+    // Cannon angle: toward arena center at ±30° diagonal — fired at FIGHT! (frame 180)
+    const dirToCenter  = Math.atan2(cy - entrySpawnY, cx - entrySpawnX);
+    const cannonOffset = (Math.PI / 6) * (Math.random() < 0.5 ? 1 : -1); // ±30°
+    const cannonAngle  = dirToCenter + cannonOffset;
     ball.vx = 0;
     ball.vy = 0;
-    ball.weapon.angle = entryAngle + Math.PI; // face inward during entry
+    ball._cannonEntry       = true;
+    ball._cannonAngle       = cannonAngle;
+    ball._entryFlightFrames = 0;    // frames in-flight (wall-pass grace period)
+    ball.weapon.angle = cannonAngle; // face direction of travel
     return ball;
   });
 
@@ -150,6 +161,7 @@ function stopGame() {
 
 // ── Auto-fit canvas viewport to arena bounding box ─────────────────
 const _ARENA_FIT_PAD = 55; // canvas-unit padding around arena
+let   _arenaZoom     = 1;  // controlled by zoom slider (0.5–1.0)
 
 function applyArenaFit(arena) {
   const clip   = document.getElementById('canvas-clip-wrapper');
@@ -175,10 +187,35 @@ function applyArenaFit(arena) {
   aw = ax2 - ax;
   ah = ay2 - ay;
 
-  clip.style.width        = `${aw}px`;
-  clip.style.height       = `${ah}px`;
-  canvas.style.marginLeft = `-${ax}px`;
-  canvas.style.marginTop  = `-${ay}px`;
+  // Store base (unzoomed) arena dimensions for zoom re-application
+  clip._arenaBaseW  = aw;
+  clip._arenaBaseH  = ah;
+  clip._arenaBaseAX = ax;
+  clip._arenaBaseAY = ay;
+
+  _applyArenaZoom(clip, canvas);
+}
+
+// Apply _arenaZoom to the clip-wrapper/canvas CSS sizes (no layout dead-space)
+function _applyArenaZoom(clip, canvas) {
+  clip   = clip   || document.getElementById('canvas-clip-wrapper');
+  canvas = canvas || document.getElementById('gameCanvas');
+  if (!clip || !canvas || !clip._arenaBaseW) return;
+
+  const z  = _arenaZoom;
+  const aw = clip._arenaBaseW;
+  const ah = clip._arenaBaseH;
+  const ax = clip._arenaBaseAX;
+  const ay = clip._arenaBaseAY;
+
+  // Scale the canvas CSS display size (canvas attribute = 1000×1000, CSS can differ)
+  canvas.style.width      = `${1000 * z}px`;
+  canvas.style.height     = `${1000 * z}px`;
+  canvas.style.marginLeft = `-${ax * z}px`;
+  canvas.style.marginTop  = `-${ay * z}px`;
+  // Clip-wrapper shrinks with the canvas so no dead layout space
+  clip.style.width        = `${aw * z}px`;
+  clip.style.height       = `${ah * z}px`;
 }
 
 function resetArenaFit() {
@@ -187,6 +224,8 @@ function resetArenaFit() {
   if (!clip || !canvas) return;
   clip.style.width        = '';
   clip.style.height       = '';
+  canvas.style.width      = '';
+  canvas.style.height     = '';
   canvas.style.marginLeft = '';
   canvas.style.marginTop  = '';
 }

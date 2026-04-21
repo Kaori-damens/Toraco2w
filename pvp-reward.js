@@ -69,7 +69,7 @@ function _pvpApplyReward(fighter, reward) {
     case 'pow1': case 'pow2': case 'pow3': {
       const n     = reward.id === 'pow1' ? 1 : reward.id === 'pow2' ? 2 : 3;
       const added = _pvpAddPowers(fighter, n);
-      return added.length ? 'Gained: ' + added.map(s => `${s.icon??'✦'} ${s.name}`).join(', ')
+      return added.length ? 'Gained: ' + added.map(s => s.name).join(', ')
                            : 'No skills available';
     }
     case 'rnd3': case 'rnd6': {
@@ -428,7 +428,7 @@ function _ccOnLand() {
   const resOut   = document.getElementById('cc-res-outcome');
   if (result) {
     const def = (typeof SKILL_MAP !== 'undefined' && SKILL_MAP[result]) || { name: result, icon: '✦' };
-    if (resLabel)  resLabel.textContent  = `${def.icon ?? '✦'} ${def.name} — Copied!`;
+    if (resLabel)  resLabel.textContent  = `${def.name} — Copied!`;
     if (resOut)    resOut.textContent    = 'Skill will be available next round.';
     _ccFighter.copycatSkill = result;
   } else {
@@ -624,7 +624,7 @@ function _ewOnLand() {
         const sk = pool[Math.floor(Math.random() * pool.length)];
         if (!_ewFighter.skills) _ewFighter.skills = [];
         _ewFighter.skills.push(sk.id);
-        resultText = `+1 Skill: ${sk.icon ?? '✦'} ${sk.name}`;
+        resultText = `+1 Skill: ${sk.name}`;
       } else {
         resultText = 'Không còn skill trong pool';
       }
