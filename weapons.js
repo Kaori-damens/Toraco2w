@@ -310,21 +310,21 @@ const WEAPON_DEFS = [
   },
   {
     id: 'scythe', name: 'Scythe', icon: '🌙', color: '#cc44ff',
-    desc: 'Super: dual blades',
+    desc: '5h: +dmg/hit | 10h: faster | 15h: dual blades | 20h: +reach',
     aiType: 'melee',
     baseLength: 48, baseSpeed: 0.045, baseDamage: 1, baseKnockback: 5,
     hitRadius: 18, attackCooldown: 34,
-    scaling: { type: 'dual', threshold: 5 },
-    scalingLabel: 'Hits→Dual',
+    scaling: { type: 'multi', thresholds: [5, 10, 15, 20] },
+    scalingLabel: 'Hits→Power',
     draw(ctx, ball) {
       const w = ball.weapon;
-      this._drawBlade(ctx, ball, w.angle, w.hits >= 5);
-      if (w.hits >= 5) {
+      this._drawBlade(ctx, ball, w.angle, w.hits >= 15);
+      if (w.hits >= 15) {
         this._drawBlade(ctx, ball, w.angle + Math.PI, false);
       }
     },
     _drawBlade(ctx, ball, angle, glow) {
-      const len = ball.radius + this.baseLength;
+      const len = ball.radius + this.baseLength + (ball.weapon.bonusLength || 0);
       const cx = ball.x + Math.cos(angle) * (ball.radius + 10);
       const cy = ball.y + Math.sin(angle) * (ball.radius + 10);
       ctx.save();
@@ -358,15 +358,15 @@ const WEAPON_DEFS = [
     },
     getHitPoints(ball) {
       const w = ball.weapon;
-      const len = ball.radius + this.baseLength;
+      const len = ball.radius + this.baseLength + (w.bonusLength || 0);
       const pts = [];
       // primary blade arc sweep points
       for (let i = -2; i <= 2; i++) {
         const a = w.angle + i * 0.25;
         pts.push({ x: ball.x + Math.cos(a)*(len-8), y: ball.y + Math.sin(a)*(len-8), r: 16 });
       }
-      // dual blade
-      if (w.hits >= 5) {
+      // dual blade at 15 hits
+      if (w.hits >= 15) {
         for (let i = -2; i <= 2; i++) {
           const a = w.angle + Math.PI + i * 0.25;
           pts.push({ x: ball.x + Math.cos(a)*(len-8), y: ball.y + Math.sin(a)*(len-8), r: 16 });
@@ -374,7 +374,26 @@ const WEAPON_DEFS = [
       }
       return pts;
     },
-    onHit(w) { w.hits++; if (w.hits === 5) sfxScale(); }
+    onHit(w) {
+      w.hits++;
+      // Milestone 5: +0.3 bonus damage mỗi hit từ đây trở đi
+      if (w.hits >= 5) {
+        w.bonusDamage = (w.bonusDamage || 0) + 0.3;
+        if (w.hits === 5) sfxScale();
+      }
+      // Milestone 10: swing nhanh hơn (−6 cooldown, floor 14)
+      if (w.hits === 10) {
+        w.attackCooldown = Math.max(14, w.attackCooldown - 6);
+        sfxScale();
+      }
+      // Milestone 15: dual blades
+      if (w.hits === 15) sfxScale();
+      // Milestone 20: +12px blade reach
+      if (w.hits === 20) {
+        w.bonusLength = (w.bonusLength || 0) + 12;
+        sfxScale();
+      }
+    }
   },
   {
     id: 'hammer', name: 'Hammer', icon: '🔨', color: '#ff6633',
@@ -621,7 +640,7 @@ const WEAPON_DEFS = [
   // ★ UNIQUE WEAPONS (Championship only — removed from pool once rolled)
   // ══════════════════════════════════════════════════════════
   {
-    id: 'jingubang', name: 'Jingubang', icon: '🪄', color: '#ffd700',
+    id: 'jingubang', name: 'Jingubang 如意棒', icon: '🪄', color: '#ffd700',
     unique: true, baseWeapon: 'spear',
     desc: "Sun Wukong's legendary staff. Grows longer faster than any spear. Every 6 hits: WHIRL — spins 360° around itself for 4s, dealing damage to all nearby enemies.",
     aiType: 'melee',
@@ -746,7 +765,7 @@ const WEAPON_DEFS = [
   {
     id: 'excalibur', name: 'Excalibur', icon: '🌟', color: '#fff5aa',
     unique: true, baseWeapon: 'sword',
-    desc: 'The Sword of Kings. Scales damage on hit. When HP drops to ≤30% trigger Transform Mode, firing a Sword Beam every 2s.',
+    desc: 'The Sword of Kings. Scales damage on hit. When HP drops to ≤30% → Last Stand: 20s Transform Mode, firing a Sword Beam every 2s (piercing, high damage).',
     aiType: 'melee',
     baseLength: 55, baseSpeed: 0.058, baseDamage: 1.2, baseKnockback: 4,
     hitRadius: 8, attackCooldown: 28,
@@ -880,9 +899,9 @@ const WEAPON_DEFS = [
 
   // 👊 Iron Fist — Unique Fists
   {
-    id: 'iron_fist', name: 'Flame Fist', icon: '🔥', color: '#ff6622',
+    id: 'iron_fist', name: 'Iron Fist', icon: '🔥', color: '#ff6622',
     unique: true, baseWeapon: 'fists',
-    desc: 'Ember-charged fists. Each hit stacks 1 Ember (max 5). At 5 Ember stacks: Combustion AOE burst.',
+    desc: 'Ember-charged fists. Each hit stacks 1 Ember (max 5). At 5 Embers: Combustion AOE burst (100px radius).',
     aiType: 'melee',
     baseLength: 22, baseSpeed: 0.24, baseDamage: 2.5, baseKnockback: 2,
     hitRadius: 11, attackCooldown: 16,
@@ -944,7 +963,7 @@ const WEAPON_DEFS = [
   {
     id: 'shadowfang', name: 'Shadowfang', icon: '🌑', color: '#aa44ff',
     unique: true, baseWeapon: 'dagger',
-    desc: 'Every hit poisons the target. Attacks from behind are guaranteed critical strikes.',
+    desc: 'Dark dagger. Every hit poisons the target. Hitting from behind = automatic critical strike.',
     aiType: 'melee',
     baseLength: 30, baseSpeed: 0.17, baseDamage: 1.2, baseKnockback: 2,
     hitRadius: 8, attackCooldown: 18,
@@ -1005,7 +1024,7 @@ const WEAPON_DEFS = [
   {
     id: 'gungnir', name: 'Gungnir', icon: '✨', color: '#ffdd66',
     unique: true, baseWeapon: 'spear',
-    desc: 'Odin\'s divine spear. Auto-throws a rune spike at the nearest enemy. Weapon tracks aggressively.',
+    desc: 'Odin\'s divine spear. Every 120 frames auto-throws a rune spear at the nearest enemy. Weapon tracks aggressively.',
     aiType: 'melee',
     baseLength: 68, baseSpeed: 0.034, baseDamage: 1.2, baseKnockback: 5,
     hitRadius: 8, attackCooldown: 38,
@@ -1082,7 +1101,7 @@ const WEAPON_DEFS = [
   {
     id: 'harvester', name: 'Harvester', icon: '💀', color: '#cc44ff',
     unique: true, baseWeapon: 'scythe',
-    desc: 'Soul Scythe. Each hit collects a Soul Shard (max 5). At 5: Soul Burst deal AOE damage.',
+    desc: 'Soul Scythe. Each hit collects a Soul Shard (max 5). At 5: Soul Burst AOE (80px) for 3× base damage.',
     aiType: 'melee',
     baseLength: 50, baseSpeed: 0.048, baseDamage: 1.2, baseKnockback: 5,
     hitRadius: 18, attackCooldown: 34,
@@ -1153,7 +1172,7 @@ const WEAPON_DEFS = [
   {
     id: 'caliburn', name: 'Caliburn', icon: '⚡', color: '#ccf0ff',
     unique: true, baseWeapon: 'rapier',
-    desc: 'Rapier of Champions. Each parry: Gain +1 Caliburn stack. At 3: Increase weapon speed, next hit guaranteed crit.',
+    desc: 'Rapier of Champions. Each parry: +1 Caliburn stack. At 3: 5s speed boost ×1.4 + next hit guaranteed crit.',
     aiType: 'melee',
     baseLength: 42, baseSpeed: 0.075, baseDamage: 1.0, baseKnockback: 2,
     hitRadius: 6, attackCooldown: 18,
@@ -1216,7 +1235,7 @@ const WEAPON_DEFS = [
   {
     id: 'medusa_bow', name: 'Medusa Bow', icon: '🐍', color: '#44cc88',
     unique: true, baseWeapon: 'bow',
-    desc: 'Serpent Bow. Each arrow hit: reduce target movement speed. After 5 stacks: Petrify (2s weapon freeze).',
+    desc: 'Serpent Bow. Each arrow hit: -1 target maxSpd. After 5 stacks: Petrify (2s weapon freeze).',
     aiType: 'ranged',
     baseLength: 38, baseSpeed: 0.04, baseDamage: 0, baseKnockback: 1,
     hitRadius: 8, attackCooldown: 10,
@@ -1274,7 +1293,7 @@ const WEAPON_DEFS = [
   {
     id: 'fuma_shuriken', name: 'Fuma Shuriken', icon: '🌀', color: '#44eebb',
     unique: true, baseWeapon: 'shuriken',
-    desc: 'Giant throwing star. Each wall bounce:increase damage & radius. Max 3 bounces.',
+    desc: 'Giant throwing star. Each wall bounce: star grows (+4 radius) and damage ×1.6. Max 3 bounces.',
     aiType: 'ranged',
     baseLength: 30, baseSpeed: 0.04, baseDamage: 0, baseKnockback: 1,
     hitRadius: 10, attackCooldown: 10,
