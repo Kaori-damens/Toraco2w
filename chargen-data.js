@@ -19,12 +19,12 @@ const CG_RACES = [
   { id:'gnome',     name:'Gnome',           emoji:'🧙', weight:0,    subKey:null,          trait:null }, // DISABLED — placeholder, no unique trait yet
   { id:'human',     name:'Human',           emoji:'👤', weight:6.5,  subKey:'humanSkin',   trait:null },
   { id:'dwarf',     name:'Dwarf',           emoji:'⛏️', weight:6.5,  subKey:null,          trait:null },
-  { id:'skeleton',  name:'Skeleton',        emoji:'💀', weight:5.25, subKey:'boneLineage',  trait:'2 PvP wins → Lich (IQ fixed 8). 4 wins → Lich King (+1 all stats). Immune to AIDS.' },
+  { id:'skeleton',  name:'Skeleton',        emoji:'💀', weight:5.25, subKey:'boneLineage',  trait:'2 PvP wins become Lich (IQ set to 8). Lower bracket become Lich King (+1 all stats).' },
   { id:'troll',     name:'Troll',           emoji:'🧌', weight:5.25, subKey:'trollType',   trait:null },
   { id:'orc',       name:'Orc',             emoji:'🗡️', weight:5.25, subKey:null,          trait:'Win: +2 lowest stat. Lose: -3 highest stat.' },
   { id:'giant',     name:'Giant',           emoji:'🏔️', weight:4.0,  subKey:null,          trait:'After stat roll: if IQ>STR → +5 IQ/-5 STR; if STR>IQ → +5 STR/-5 IQ; if equal → +3 both.' },
   { id:'dragon',    name:'Dragon',          emoji:'🐉', weight:4.0,  subKey:'dragonType',  trait:null },
-  { id:'angel',     name:'Angel',           emoji:'👼', weight:3.5,  subKey:'angelRank',   trait:'Starts with Archetype "Pacifist" (will receive one more Archetype).' },
+  { id:'angel',     name:'Angel',           emoji:'👼', weight:3.5,  subKey:'angelRank',   trait:null },
   { id:'primordial',name:'Primordial Being',emoji:'🌌', weight:3.5,  subKey:'elementalWheel', trait:'Each Combat win → receive Elemental Wheel again.' },
   { id:'demon',     name:'Demon',           emoji:'😈', weight:2.5,  subKey:'demonSin',    trait:null },
   { id:'god',       name:'God',             emoji:'✨', weight:2.5,  subKey:'godGift',     trait:null },
@@ -42,12 +42,12 @@ const CG_SUBRACES = {
   ],
   humanSkin: [
     { label:'Trắng', weight:30, desc:'Chắc chắn có vũ khí.' },
-    { label:'Vàng',  weight:35, desc:'Base IQ không thể dưới 5, nếu quay ra dưới 5 sẽ quay lại đến khi nào trên hoặc bằng 5 thì thôi.' },
-    { label:'Đen',   weight:35, desc:'Base Dura không thể dưới 5, nếu quay ra dưới 5 sẽ quay lại đến khi nào trên hoặc bằng 5 thì thôi.' },
+    { label:'Vàng',  weight:35, desc:'Base IQ không thể dưới 5.' },
+    { label:'Đen',   weight:35, desc:'Base Dura không thể dưới 5.' },
   ],
   trollType: [
     { label:'Regular Troll',  weight:42, desc:'Một con Troll thường.' },
-    { label:'Ice Troll',      weight:30, desc:'Trong combat: Debuff: Đối thủ -2 Spd.' },
+    { label:'Ice Troll',      weight:30, desc:'Trong combat: Debuff: Đối thủ -2 movement speed.' },
     { label:'Mountain Troll', weight:25, desc:'Nhận +3 Dura.' },
     { label:'Lich Troll',     weight:3,  desc:'Khi chiến 1 đối thủ có 75% nhận 1 skill từ pool skill của đối thủ, nếu đối thủ không có skill nào thì thôi.' },
   ],
@@ -233,12 +233,12 @@ const CG_GOD_SUBRACE_WEIGHTS = {
 };
 
 const STAT_DISPLAY = [
-  { key:'strength',  label:'STR', emoji:'💪' },
-  { key:'speed',     label:'SPD', emoji:'⚡' },
-  { key:'durability',label:'DUR', emoji:'🛡️' },
-  { key:'iq',        label:'IQ',  emoji:'🧠' },
-  { key:'battleiq',  label:'BIQ', emoji:'⚔️' },
-  { key:'ma',        label:'MA',  emoji:'🥋' },
+  { key:'strength',  label:'STR'},
+  { key:'speed',     label:'SPD'},
+  { key:'durability',label:'DUR'},
+  { key:'iq',        label:'IQ'},
+  { key:'battleiq',  label:'BIQ'},
+  { key:'ma',        label:'MA'},
 ];
 
 const CG_WEAPONS = [
