@@ -640,7 +640,7 @@ const WEAPON_DEFS = [
   // ★ UNIQUE WEAPONS (Championship only — removed from pool once rolled)
   // ══════════════════════════════════════════════════════════
   {
-    id: 'jingubang', name: 'Jingubang 如意棒', icon: '🪄', color: '#ffd700',
+    id: 'jingubang', name: 'Jingubang', icon: '🪄', color: '#ffd700',
     unique: true, baseWeapon: 'spear',
     desc: "Sun Wukong's legendary staff. Grows longer faster than any spear. Every 6 hits: WHIRL — spins 360° around itself for 4s, dealing damage to all nearby enemies.",
     aiType: 'melee',
@@ -899,7 +899,7 @@ const WEAPON_DEFS = [
 
   // 👊 Iron Fist — Unique Fists
   {
-    id: 'iron_fist', name: 'Iron Fist', icon: '🔥', color: '#ff6622',
+    id: 'iron_fist', name: 'Flaming Fist', icon: '🔥', color: '#ff6622',
     unique: true, baseWeapon: 'fists',
     desc: 'Ember-charged fists. Each hit stacks 1 Ember (max 5). At 5 Embers: Combustion AOE burst (100px radius).',
     aiType: 'melee',

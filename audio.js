@@ -28,6 +28,7 @@ _loadAudio('hit_dagger',      'sfx/sfx_hit_dagger.mp3');
 _loadAudio('hit_spear',       'sfx/sfx_hit_spear.mp3');
 _loadAudio('hit_fists',       'sfx/sfx_hit_fists.mp3');
 _loadAudio('hit_scythe',      'sfx/sfx_hit_scythe.mp3');
+_loadAudio('hit_hammer',      'sfx/sfx_hit_hammer.mp3');
 _loadAudio('hit_generic',     'sfx/sfx_hit_generic.wav');
 _loadAudio('shoot_bow',       'sfx/sfx_shoot_bow.mp3');
 _loadAudio('shoot_shuriken',  'sfx/sfx_shoot_shuriken.mp3');
@@ -78,6 +79,7 @@ const _HIT_WEAPON_MAP = {
   gungnir:    ['hit_spear',  0.28],
   fists:      ['hit_fists',  0.30],
   iron_fist:  ['hit_fists',  0.30],
+  hammer:     ['hit_hammer', 0.40],
   scythe:     ['hit_scythe', 0.45],
 };
 function sfxHit(weaponId) {
