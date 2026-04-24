@@ -26,9 +26,10 @@ class Ball {
     this.charRace    = cs.race    ?? null;   // used in drawRaceDecoration
     this.charSubrace = cs.subrace ?? null;   // used in drawRaceDecoration
 
-    this.maxHp = dur !== null ? (50 + dur * 10) : BASE_HP;
+    const SF = window.STAT_FORMULAS;
+    this.maxHp = dur !== null ? (SF.hp.base + dur * SF.hp.perDur) : BASE_HP;
     this.hp    = this.maxHp;
-    this.maxSpd     = spd !== null ? (7 + spd * 1.5) : 15;
+    this.maxSpd     = spd !== null ? (SF.speed.base + spd * SF.speed.perSpd) : 15;
     this.baseMaxSpd = this.maxSpd; // Speed Floor reference
     this.alive = true;
     this.mass = this.radius * this.radius * 0.05;
@@ -40,13 +41,13 @@ class Ball {
     this.scale = 1;
     this.bounceCooldown = 0;   // frames after a collision where AI backs off
     this.wallBoostFactor = 1.0; // speed multiplier from wall boost (decays back to 1.0)
-    this.evadeChance   = biq !== null ? biq * 0.02 : 0.10;  // BIQ×0.02, default 10%
-    this.deflectChance = ma  !== null ? ma  * 0.02 : 0;     // MA×0.02, Deflection skill
+    this.evadeChance   = biq !== null ? biq * SF.evade.perBIQ   : 0.10;
+    this.deflectChance = ma  !== null ? ma  * SF.deflect.perMA  : 0;
     this.mindBreakDebuff = 0;  // % outgoing damage reduction (set by opponent's Mind Break)
     this.evadeFrames = 0;
 
-    this.critChance  = iq  !== null ? iq  * 0.03 : 0.15;  // IQ×0.03 (IQ=10→30%, IQ=15→45%), default 15%
-    this.critMult    = 1.5 + Math.max(0, (iq !== null ? iq : 5) - 10) * 0.1;  // base 1.5, +0.1/IQ above 10 (IQ=20→×2.5)
+    this.critChance  = iq  !== null ? iq  * SF.crit.chancePerIQ : 0.15;
+    this.critMult    = SF.crit.baseMult + Math.max(0, (iq !== null ? iq : 5) - 10) * SF.crit.extraPerIQAbove10;
 
     this.weapon = this._initWeapon(weaponId);
     this.weaponDef = WEAPON_MAP[weaponId];
@@ -156,7 +157,7 @@ class Ball {
     const spearDebuff  = this.weapon.spinDebuffTimer > 0 ? 0.9 : 1.0;  // -10% from spear parry
     const hammerDebuff = this.weapon.spinSlowTimer   > 0 ? 0.7 : 1.0;  // -30% from hammer slow
     const parryBoost   = this.weapon.spinBoostTimer  > 0 ? 2.0 : 1.0;  // +100% from Parry Master
-    const lbExhausted  = this.rs_lbExhausted         ? 0.7 : 1.0;      // -30% from Limit Break exhaustion
+    const lbExhausted  = this.rs_lbExhausted         ? window.RACE_FORMULAS.human.limitBreak.exhaustionMult : 1.0;
     const giantBoost   = (this.weapon.whirlTimer > 0 && this.weaponDef?.id === 'jingubang') ? 6.0 : 1.0;  // Jingubang whirl mode: 6x spin
     const caliburnBoost = (this.weapon.caliburnSpeedTimer > 0) ? 1.4 : 1.0; // Caliburn: 3s speed boost
     const netDebuff    = this.netTrapped > 0 ? 0.70 : 1.0;              // -30% from Troll Net
@@ -168,32 +169,34 @@ class Ball {
   getDamage() {
     const def = this.weaponDef;
     const bwid = def.baseWeapon || def.id; // effective base weapon id
-    const str = this.charSTR ?? 1;
+    const CF = window.COMBAT_FORMULAS;
+    const str = (this.charSTR ?? 1) * CF.strMult;
     const ma  = this.charMA  ?? 0;
-    const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0;
+    const rageMult = (state.matchTime >= CF.rageThresholdSec * 60) ? CF.rageMult : 1.0;
     let base = def.baseDamage;
-    if (bwid === 'dagger') base += ma * 0.15;  // MA=10 → +1.5 base (×STR)
+    if (bwid === 'dagger') base += ma * CF.daggerMAScaling;
     let dmg = (base * str + this.weapon.bonusDamage) * rageMult;
-    if (bwid === 'fists')  dmg += ma * 0.5;    // MA flat bonus: MA=10 → +5 (không nhân STR)
+    if (bwid === 'fists')  dmg += ma * CF.fistsMAFlat;
     // Skills that modify outgoing damage
-    if (this.skills.includes('berserker') && this.hp / this.maxHp < 0.30) dmg *= (1.2 + (this.charIQ ?? 5) * 0.03);
-    if (this.skillState?.warCryReady)  dmg *= (1.5 + (this.charIQ ?? 5) * 0.05);
+    const SKF = window.SKILL_FORMULAS; const RF = window.RACE_FORMULAS;
+    if (this.skills.includes('berserker') && this.hp / this.maxHp < SKF.berserker.hpThreshold) dmg *= (SKF.berserker.baseMult + (this.charIQ ?? 5) * SKF.berserker.iqScaling);
+    if (this.skillState?.warCryReady)  dmg *= (SKF.war_cry.baseMult + (this.charIQ ?? 5) * SKF.war_cry.iqScaling);
     if (this.skillState?.counterActive) {
       // Parry Master counter has an expiry window; regular Counter has none
       const expired = this.skillState.counterExpiry != null
         && (typeof state !== 'undefined' ? state.matchTime : 0) > this.skillState.counterExpiry;
       if (expired) { this.skillState.counterActive = false; this.skillState.counterExpiry = null; }
-      else dmg *= (1.5 + (this.charBIQ ?? 5) * 0.05);
+      else dmg *= (SKF.counter.baseMult + (this.charBIQ ?? 5) * SKF.counter.biqScaling);
     }
     if (this.skillLearningMult > 1)    dmg *= this.skillLearningMult;
     // Mind Break debuff: opponent reduced this ball's outgoing damage at round start
     if (this.mindBreakDebuff > 0)      dmg *= (1 - this.mindBreakDebuff);
-    // Human Limit Break: each hit stacks +15% damage (no expiry)
-    if (this.charRace === 'human' && this.rs_active) dmg *= (1 + (this.rs_stacks || 0) * 0.15);
-    // Dwarf Master Forge: Sharpness stacks +5% dmg each
-    if (this.rs_forgeSharpness > 0) dmg *= (1 + this.rs_forgeSharpness * 0.05);
+    // Human Limit Break: each hit stacks damage (no expiry)
+    if (this.charRace === 'human' && this.rs_active) dmg *= (1 + (this.rs_stacks || 0) * RF.human.limitBreak.perStack);
+    // Dwarf Master Forge: Sharpness stacks dmg each
+    if (this.rs_forgeSharpness > 0) dmg *= (1 + this.rs_forgeSharpness * RF.dwarf.sharpness.perStack);
     // Orc Blood Price: burst hit deals bonus damage (STR-scaled)
-    if (this.charRace === 'orc' && this.rs_burstReady) dmg *= (1 + (this.charSTR ?? 5) * 0.15);
+    if (this.charRace === 'orc' && this.rs_burstReady) dmg *= (1 + (this.charSTR ?? 5) * RF.orc.bloodPrice.burstDmgPerSTR);
     // Rapier / Caliburn — Riposte multiplier (IQ-scaled + parry stacks)
     // Base: ×(1.5 + IQ×0.15), each parry stack adds ×0.5
     if (bwid === 'rapier' && this.weapon.riposteWindow > 0) {
@@ -226,17 +229,17 @@ class Ball {
     // Duel Instinct (Sword): +30% when only 1 enemy alive
     if (this.skills.includes('duel_instinct') && bwid === 'sword' && typeof state !== 'undefined') {
       const enemiesAlive = state.players.filter(p => p !== this && p.alive);
-      if (enemiesAlive.length <= 1) dmg *= 1.30;
+      if (enemiesAlive.length <= 1) dmg *= SKF.duel_instinct.mult;
     }
-    // Parry Punish (Sword): ×2 for (2 + IQ×0.2)s after parry
-    if (this.skillState?.parryPunishActive && bwid === 'sword') dmg *= 2.0; // mult fixed; window scales IQ
-    // Brawler's Rhythm (Fists): every 5th hit ×2.5
-    if (this.skillState?.brawlerReady && bwid === 'fists') dmg *= 2.5;
-    // Flurry Finisher (Dagger): every 5th consecutive hit ×2.5
-    if (this.skillState?.flurryReady && bwid === 'dagger') dmg *= 2.5;
-    // Heavy Momentum (Hammer): +20% per same-target stack (max 3 = +60%)
+    // Parry Punish (Sword): window scales IQ, mult from config
+    if (this.skillState?.parryPunishActive && bwid === 'sword') dmg *= SKF.parry_punish.mult;
+    // Brawler's Rhythm (Fists): every 5th hit
+    if (this.skillState?.brawlerReady && bwid === 'fists') dmg *= SKF.brawlers_rhythm.mult;
+    // Flurry Finisher (Dagger): every 5th consecutive hit
+    if (this.skillState?.flurryReady && bwid === 'dagger') dmg *= SKF.flurry_finisher.mult;
+    // Heavy Momentum (Hammer): per same-target stack
     if (this.skills.includes('heavy_momentum') && bwid === 'hammer' && (this.skillState?.hammerStacks || 0) > 0) {
-      dmg *= (1 + this.skillState.hammerStacks * 0.20);
+      dmg *= (1 + this.skillState.hammerStacks * SKF.heavy_momentum.perStack);
     }
     return dmg;
   }
@@ -284,8 +287,8 @@ class Ball {
     if (this.skills.includes('flow_state') && this.skillState?.flowStateStacks > 0) {
       effectiveMaxSpd *= (1 + this.skillState.flowStateStacks * (this.charMA || 0) * 0.01);
     }
-    // Human Limit Break: +50% speed cap while active
-    if (this.charRace === 'human' && this.rs_active) effectiveMaxSpd *= 1.5;
+    // Human Limit Break: speed cap boost while active
+    if (this.charRace === 'human' && this.rs_active) effectiveMaxSpd *= window.RACE_FORMULAS.human.limitBreak.speedMult;
     const spd = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
     if (spd > effectiveMaxSpd) { this.vx = this.vx/spd*effectiveMaxSpd; this.vy = this.vy/spd*effectiveMaxSpd; }
 
@@ -867,7 +870,7 @@ class Ball {
     // Skill: Fortify Shield — absorb up to (10 + BIQ×2) dmg; excess passes through
     if (this.skillState?.fortifyShield) {
       this.skillState.fortifyShield = false;
-      const absorbCap = 10 + (this.charBIQ || 0) * 2;
+      const absorbCap = window.SKILL_FORMULAS.fortify.baseAbsorb + (this.charBIQ || 0) * window.SKILL_FORMULAS.fortify.perBIQ;
       spawnSparks(this.x, this.y, 10);
       if (dmg <= absorbCap) {
         this.immunityFrames = 10;
@@ -888,22 +891,35 @@ class Ball {
       return false;
     }
 
-    // Skill: Thick Hide — -10% damage received
-    if (this.skills.includes('thick_hide')) dmg *= 0.9;
-    // Skill: Adaptation — resist scales with BIQ: 15% + BIQ×2% (max 35%)
+    // Skill: Thick Hide — reduce damage received
+    const _SKF = window.SKILL_FORMULAS;
+    if (this.skills.includes('thick_hide')) dmg *= (1 - _SKF.thick_hide.reduction);
+    // Skill: Adaptation — resist scales with BIQ
     if (this.adaptResist && attacker?.weaponDef?.id === this.adaptResist) {
-      const adaptReduct = Math.min(0.35, 0.15 + (this.charBIQ || 0) * 0.02);
+      const adaptReduct = Math.min(_SKF.adaptation.maxReduction, _SKF.adaptation.baseReduction + (this.charBIQ || 0) * _SKF.adaptation.biqScaling);
       dmg *= (1 - adaptReduct);
     }
-    // Guard Stance (Sword): during cooldown → BIQ×3% dmg reduction (max 30%)
+    // Guard Stance (Sword): during cooldown → BIQ-scaled dmg reduction
     if (this.skills.includes('guard_stance') && this.weaponDef?.id === 'sword' && this.weapon.cooldown > 0) {
-      const reduction = Math.min(0.30, (this.charBIQ || 0) * 0.03);
+      const reduction = Math.min(_SKF.guard_stance.maxReduction, (this.charBIQ || 0) * _SKF.guard_stance.perBIQ);
       dmg *= (1 - reduction);
     }
 
     const hpBefore = this.hp;
     this.hp -= dmg;
     this.stats.damageTaken += dmg;
+
+    // Race: Demon Blood Contract — incoming damage also heals while pact is active
+    if (this.charRace === 'demon' && this.rs_active && attacker !== this) {
+      const healAmt = Math.min(this.maxHp - this.hp, dmg * this.rs_absorbPct);
+      if (healAmt > 0.01) {
+        this.hp = Math.min(this.maxHp, this.hp + healAmt);
+        spawnDamageNumber(this.x, this.y - this.radius - 22, `📜 +${healAmt.toFixed(1)}`, '#ff3399');
+        if (typeof addBattleLog === 'function')
+          addBattleLog('heal', { attacker: getBallLabel(this), aColor: this.color,
+            heal: +healAmt.toFixed(1), hpAfter: +this.hp.toFixed(1), source: 'Blood Contract' });
+      }
+    }
 
     // Flow State: reset stacks when hit
     if (this.skillState?.flowStateStacks > 0) {
@@ -929,7 +945,7 @@ class Ball {
     // Race: Orc Blood Price — accumulate stacks each time hit; at 5 stacks, arm burst
     if (this.charRace === 'orc' && this.raceSkillDef && !this.rs_burstReady) {
       this.rs_stacks = (this.rs_stacks || 0) + 1;
-      if (this.rs_stacks >= 5) {
+      if (this.rs_stacks >= window.RACE_FORMULAS.orc.bloodPrice.stackThreshold) {
         this.rs_stacks = 0; this.rs_burstReady = true;
         spawnDamageNumber(this.x, this.y - this.radius - 20, '🩸 BLOODLUST!', '#cc2222');
       }
@@ -937,11 +953,11 @@ class Ball {
 
     // Race: Human Limit Break — triggers when HP crosses below 20% (last stand)
     if (this.charRace === 'human' && this.raceSkillDef &&
-        !this.rs_triggered && hpBefore >= this.maxHp * 0.20 && this.hp < this.maxHp * 0.20 && this.hp > 0) {
+        !this.rs_triggered && hpBefore >= this.maxHp * window.RACE_FORMULAS.human.limitBreak.hpThreshold && this.hp < this.maxHp * window.RACE_FORMULAS.human.limitBreak.hpThreshold && this.hp > 0) {
       this.rs_active        = true;
       this.rs_triggered     = true;
       this.rs_stacks        = 0;
-      this.rs_lbTimer       = 8 * 60;   // 8s duration
+      this.rs_lbTimer       = window.RACE_FORMULAS.human.limitBreak.durationFrames;
       this.rs_lbDrainTimer  = 2  * 60;  // first drain tick in 2s
       this.rs_lbExhausted   = false;
       spawnDamageNumber(this.x, this.y - this.radius - 26, '⚡ LIMIT BREAK!', '#ffdd00');
@@ -1009,6 +1025,8 @@ class Ball {
       this.hp = 1;
       this.skillState.phoenixUsed = true;
       spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 PHOENIX!', '#ff9900');
+      if (typeof addBattleLog === 'function')
+        addBattleLog('skill_trigger', { attacker: getBallLabel(this), aColor: this.color, text: '🔥 Phoenix — survived lethal hit!' });
       return true;
     }
 

@@ -108,9 +108,14 @@ let _pvpFighter    = null;
 let _pvpSpinning   = false;
 let _pvpApplied    = false;
 
+// Mystery reveal state
+let _pvpRevealId   = null;  // reward.id being revealed
+let _pvpRevealT    = 0;     // 0→1 progress
+let _pvpRevealRaf  = null;
+
 function _pvpEase(t) { return 1 - Math.pow(1 - t, 4); }
 
-function _pvpDrawWheel(rot) {
+function _pvpDrawWheel(rot, revealId, revealT) {
   if (!_pvpCtx) return;
   const ctx   = _pvpCtx;
   const total = PVP_REWARDS.reduce((s, r) => s + r.weight, 0);
@@ -118,17 +123,38 @@ function _pvpDrawWheel(rot) {
 
   let angle = rot;
   for (const rw of PVP_REWARDS) {
-    const sweep = (rw.weight / total) * Math.PI * 2;
+    const sweep     = (rw.weight / total) * Math.PI * 2;
+    const isMyst    = !isDiscovered('pvp_reward', rw.id);
+    const isReveal  = (revealId === rw.id && revealT != null);
 
     // Segment fill
     ctx.beginPath();
     ctx.moveTo(_PCX, _PCY);
     ctx.arc(_PCX, _PCY, _PR, angle, angle + sweep);
     ctx.closePath();
-    ctx.fillStyle = rw.color;
+
+    if (isReveal) {
+      const from = [26, 26, 46];
+      const toC  = _hexToRgb(rw.color) || [100, 100, 200];
+      const rv   = revealT ?? 0;
+      const r2   = Math.round(from[0] + (toC[0] - from[0]) * rv);
+      const g2   = Math.round(from[1] + (toC[1] - from[1]) * rv);
+      const b2   = Math.round(from[2] + (toC[2] - from[2]) * rv);
+      ctx.fillStyle = `rgb(${r2},${g2},${b2})`;
+      if (rv < 0.85) {
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur  = 20 * Math.sin(rv * Math.PI);
+      }
+    } else if (isMyst) {
+      ctx.fillStyle = '#1a1a2e';
+    } else {
+      ctx.fillStyle = rw.color;
+    }
+
     ctx.fill();
+    ctx.shadowBlur  = 0;
     ctx.strokeStyle = '#07071a';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth   = 1.5;
     ctx.stroke();
 
     // Label (only if segment is wide enough to fit text)
@@ -137,21 +163,57 @@ function _pvpDrawWheel(rot) {
       ctx.save();
       ctx.translate(_PCX + Math.cos(mid) * _PR * 0.65,
                     _PCY + Math.sin(mid) * _PR * 0.65);
-      // Radial orientation with left-half flip
       const normMid = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
       const flip = normMid > Math.PI / 2 && normMid < 3 * Math.PI / 2;
       ctx.rotate(mid + (flip ? Math.PI : 0));
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 8px Arial';
-      ctx.textAlign = 'center';
+      ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
-      ctx.shadowColor = '#000';
-      ctx.shadowBlur  = 4;
-      const lbl = rw.label.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
-      ctx.fillText(lbl.length > 14 ? lbl.slice(0, 13) + '…' : lbl, 0, 0);
+      ctx.shadowColor  = '#000';
+      ctx.shadowBlur   = 4;
+
+      if (isReveal) {
+        const rv = revealT ?? 0;
+        if (rv < 0.42) {
+          ctx.font      = 'bold 8px Arial';
+          ctx.fillStyle = `rgba(150,150,180,${(1 - rv / 0.42) * 0.7})`;
+          ctx.fillText('???', 0, 0);
+        } else {
+          const alpha = Math.min(1, (rv - 0.50) / 0.50);
+          ctx.font      = 'bold 8px Arial';
+          ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+          const lbl = rw.label.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+          ctx.fillText(lbl.length > 14 ? lbl.slice(0, 13) + '…' : lbl, 0, 0);
+        }
+      } else if (isMyst) {
+        ctx.font      = 'bold 8px Arial';
+        ctx.fillStyle = 'rgba(150,150,180,0.55)';
+        ctx.fillText('???', 0, 0);
+      } else {
+        ctx.font      = 'bold 8px Arial';
+        ctx.fillStyle = '#fff';
+        const lbl = rw.label.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+        ctx.fillText(lbl.length > 14 ? lbl.slice(0, 13) + '…' : lbl, 0, 0);
+      }
+
       ctx.restore();
     }
 
+    // Burst sparks during reveal
+    if (isReveal && revealT > 0.35 && revealT < 0.75) {
+      const mid  = angle + sweep / 2;
+      const bx   = _PCX + Math.cos(mid) * _PR * 0.65;
+      const by   = _PCY + Math.sin(mid) * _PR * 0.65;
+      const pt   = (revealT - 0.35) / 0.40;
+      const salpha = Math.sin(pt * Math.PI);
+      for (let i = 0; i < 6; i++) {
+        const sa   = mid + (i / 6) * Math.PI * 2;
+        const dist = 14 * pt;
+        ctx.beginPath();
+        ctx.arc(bx + Math.cos(sa) * dist, by + Math.sin(sa) * dist, 2.5 * (1 - pt * 0.6), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,215,0,${salpha * 0.85})`;
+        ctx.fill();
+      }
+    }
 
     angle += sweep;
   }
@@ -202,8 +264,33 @@ function _pvpAnimateSpin(ts) {
   } else {
     _pvpSpinning = false;
     _pvpDrawWheel(_pvpSpinTarget);
-    _pvpOnLand();
+    // Mystery reveal: if this reward hasn't been seen before, play reveal animation
+    const needsReveal = _pvpReward && !isDiscovered('pvp_reward', _pvpReward.id);
+    if (needsReveal) {
+      markDiscovered('pvp_reward', _pvpReward.id);
+      _pvpPlayReveal(_pvpReward.id, () => _pvpOnLand());
+    } else {
+      _pvpOnLand();
+    }
   }
+}
+
+function _pvpPlayReveal(rewardId, onDone) {
+  const dur   = 1300;
+  let   start = null;
+  const tick  = (ts) => {
+    if (!start) start = ts;
+    const rv = Math.min(1, (ts - start) / dur);
+    _pvpDrawWheel(_pvpSpinTarget, rewardId, rv);
+    if (rv < 1) {
+      _pvpRevealRaf = requestAnimationFrame(tick);
+    } else {
+      _pvpRevealRaf = null;
+      _pvpDrawWheel(_pvpSpinTarget); // final draw without overlay
+      onDone();
+    }
+  };
+  _pvpRevealRaf = requestAnimationFrame(tick);
 }
 
 function _pvpOnLand() {
@@ -217,11 +304,9 @@ function _pvpOnLand() {
 
   let outcome;
   if (_demonSrl === 'Leviathan' && _isStatRwd) {
-    // Leviathan cannot gain stat bonuses from PvP rewards
-    outcome = `😈 Leviathan's Envy — stat reward ignored`;
+    outcome = t('pvp_leviathan_block');
   } else if (_demonSrl === 'Belphegor' && _isSkillRwd) {
-    // Belphegor cannot gain skills from PvP rewards
-    outcome = `😈 Belphegor's Sloth — skill reward ignored`;
+    outcome = t('pvp_belphegor_block');
   } else {
     // Apply reward + get outcome string (in-tournament only, does NOT sync to roster)
     outcome = _pvpApplyReward(_pvpFighter, _pvpReward);
@@ -268,12 +353,12 @@ function showPVPRewardWheel(fighter) {
 
   // Update winner label
   const nameEl = document.getElementById('pvp-reward-winner');
-  if (nameEl) nameEl.textContent = `${fighter.charEmoji ?? '⚔️'} ${fighter.charName ?? 'Winner'} wins!`;
+  if (nameEl) nameEl.textContent = `${fighter.charEmoji ?? '⚔️'} ${fighter.charName ?? t('pvp_default_winner')} ${t('pvp_winner_wins')}`;
 
   // Reset UI
   document.getElementById('pvp-reward-result').style.display = 'none';
   const spinBtn = document.getElementById('pvp-spin-btn');
-  if (spinBtn) { spinBtn.disabled = false; spinBtn.textContent = '🎰 SPIN!'; }
+  if (spinBtn) { spinBtn.disabled = false; spinBtn.textContent = t('pvp_spin_btn'); }
 
   // Show modal
   document.getElementById('pvp-reward-modal').style.display = 'flex';
@@ -328,7 +413,7 @@ document.getElementById('pvp-spin-btn')?.addEventListener('click', () => {
   _pvpStartTime = null;
   const btn = document.getElementById('pvp-spin-btn');
   btn.disabled    = true;
-  btn.textContent = '🎡 Spinning…';
+  btn.textContent = t('wheel_spinning');
   requestAnimationFrame(_pvpAnimateSpin);
 });
 
@@ -467,13 +552,13 @@ function showCopycatWheel(fighter, wheelData) {
 
   // Winner label
   const nameEl = document.getElementById('cc-winner-label');
-  if (nameEl) nameEl.textContent = `${fighter.charEmoji ?? '🎭'} ${fighter.charName ?? 'Winner'} — Copycat`;
+  if (nameEl) nameEl.textContent = `${fighter.charEmoji ?? '🎭'} ${fighter.charName ?? t('pvp_default_winner')} — ${t('cc_label')}`;
 
   // Reset UI
   document.getElementById('cc-result').style.display = 'none';
   document.getElementById('cc-spin-btn').style.display = '';
   document.getElementById('cc-spin-btn').disabled = false;
-  document.getElementById('cc-spin-btn').textContent = '🎭 SPIN!';
+  document.getElementById('cc-spin-btn').textContent = t('cc_spin_btn');
   document.getElementById('cc-continue-btn').style.display = 'none';
 
   // Show modal & draw
@@ -486,7 +571,7 @@ document.getElementById('cc-spin-btn')?.addEventListener('click', () => {
   if (_ccSpinning || _ccApplied) return;
   _ccSpinning = true; _ccStartTime = null;
   const btn = document.getElementById('cc-spin-btn');
-  btn.disabled = true; btn.textContent = '🎡 Spinning…';
+  btn.disabled = true; btn.textContent = t('wheel_spinning');
   requestAnimationFrame(_ccAnimate);
 });
 
@@ -607,13 +692,13 @@ function _ewOnLand() {
     case 'Air': {
       const k = SK.reduce((a, b) => (cs[a] ?? 0) < (cs[b] ?? 0) ? a : b);
       cs[k] = (cs[k] ?? 0) + 1;
-      resultText = `+1 ${k.toUpperCase()} (stat thấp nhất)`;
+      resultText = t('ew_result_air').replace('{stat}', k.toUpperCase());
       break;
     }
     case 'Water': {
       const k = SK.reduce((a, b) => (cs[a] ?? 0) > (cs[b] ?? 0) ? a : b);
       cs[k] = (cs[k] ?? 0) + 1;
-      resultText = `+1 ${k.toUpperCase()} (stat cao nhất)`;
+      resultText = t('ew_result_water').replace('{stat}', k.toUpperCase());
       break;
     }
     case 'Fire': {
@@ -624,16 +709,16 @@ function _ewOnLand() {
         const sk = pool[Math.floor(Math.random() * pool.length)];
         if (!_ewFighter.skills) _ewFighter.skills = [];
         _ewFighter.skills.push(sk.id);
-        resultText = `+1 Skill: ${sk.name}`;
+        resultText = t('ew_result_fire').replace('{skill}', sk.name);
       } else {
-        resultText = 'Không còn skill trong pool';
+        resultText = t('ew_result_fire_empty');
       }
       break;
     }
     case 'Earth': {
       cs.durability = (cs.durability ?? 0) + 1;
       cs.strength   = (cs.strength   ?? 0) + 1;
-      resultText = '+1 DUR, +1 STR';
+      resultText = t('ew_result_earth');
       break;
     }
   }
@@ -671,12 +756,12 @@ function showPrimordialElementalWheel(fighter, onClose) {
   // Winner label
   const nameEl = document.getElementById('ew-winner-name');
   if (nameEl) nameEl.textContent =
-    `🌌 ${fighter.charEmoji ?? '🌌'} ${fighter.charName ?? 'Primordial'} — Elemental Blessing!`;
+    `🌌 ${fighter.charEmoji ?? '🌌'} ${fighter.charName ?? t('ew_default_name')} — ${t('ew_label')}`;
 
   // Reset UI
   document.getElementById('ew-result').style.display       = 'none';
   const spinBtn = document.getElementById('ew-spin-btn');
-  spinBtn.style.display = ''; spinBtn.disabled = false; spinBtn.textContent = '🌀 SPIN!';
+  spinBtn.style.display = ''; spinBtn.disabled = false; spinBtn.textContent = t('ew_spin_btn');
   document.getElementById('ew-continue-btn').style.display = 'none';
 
   // Show modal & draw initial wheel
@@ -689,7 +774,7 @@ document.getElementById('ew-spin-btn')?.addEventListener('click', () => {
   if (_ewSpinning || _ewApplied) return;
   _ewSpinning = true; _ewStartTime = null;
   const btn = document.getElementById('ew-spin-btn');
-  btn.disabled = true; btn.textContent = '🌀 Spinning…';
+  btn.disabled = true; btn.textContent = t('ew_spinning');
   requestAnimationFrame(_ewAnimate);
 });
 

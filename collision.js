@@ -3,6 +3,43 @@
 // ============================================================
 function dist2(ax, ay, bx, by) { return (ax-bx)*(ax-bx) + (ay-by)*(ay-by); }
 
+// Snapshot weapon scalable fields before onHit, then log what changed
+function _snapWeapon(w) {
+  return {
+    bonusDamage:    w.bonusDamage    ?? 0,
+    bonusLength:    w.bonusLength    ?? 0,
+    arrowCount:     w.arrowCount     ?? 1,
+    shurikenCount:  w.shurikenCount  ?? 1,
+    bonusKnockback: w.bonusKnockback ?? 0,
+    spinBonus:      w.spinBonus      ?? 0,
+    attackCooldown: w.attackCooldown ?? 999,
+  };
+}
+function _logWeaponScaleIfChanged(ball, before) {
+  const w = ball.weapon, def = ball.weaponDef;
+  if (!def || typeof addBattleLog !== 'function') return;
+  const name = getBallLabel(ball);
+  const col  = ball.color;
+  const wname = def.name;
+  const parts = [];
+  const bd = (w.bonusDamage ?? 0) - before.bonusDamage;
+  if (bd > 0.001)                                  parts.push(`+${bd.toFixed(1)} dmg`);
+  const bl = (w.bonusLength ?? 0) - before.bonusLength;
+  if (bl > 0.001)                                  parts.push(`+${bl.toFixed(0)} reach`);
+  const ac = (w.arrowCount ?? 1) - before.arrowCount;
+  if (ac > 0)                                      parts.push(`+${ac} arrow (${w.arrowCount} total)`);
+  const sc = (w.shurikenCount ?? 1) - before.shurikenCount;
+  if (sc > 0)                                      parts.push(`+${sc} star (${w.shurikenCount} total)`);
+  const bk = (w.bonusKnockback ?? 0) - before.bonusKnockback;
+  if (bk > 0.001)                                  parts.push(`+${bk.toFixed(1)} knockback`);
+  const sb = (w.spinBonus ?? 0) - before.spinBonus;
+  if (sb > 0.0001)                                 parts.push(`+spin`);
+  const cdDiff = before.attackCooldown - (w.attackCooldown ?? 999);
+  if (cdDiff > 0.5)                                parts.push(`−${cdDiff.toFixed(0)} CD`);
+  if (parts.length > 0)
+    addBattleLog('weapon_scale', { attacker: name, aColor: col, weapon: wname, text: parts.join(', ') });
+}
+
 // Parry Technique III: generate dense hit points along the full weapon length
 function getFullWeaponHitPoints(ball) {
   const stdPts = ball.weaponDef.getHitPoints(ball);
@@ -196,18 +233,18 @@ function resolveProjectiles(players, projectiles) {
       if (dist2(proj.x, proj.y, target.x, target.y) < (proj.r + target.radius) * (proj.r + target.radius)) {
         const isCrit = Math.random() < proj.owner.critChance;
         const baseProjDmg = proj.damage; // rageMult already baked in via getDamage() at throw time
-        // Skill: Predator — +15% if target has less HP
-        const predMult = proj.owner.skillState?.predatorActive ? 1.15 : 1;
+        // Skill: Predator — bonus if target has less HP
+        const predMult = proj.owner.skillState?.predatorActive ? window.SKILL_FORMULAS.predator.mult : 1;
         // Weapon skills: projectile damage multipliers
         let wSkillProjMult = 1;
         if (proj.sniperBoost) {
-          const sniperMult = 1.4 + (proj.owner?.charIQ || 5) * 0.03;
+          const sniperMult = window.SKILL_FORMULAS.sniper.baseMult + (proj.owner?.charIQ || 5) * window.SKILL_FORMULAS.sniper.iqScaling;
           wSkillProjMult *= sniperMult;
           spawnDamageNumber(target.x, target.y - target.radius - 18, `🎯 SNIPE! ×${sniperMult.toFixed(2)}`, '#ffdd44');
           if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['sniper']);
         }
         if (proj.volleyBoost) {
-          const volleyMult = 1.5 + (proj.owner?.charIQ || 5) * 0.05;
+          const volleyMult = window.SKILL_FORMULAS.volley.baseMult + (proj.owner?.charIQ || 5) * window.SKILL_FORMULAS.volley.iqScaling;
           wSkillProjMult *= volleyMult;
           spawnDamageNumber(target.x, target.y - target.radius - 18, `🏹 VOLLEY! ×${volleyMult.toFixed(2)}`, '#ffaa33');
           if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['volley']);
@@ -215,11 +252,11 @@ function resolveProjectiles(players, projectiles) {
         if (proj.type === 'shuriken' && (proj.bounces || 0) > 0) {
           // Bounce Damage: +15% per bounce
           if (proj.owner?.skills?.includes('bounce_damage')) {
-            wSkillProjMult *= (1 + proj.bounces * 0.15);
+            wSkillProjMult *= (1 + proj.bounces * window.SKILL_FORMULAS.bounce_damage.perBounce);
           }
-          // Ricochet Kill: +100% after 2+ bounces
-          if (proj.owner?.skills?.includes('ricochet_kill') && proj.bounces >= 2) {
-            wSkillProjMult *= 2.0;
+          // Ricochet Kill: bonus after min bounces
+          if (proj.owner?.skills?.includes('ricochet_kill') && proj.bounces >= window.SKILL_FORMULAS.ricochet_kill.minBounces) {
+            wSkillProjMult *= window.SKILL_FORMULAS.ricochet_kill.mult;
             spawnDamageNumber(target.x, target.y - target.radius - 18, '⭐ RICOCHET! ×2', '#ffdd44');
             if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['ricochet_kill']);
           }
@@ -247,7 +284,7 @@ function resolveProjectiles(players, projectiles) {
           target.vx += Math.cos(ka) * 4.5;
           target.vy += Math.sin(ka) * 4.5;
           target.bounceCooldown = 14;
-          proj.owner.weaponDef.onHit(proj.owner.weapon);
+          { const _wpre = _snapWeapon(proj.owner.weapon); proj.owner.weaponDef.onHit(proj.owner.weapon); _logWeaponScaleIfChanged(proj.owner, _wpre); }
           skillOnHit(proj.owner, target, dmg);
           // Medusa Bow: slow stack + petrify
           if (proj.medusaArrow) {
@@ -284,6 +321,9 @@ function _checkWeaponHit(attacker, defender) {
   if (attacker.teamId >= 0 && attacker.teamId === defender.teamId) return;
   if (attacker.weapon.cooldown > 0) return;
   if (defender.immunityFrames > 0) return;
+  // No hits while either party is parry-frozen (both are frozen → attacker can't swing, defender is invulnerable)
+  if (attacker.stunTimer > 0 && attacker.parryStunReverse) return;
+  if (defender.stunTimer > 0 && defender.parryStunReverse) return;
   const def = attacker.weaponDef;
   if (def.aiType === 'ranged') return; // ranged weapons don't melee-hit
 
@@ -314,20 +354,20 @@ function _checkWeaponHit(attacker, defender) {
         ? (def.baseKnockback + (attacker.weapon.bonusKnockback||0)) / 2
         : 0;
       const baseDmgNoCrit = attacker.getDamage() + kbBonus;
-      // Skill: Predator — +15% damage when target has less HP
-      const predMult = attacker.skillState?.predatorActive ? 1.15 : 1;
-      // Skill: Exploit — (IQ+BIQ)×1% chance to deal double damage
+      // Skill: Predator — bonus damage when target has less HP
+      const predMult = attacker.skillState?.predatorActive ? window.SKILL_FORMULAS.predator.mult : 1;
+      // Skill: Exploit — (IQ+BIQ) × chancePerCombinedStat
       const exploitChance = attacker.skills?.includes('exploit')
-        ? ((attacker.charIQ || 0) + (attacker.charBIQ || 0)) * 0.01 : 0;
+        ? ((attacker.charIQ || 0) + (attacker.charBIQ || 0)) * window.SKILL_FORMULAS.exploit.chancePerCombinedStat : 0;
       const isExploit = exploitChance > 0 && Math.random() < exploitChance;
-      // Reaper's Mark (Scythe): +80% dmg vs enemies below 30% HP
+      // Reaper's Mark (Scythe): bonus dmg vs enemies below HP threshold
       const reaperMult = (attacker.skills?.includes('reapers_mark') && def.id === 'scythe'
-        && defender.hp / defender.maxHp < 0.30) ? 1.80 : 1.0;
+        && defender.hp / defender.maxHp < window.SKILL_FORMULAS.reapers_mark.hpThreshold) ? window.SKILL_FORMULAS.reapers_mark.mult : 1.0;
       if (reaperMult > 1) {
         spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '💀 EXECUTE! ×1.8', '#ff2222');
         if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['reapers_mark']);
       }
-      const exploitMult = isExploit ? (1.5 + (attacker.charIQ || 5) * 0.05) : 1;
+      const exploitMult = isExploit ? (window.SKILL_FORMULAS.exploit.baseMult + (attacker.charIQ || 5) * window.SKILL_FORMULAS.exploit.iqScaling) : 1;
       const dmg = baseDmgNoCrit * (isCrit ? attacker.critMult : 1) * predMult * exploitMult * reaperMult;
       const hitResult = defender.takeDamage(dmg, attacker.x, attacker.y, isCrit, attacker);
       if (hitResult) {
@@ -385,7 +425,7 @@ function _checkWeaponHit(attacker, defender) {
           }
         }
         // Scaling
-        def.onHit(attacker.weapon);
+        { const _wpre = _snapWeapon(attacker.weapon); def.onHit(attacker.weapon); _logWeaponScaleIfChanged(attacker, _wpre); }
         skillOnHit(attacker, defender, dmg);
         // Blessed by Athena: Combo Chain — BIQ×5% chance to instantly reset attack cooldown
         if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'Blessed by Athena') {

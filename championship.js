@@ -443,7 +443,7 @@ function toggleChampAuto() {
   state.champAuto = !state.champAuto;
   const btn = document.getElementById('champAutoBtn');
   if (btn) {
-    btn.textContent = state.champAuto ? '⏹ Stop Auto' : '⚡ Auto';
+    btn.textContent = state.champAuto ? t('champ_stop_auto_btn') : t('champ_auto_btn');
     btn.classList.toggle('active', state.champAuto);
   }
   _syncChampAutoStopBtn();
@@ -499,28 +499,91 @@ function champAutoTick() {
     }
   }
 
-  // Match fully decided — reward wheel will show at +500ms
-  // Register close callback so manual OR auto-close both trigger _proceed
+  // Match fully decided — reward wheel(s) will appear shortly.
+  // Register close callback so manual OR auto-close both trigger _proceed.
   if (typeof pvpRewardSetOnClose === 'function') pvpRewardSetOnClose(_proceed);
 
-  // Auto-spin after wheel has appeared (500ms delay + 300ms buffer = 800ms)
-  setTimeout(() => {
+  // ── Poll-based auto handler (fixes elemental + fog-of-war timing) ──
+
+  // Step 3: after PVP spin, poll until result panel visible, then Continue
+  const _autoPvpContinue = () => {
     if (!state.champAuto) return;
-    const modal   = document.getElementById('pvp-reward-modal');
-    const spinBtn = document.getElementById('pvp-spin-btn');
-    if (modal?.style.display !== 'none' && spinBtn && !spinBtn.disabled) {
-      spinBtn.click();
-      // Auto-click Continue after 4000ms spin + 600ms buffer
+    const res = document.getElementById('pvp-reward-result');
+    if (res && res.style.display !== 'none') {
+      // Result visible — wait a beat then click Continue
       setTimeout(() => {
         if (!state.champAuto) return;
         document.getElementById('pvp-reward-continue')?.click();
-      }, 4600);
+      }, 700);
     } else {
-      // Wheel didn't appear (e.g. draw) → clear callback and proceed directly
-      if (typeof pvpRewardSetOnClose === 'function') pvpRewardSetOnClose(null);
-      setTimeout(_proceed, 500);
+      setTimeout(_autoPvpContinue, 250);
     }
-  }, 800);
+  };
+
+  // Step 2: auto-handle PVP reward modal once it appears
+  const _autoPvpModal = () => {
+    if (!state.champAuto) return;
+    const pvpModal = document.getElementById('pvp-reward-modal');
+    const spinBtn  = document.getElementById('pvp-spin-btn');
+    if (pvpModal?.style.display !== 'none' && spinBtn && !spinBtn.disabled) {
+      spinBtn.click();
+      setTimeout(_autoPvpContinue, 500); // start polling for result after spin begins
+    } else if (pvpModal?.style.display !== 'none') {
+      // Modal visible but button disabled (already spinning?) — just poll for result
+      setTimeout(_autoPvpContinue, 500);
+    } else {
+      setTimeout(_autoPvpModal, 250); // PVP modal not yet visible — keep polling
+    }
+  };
+
+  // Step 1: check what appears first — elemental wheel or PVP reward wheel
+  const _autoStart = () => {
+    if (!state.champAuto) return;
+
+    const ewModal  = document.getElementById('elemental-wheel-modal');
+    const ewSpin   = document.getElementById('ew-spin-btn');
+    const pvpModal = document.getElementById('pvp-reward-modal');
+
+    if (ewModal?.style.display === 'flex' && ewSpin && !ewSpin.disabled) {
+      // Elemental wheel is up — auto-spin it
+      ewSpin.click();
+      // Poll for elemental result, then click Continue (which triggers PVP modal)
+      const _waitEwResult = () => {
+        if (!state.champAuto) return;
+        const ewRes = document.getElementById('ew-result');
+        if (ewRes && ewRes.style.display !== 'none') {
+          setTimeout(() => {
+            if (!state.champAuto) return;
+            document.getElementById('ew-continue-btn')?.click();
+            // PVP reward modal will appear after elemental closes
+            setTimeout(_autoPvpModal, 400);
+          }, 700);
+        } else {
+          setTimeout(_waitEwResult, 250);
+        }
+      };
+      _waitEwResult();
+
+    } else if (pvpModal?.style.display !== 'none') {
+      // PVP reward modal already visible (non-primordial winner)
+      _autoPvpModal();
+
+    } else {
+      // Neither visible yet — keep polling (handles async delays)
+      // After 3s with no modal, assume draw/no reward → proceed directly
+      _autoStart._polls = (_autoStart._polls || 0) + 1;
+      if (_autoStart._polls > 12) {
+        _autoStart._polls = 0;
+        if (typeof pvpRewardSetOnClose === 'function') pvpRewardSetOnClose(null);
+        setTimeout(_proceed, 300);
+      } else {
+        setTimeout(_autoStart, 250);
+      }
+    }
+  };
+
+  // Give result.js time to show the wheel(s) before we start polling
+  setTimeout(() => { _autoStart._polls = 0; _autoStart(); }, 700);
 }
 
 function _champAutoLaunch() {
@@ -538,7 +601,7 @@ function _champAutoLaunch() {
 function _updateChampAutoBtn() {
   const btn = document.getElementById('champAutoBtn');
   if (btn) {
-    btn.textContent = '⚡ Auto';
+    btn.textContent = t('champ_auto_btn');
     btn.classList.remove('active');
   }
   const nmBtn = document.getElementById('nextMatchBtn');
@@ -594,7 +657,7 @@ function renderChampionshipBracket() {
   if (autoBtn) {
     const showAuto = !cs.completed && !!getNextChampionshipMatch() && !_isNextMatchGrandFinal();
     autoBtn.style.display = showAuto ? '' : 'none';
-    autoBtn.textContent = state.champAuto ? '⏹ Stop Auto' : '⚡ Auto';
+    autoBtn.textContent = state.champAuto ? t('champ_stop_auto_btn') : t('champ_auto_btn');
     autoBtn.classList.toggle('active', !!state.champAuto);
   }
   const content=document.getElementById('bracket-content'); if (!content) return;
@@ -751,7 +814,7 @@ function buildChampionshipSetup() {
     b.classList.toggle('sel', parseInt(b.dataset.cssize) === size);
     b.classList.toggle('cs-size-locked', draftLocked && parseInt(b.dataset.cssize) !== size);
     b.title = (draftLocked && parseInt(b.dataset.cssize) !== size)
-      ? `🔒 Locked — ${cs.draftRoster.length} player(s) in draft`
+      ? t('champ_lock_warning').replace('{n}', cs.draftRoster.length)
       : '';
   });
 
@@ -784,16 +847,16 @@ function _buildChampionshipTagForm(cs) {
 
   listEl.innerHTML = `
     <div class="cs-tag-form">
-      <div class="cs-tag-form-title">⚔️ Name Your Championship</div>
+      <div class="cs-tag-form-title">${t('champ_tag_form_title')}</div>
       <div class="cs-tag-form-row">
-        <label class="cs-tag-label">Championship Name <span style="color:#445">(1–16 chars)</span></label>
-        <input id="csChampName" maxlength="16" placeholder="e.g. Sunohana" class="cg-name-input" style="width:220px">
+        <label class="cs-tag-label">${t('champ_tag_name_label')} <span style="color:#445">${t('champ_tag_name_hint')}</span></label>
+        <input id="csChampName" maxlength="16" placeholder="${t('champ_tag_placeholder_name')}" class="cg-name-input" style="width:220px">
       </div>
       <div class="cs-tag-form-row">
-        <label class="cs-tag-label">Tag <span style="color:#445">(exactly 3 chars, like Discord)</span></label>
-        <input id="csChampTag" maxlength="3" placeholder="SHN" class="cg-name-input cs-tag-input">
+        <label class="cs-tag-label">${t('champ_tag_label')} <span style="color:#445">${t('champ_tag_hint')}</span></label>
+        <input id="csChampTag" maxlength="3" placeholder="${t('champ_tag_placeholder_tag')}" class="cg-name-input cs-tag-input">
       </div>
-      <button class="cg-btn primary" id="csTagSubmit" style="margin-top:14px;width:100%;max-width:320px">✓ Set & Continue →</button>
+      <button class="cg-btn primary" id="csTagSubmit" style="margin-top:14px;width:100%;max-width:320px">${t('champ_tag_btn_set')}</button>
       <div id="csTagError" style="color:#ff4455;font-size:12px;margin-top:6px;display:none"></div>
     </div>`;
 
@@ -808,8 +871,8 @@ function _buildChampionshipTagForm(cs) {
     const name  = nameInput.value.trim();
     const tag   = tagInput.value.trim();
     const errEl = document.getElementById('csTagError');
-    if (!name)           { errEl.textContent = 'Championship name cannot be empty.'; errEl.style.display = ''; return; }
-    if (tag.length !== 3){ errEl.textContent = 'Tag must be exactly 3 characters.';  errEl.style.display = ''; return; }
+    if (!name)           { errEl.textContent = t('champ_tag_error_empty_name'); errEl.style.display = ''; return; }
+    if (tag.length !== 3){ errEl.textContent = t('champ_tag_error_tag_length'); errEl.style.display = ''; return; }
     cs.name = name;
     cs.tag  = tag;
     saveDraftProgress();   // persist name/tag immediately
@@ -855,12 +918,13 @@ function _buildChampionshipDraft(cs) {
   const actRow = document.createElement('div');
   actRow.className = 'cs-draft-actions';
   if (!full) {
+    const _dbg = window.debugMode ? '' : ' style="display:none"';
     actRow.innerHTML = `
-      <button class="t-sel-btn cs-draft-btn" onclick="initChargenDraft()">⚗️ Create Player</button>
-      <button class="t-sel-btn cs-draft-btn" onclick="quickCreateDraft()">⚡ Quick Create</button>
+      <button class="t-sel-btn cs-draft-btn" onclick="initChargenDraft()">${t('champ_btn_create_player')}</button>
+      <button class="t-sel-btn cs-draft-btn"${_dbg} onclick="quickCreateDraft()">${t('champ_btn_quick_create')}</button>
       <button class="t-sel-btn cs-draft-btn cs-fill-btn" onclick="fillRemainingDraftSlots()">⚡ Fill ${size - draft.length} Remaining</button>`;
   } else {
-    actRow.innerHTML = `<div class="cs-draft-ready">✅ Draft complete! ${size} players ready.</div>`;
+    actRow.innerHTML = `<div class="cs-draft-ready">✅ ${t('champ_draft_full').replace('{n}', size)}</div>`;
   }
   listEl.appendChild(actRow);
 
@@ -870,7 +934,7 @@ function _buildChampionshipDraft(cs) {
     const remaining    = cs.uniquePool.size;
     const poolEl = document.createElement('div');
     poolEl.className = 'cs-unique-pool-info';
-    poolEl.innerHTML = `★ Unique pool: <b>${remaining}</b> / ${totalUniques} available`;
+    poolEl.innerHTML = t('champ_unique_pool').replace('{remaining}', `<b>${remaining}</b>`).replace('{total}', totalUniques);
     listEl.appendChild(poolEl);
   }
 
@@ -881,7 +945,7 @@ function _buildChampionshipDraft(cs) {
     const sinEl = document.createElement('div');
     sinEl.className = 'cs-unique-pool-info';
     sinEl.style.color = sinLeft > 0 ? '#cc88ff' : '#666';
-    sinEl.innerHTML = `😈 Demon sins: <b>${sinLeft}</b> / ${totalSins} available${sinLeft === 0 ? ' — sinless only' : ''}`;
+    sinEl.innerHTML = t('champ_demon_pool').replace('{n}', `<b>${sinLeft}</b>`).replace('{total}', totalSins) + (sinLeft === 0 ? ` ${t('champ_demon_pool_empty')}` : '');
     listEl.appendChild(sinEl);
   }
 
@@ -898,7 +962,7 @@ function _buildChampionshipDraft(cs) {
   if (draft.length === 0) {
     const empty = document.createElement('div');
     empty.className = 't-roster-empty';
-    empty.textContent = 'No players yet — start creating!';
+    empty.textContent = t('champ_draft_empty');
     listEl.appendChild(empty);
   } else {
     draft.forEach((ch, idx) => {

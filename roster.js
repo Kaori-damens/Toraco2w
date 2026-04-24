@@ -147,7 +147,7 @@ function renderRoster() {
   const grid = document.getElementById('rosterGrid');
   if (!grid) return;
   if (cgRoster.length === 0) {
-    grid.innerHTML = '<div class="roster-empty">No characters yet — create one above!</div>'; return;
+    grid.innerHTML = `<div class="roster-empty">${t('roster_empty')}</div>`; return;
   }
 
   // Apply smart filter
@@ -163,7 +163,7 @@ function renderRoster() {
     });
 
   if (filtered.length === 0) {
-    grid.innerHTML = '<div class="roster-empty">No Radosers match this filter.</div>'; return;
+    grid.innerHTML = `<div class="roster-empty">${t('roster_no_match')}</div>`; return;
   }
 
   const wepLabel = id => CG_WEAPONS.find(w => w.id === id)?.label ?? id;

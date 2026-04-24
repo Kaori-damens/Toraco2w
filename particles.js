@@ -268,6 +268,10 @@ function getBlogText(e) {
     return `${a} → ${d} 🤺 <span style="color:#aae0ff">Lunge -${(+e.damage).toFixed(1)}</span><span style="color:#888"> HP left: ${(+(e.defHp ?? 0)).toFixed(1)}</span>`;
   if (e.type === 'iai')
     return `${a} → ${d} ⚔️ <span style="color:#eeeeff">IAI STRIKE -${(+e.damage).toFixed(1)}</span><span style="color:#888"> HP left: ${(+(e.defHp ?? 0)).toFixed(1)}</span>`;
+  if (e.type === 'skill_trigger')
+    return `<b style="color:${e.aColor ?? '#aaa'}">${e.attacker ?? '?'}</b> <span style="color:#ffdd88">${e.text ?? ''}</span>`;
+  if (e.type === 'weapon_scale')
+    return `<b style="color:${e.aColor ?? '#aaa'}">${e.attacker ?? '?'}</b> <span style="color:#aaaaff">⬆ ${e.weapon ?? ''}</span> <span style="color:#88ffcc">${e.text ?? ''}</span>`;
   return '';
 }
 

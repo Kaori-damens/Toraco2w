@@ -84,6 +84,29 @@
 | `style.css` | Main stylesheet | Layout, HUD, result screen, changelog tab |
 | `game.js` | **BACKUP — KHÔNG DÙNG** | File gốc monolithic, giữ để tham khảo logic cũ |
 
+### Debug & Config System
+| File | Chức năng | Tìm gì ở đây |
+|------|-----------|--------------|
+| `config-loader.js` | Runtime config upload — load sau `chargen-data.js` | `applyRaceConfig()`, `applyStatConfig()`, `applyFormulaConfig()`, `resetAllConfigs()`. Snapshot defaults lúc parse. |
+
+**Debugger Mode** (inline `<script>` cuối `index.html`):
+- Nút `🐛 Debug` cố định góc dưới-phải — mặc định **OFF** mỗi lần load trang
+- Click để bật → nhập password `K7777` → bật Debug mode
+- Khi ON: hiện tab Wiki/Analytics/Changelogs, nút Quick Create/Debug Radoser/Bulk Create/Auto championship, card Tournament & Boss Raid, nút `📂 Config`, debug panels trong chargen wheel
+
+**Config Loader** (nút `📂 Config`, chỉ hiện khi Debug ON):
+- 3 tab: **Race** · **Stats** · **Formula**
+- Mỗi tab: Upload file JSON / paste text → Apply (có validation) · Download giá trị hiện tại
+- Nút **Khôi phục cài đặt gốc** reset toàn bộ về default ban đầu
+
+**Formula objects** (defined in `constants.js`, read by game code):
+| Object | Dùng ở đâu | Nội dung |
+|--------|-----------|---------|
+| `window.STAT_FORMULAS` | `ball.js` constructor | HP, speed, crit, evade, deflect per stat |
+| `window.COMBAT_FORMULAS` | `ball.js` `getDamage()` | rageMult, rageThresholdSec, strMult, dagger/fists MA scaling |
+| `window.SKILL_FORMULAS` | `ball.js`, `skills.js`, `collision.js` | ~30 skills: damage mults, thresholds, heal %, reduction % |
+| `window.RACE_FORMULAS` | `ball.js` | human Limit Break, orc Blood Price, dwarf Sharpness |
+
 ### Audio
 | File/Folder | Chức năng | Ghi chú |
 |-------------|-----------|---------|

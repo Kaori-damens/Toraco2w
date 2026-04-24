@@ -19,7 +19,7 @@ function showResult() {
     : `${b.weaponDef.icon} ${b.weaponDef.name}`;
 
   if (state.winner === 'draw' || (state.matchMode === '2v2' && state.winTeam === -1)) {
-    titleEl.textContent = '🤝 DRAW!';
+    titleEl.textContent = t('result_draw');
     titleEl.className = 'r-title draw';
   } else if (state.matchMode === '2v2' && state.winTeam >= 0) {
     const TC = ['#00ddff', '#ff8833'];
@@ -36,10 +36,10 @@ function showResult() {
   const lines = state.players.map(ball => {
     const isWinner = ball === state.winner;
     return `<strong style="color:${ball.color}">● ${ballLabel(ball)}</strong>${isWinner ? ' 🏆' : ''}<br>
-    Hits: ${ball.stats.hits} &nbsp;|&nbsp; Parries: ${ball.stats.parries} &nbsp;|&nbsp; Damage: ${ball.stats.damageDone.toFixed(0)}<br>
-    Scaling: ${ball.getScaleLabel()}`;
+    ${t('result_hits')}: ${ball.stats.hits} &nbsp;|&nbsp; ${t('result_parries')}: ${ball.stats.parries} &nbsp;|&nbsp; ${t('result_damage')}: ${ball.stats.damageDone.toFixed(0)}<br>
+    ${t('result_scaling')}: ${ball.getScaleLabel()}`;
   });
-  statsEl.innerHTML = lines.join('<br><br>') + `<br><br><em style="color:#555">Duration: ${(state.matchTime / 60).toFixed(1)}s</em>`;
+  statsEl.innerHTML = lines.join('<br><br>') + `<br><br><em style="color:#555">${t('result_duration') || 'Duration'}: ${(state.matchTime / 60).toFixed(1)}s</em>`;
 
   // ── BO3 handling ──
   rematch.style.display  = '';
@@ -107,7 +107,7 @@ function showResult() {
       if (typeof showPVPRewardWheel === 'function' && (state.tournament || state.tournament2v2 || state.championship)) {
         const _pvpShow = () => showPVPRewardWheel(mw);
         if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-          setTimeout(() => showPrimordialElementalWheel(mw, _pvpShow), 500);
+          setTimeout(() => showPrimordialElementalWheel(mw, null), 500);
         } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
           const _abCs = mw.charStats, _abSK = ['strength','speed','durability','iq','battleiq','ma'];
           const _abK = _abSK.reduce((a, b) => (_abCs[a]??0) < (_abCs[b]??0) ? a : b);
@@ -143,7 +143,7 @@ function showResult() {
         if (typeof showPVPRewardWheel === 'function') {
           const _pvpShowBO1 = () => showPVPRewardWheel(mw);
           if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-            setTimeout(() => showPrimordialElementalWheel(mw, _pvpShowBO1), 500);
+            setTimeout(() => showPrimordialElementalWheel(mw, null), 500);
           } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
             const _abCs2 = mw.charStats, _abSK2 = ['strength','speed','durability','iq','battleiq','ma'];
             const _abK2 = _abSK2.reduce((a, b) => (_abCs2[a]??0) < (_abCs2[b]??0) ? a : b);
@@ -174,7 +174,7 @@ function showResult() {
         if (typeof showPVPRewardWheel === 'function') {
           const _pvpShowFfa = () => showPVPRewardWheel(winnerFighter);
           if (winnerFighter?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-            setTimeout(() => showPrimordialElementalWheel(winnerFighter, _pvpShowFfa), 500);
+            setTimeout(() => showPrimordialElementalWheel(winnerFighter, null), 500);
           } else if (winnerFighter?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
             const _abCs3 = winnerFighter.charStats, _abSK3 = ['strength','speed','durability','iq','battleiq','ma'];
             const _abK3 = _abSK3.reduce((a, b) => (_abCs3[a]??0) < (_abCs3[b]??0) ? a : b);

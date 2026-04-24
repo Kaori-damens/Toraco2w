@@ -105,6 +105,81 @@ const ARENAS = {
 
 const BALL_COLORS = ['#4488ff', '#ff4455', '#44cc88', '#ffaa22', '#cc44ff', '#ff88aa'];
 
+// ── Config-overridable formula constants ──────────────────
+// Consumed by ball.js constructor (STAT_FORMULAS) and getDamage() (COMBAT_FORMULAS).
+// config-loader.js snapshots these at load time so reset always restores true defaults.
+window.STAT_FORMULAS = {
+  hp:      { base: 50,  perDur: 10  },
+  speed:   { base: 7,   perSpd: 1.5 },
+  crit:    { chancePerIQ: 0.03, baseMult: 1.5, extraPerIQAbove10: 0.1 },
+  evade:   { perBIQ: 0.02 },
+  deflect: { perMA:  0.02 },
+};
+
+window.COMBAT_FORMULAS = {
+  rageMult:         1.5,
+  rageThresholdSec: 80,
+  strMult:          1.0,
+  daggerMAScaling:  0.15,
+  fistsMAFlat:      0.5,
+};
+
+window.SKILL_FORMULAS = {
+  // Passive stat bonuses
+  iron_body:       { hpBonus: 20 },
+  swift:           { speedMult: 1.15 },
+  sharp_eye:       { critBonus: 0.10 },
+  heavy_mass:      { massMult: 1.30 },
+  // Healing
+  vampiric:        { healPct: 0.05 },
+  // Outgoing damage mults
+  berserker:       { hpThreshold: 0.30, baseMult: 1.2, iqScaling: 0.03 },
+  war_cry:         { baseMult: 1.5,  iqScaling: 0.05 },
+  counter:         { baseMult: 1.5,  biqScaling: 0.05 },
+  duel_instinct:   { mult: 1.30 },
+  parry_punish:    { mult: 2.0 },
+  brawlers_rhythm: { mult: 2.5 },
+  flurry_finisher: { mult: 2.5 },
+  heavy_momentum:  { perStack: 0.20 },
+  // Incoming damage reduction
+  thick_hide:      { reduction: 0.10 },
+  adaptation:      { baseReduction: 0.15, biqScaling: 0.02, maxReduction: 0.35 },
+  guard_stance:    { perBIQ: 0.03, maxReduction: 0.30 },
+  fortify:         { baseAbsorb: 10, perBIQ: 2 },
+  // Projectile skills
+  predator:        { mult: 1.15 },
+  sniper:          { baseMult: 1.4, iqScaling: 0.03 },
+  volley:          { baseMult: 1.5, iqScaling: 0.05 },
+  bounce_damage:   { perBounce: 0.15 },
+  ricochet_kill:   { mult: 2.0, minBounces: 2 },
+  // Melee proc skills
+  exploit:         { chancePerCombinedStat: 0.01, baseMult: 1.5, iqScaling: 0.05 },
+  reapers_mark:    { mult: 1.80, hpThreshold: 0.30 },
+};
+
+window.RACE_FORMULAS = {
+  human: {
+    limitBreak: {
+      hpThreshold:     0.20,
+      speedMult:       1.5,
+      exhaustionMult:  0.7,
+      perStack:        0.15,
+      durationFrames:  480,
+    },
+  },
+  orc: {
+    bloodPrice: {
+      stackThreshold:  5,
+      burstDmgPerSTR:  0.15,
+    },
+  },
+  dwarf: {
+    sharpness: {
+      perStack: 0.05,
+    },
+  },
+};
+
 // Generate a unique ball color using golden-ratio hue distribution
 // — guarantees max visual distance between adjacent colors, no repeat ever
 function generateRadoserColor(index) {

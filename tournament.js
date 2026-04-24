@@ -152,7 +152,7 @@ function _fcardFighterHTML(f, uid) {
       const label    = sk ? sk.name : id;
       const descAttr = sk?.desc ? ` data-desc="${sk.desc.replace(/"/g, '&quot;')}"` : '';
       const typeAttr = sk?.type ? ` data-type="${sk.type}"` : '';
-      return `<span class="fcard-skill fcard-skill-tip fcard-skill-lost"${descAttr}${typeAttr}>${label} <span class="fcard-lost-tag">lost</span></span>`;
+      return `<span class="fcard-skill fcard-skill-tip fcard-skill-lost"${descAttr}${typeAttr}>${label} <span class="fcard-lost-tag">${t('skill_lost_tag')}</span></span>`;
     }),
   ].join('');
 
@@ -176,10 +176,10 @@ function _fcardFighterHTML(f, uid) {
     </div>
     ${hasSkills
       ? `<div class="fcard2-skills-section">
-           <div class="fcard2-skills-label">✦ Skills</div>
+           <div class="fcard2-skills-label">${t('fighter_card_skills_label')}</div>
            <div class="fcard-skills-wrap">${skillsHTML}</div>
          </div>`
-      : '<div class="fcard-no-skills">No skills</div>'}
+      : `<div class="fcard-no-skills">${t('fighter_card_no_skills')}</div>`}
   `;
 }
 

@@ -13,6 +13,7 @@ let _cgpAnimId = null;    // rAF handle for preview ball animation
 // Appends a debug quick-pick panel below any chargen spin wheel.
 // items: [{label, onClick}]
 function _cgDebug(box, title, items) {
+  if (!window.debugMode) return;
   const dbg = document.createElement('div');
   dbg.style.cssText = 'margin-top:10px;padding:8px 12px;background:#1a1a2e;border:1px dashed #ff6b35;border-radius:8px;';
   const btns = items.map((it, i) => {
@@ -63,15 +64,19 @@ function renderCgStep() {
   const s = cgState.step;
   if (s === 'name')    { cgRenderName(box); return; }
   if (s === 'race') {
-    cgRenderSpin(box, 'Choose Race', CG_RACES.map((r,i) => ({ label: r.emoji+' '+r.name, weight: r.weight, color: wColor(i) })), (w, idx) => { cgState.race = CG_RACES[idx]; advanceCg(); });
-    // Debug: quick-pick buttons
-    const dbg = document.createElement('div');
-    dbg.style.cssText = 'margin-top:10px;padding:8px 12px;background:#1a1a2e;border:1px dashed #ff6b35;border-radius:8px;';
-    dbg.innerHTML = `<div style="font-size:11px;color:#ff6b35;margin-bottom:6px;letter-spacing:1px;">DEBUG — Pick Race</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;">${CG_RACES.map((r,i) =>
-        `<button onclick="cgState.race=CG_RACES[${i}];advanceCg();" style="background:#2a2a4a;border:1px solid #444;border-radius:5px;color:#ccc;cursor:pointer;font-size:11px;padding:3px 8px;">${r.emoji} ${r.name}</button>`
-      ).join('')}</div>`;
-    box.appendChild(dbg);
+    cgRenderSpin(box, t('chargen_choose_race'), CG_RACES.map((r,i) => ({ label: r.emoji+' '+r.name, weight: r.weight, color: wColor(i) })), (w, idx) => { cgState.race = CG_RACES[idx]; advanceCg(); },
+      null, null, null,
+      { category: 'race', keys: CG_RACES.map(r => r.id) });
+    if (window.debugMode) {
+      // Debug: quick-pick buttons
+      const dbg = document.createElement('div');
+      dbg.style.cssText = 'margin-top:10px;padding:8px 12px;background:#1a1a2e;border:1px dashed #ff6b35;border-radius:8px;';
+      dbg.innerHTML = `<div style="font-size:11px;color:#ff6b35;margin-bottom:6px;letter-spacing:1px;">DEBUG — Pick Race</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${CG_RACES.map((r,i) =>
+          `<button onclick="cgState.race=CG_RACES[${i}];advanceCg();" style="background:#2a2a4a;border:1px solid #444;border-radius:5px;color:#ccc;cursor:pointer;font-size:11px;padding:3px 8px;">${r.emoji} ${r.name}</button>`
+        ).join('')}</div>`;
+      box.appendChild(dbg);
+    }
     return;
   }
   if (s === 'subrace') {
@@ -99,10 +104,11 @@ function renderCgStep() {
       advanceCg();
     };
 
-    cgRenderSpin(box, `${cgState.race.emoji} Sub-Race`,
+    cgRenderSpin(box, `${cgState.race.emoji} ${t('chargen_subrace_section').replace('⬡ ','')}`,
       sr.map((r,i) => ({ label:r.label, weight:r.weight, color:wColor(i) })),
       (w, idx) => onPick(idx),
-      null, `${cgState.race.emoji} ${cgState.race.name}`);
+      null, `${cgState.race.emoji} ${cgState.race.name}`, null,
+      { category: 'subrace', keys: sr.map(r => `${cgState.race.id}:${r.label}`) });
     _cgDebug(box, 'Pick Sub-Race', sr.map((r, i) => ({
       label: r.label,
       onClick: () => onPick(i),
@@ -317,13 +323,14 @@ function renderCgStep() {
       return;
     }
     const items = [
-      { label: '✨ Unique Weapon!', weight: 13, color: '#ffd700' },
-      { label: '⚔️ Normal Weapon',  weight: 87, color: '#44ccff' },
+      { label: t('chargen_unique_weapon_yes'), weight: 13, color: '#ffd700' },
+      { label: t('chargen_unique_weapon_no'),  weight: 87, color: '#44ccff' },
     ];
-    cgRenderSpin(box, '🎰 Unique Weapon?', items, (_w, idx) => {
+    cgRenderSpin(box, t('chargen_unique_weapon_title'), items, (_w, idx) => {
       cgState.isUniqueWeapon = (idx === 0);
       advanceCg();
-    });
+    }, null, null, null,
+    { category: 'has_weapon', keys: ['unique', 'normal'] });
     _cgDebug(box, 'Unique Weapon?', [
       { label: '✨ Unique', onClick: () => { cgState.isUniqueWeapon = true;  advanceCg(); } },
       { label: '⚔️ Normal', onClick: () => { cgState.isUniqueWeapon = false; advanceCg(); } },
@@ -358,14 +365,15 @@ function renderCgStep() {
       return;
     }
     const items = [
-      { label: '⚔️ Armed',   weight: 80, color: '#44ccff' },
-      { label: '✊ Unarmed', weight: 20, color: '#ff8844' },
+      { label: t('chargen_armed_label'),   weight: 80, color: '#44ccff' },
+      { label: t('chargen_unarmed_label'), weight: 20, color: '#ff8844' },
     ];
-    cgRenderSpin(box, '🎰 Has Weapon?', items, (_w, idx) => {
+    cgRenderSpin(box, t('chargen_has_weapon_title'), items, (_w, idx) => {
       cgState.hasWeapon = (idx === 0);
       if (!cgState.hasWeapon) cgState.weapon = 'fists'; // skip weapon wheel
       advanceCg();
-    });
+    }, null, null, null,
+    { category: 'has_weapon', keys: ['armed', 'unarmed'] });
     _cgDebug(box, 'Pick Has Weapon?', [
       { label: '⚔️ Armed',   onClick: () => { cgState.hasWeapon = true;  advanceCg(); } },
       { label: '✊ Unarmed', onClick: () => { cgState.hasWeapon = false; cgState.weapon = 'fists'; advanceCg(); } },
@@ -388,13 +396,14 @@ function renderCgStep() {
       _isUnique: !!w.unique,
       _id: w.id,
     }));
-    const title = (cgDraftMode && cgState.isUniqueWeapon) ? '✨ Unique Weapon' : '🗡️ Weapon';
+    const title = (cgDraftMode && cgState.isUniqueWeapon) ? t('chargen_unique_weapon_heading') : t('chargen_weapon_title');
     cgRenderSpin(box, title, weaponItems, (_w, idx) => {
       const chosen = allWeaponOptions[idx];
       cgState.weapon = chosen.id || chosen;
       if (cgDraftMode && chosen.unique) claimUnique(chosen.id);
       advanceCg();
-    });
+    }, null, null, null,
+    { category: 'weapon', keys: allWeaponOptions.map(w => w.id) });
     _cgDebug(box, 'Pick Weapon', allWeaponOptions.map(w => ({
       label: (w.icon ? w.icon + ' ' : '') + (w.label || w.name),
       onClick: () => {
@@ -406,6 +415,18 @@ function renderCgStep() {
     return;
   }
   if (s === 'skillcount') {
+    // Beelzebub: always 0 skills — skip wheel entirely
+    if (cgState.race?.id === 'demon' && cgState.subrace?.label === 'Beelzebub') {
+      cgState.skillCount = 0;
+      box.innerHTML = `<div class="cg-card">
+        <div class="cg-label">Skill Mastery</div>
+        <div class="cg-result-box" style="margin:16px auto">0 Skills</div>
+        <div class="cg-trait">😈 Beelzebub (Gluttony) — Không có kỹ năng khởi đầu. Win → +1 stat random mỗi trận.</div>
+      </div>`;
+      playTone(220, 'sawtooth', 0.4, 0.12, 0.6);
+      setTimeout(() => advanceCg(), quickCreateMode ? 0 : 1400);
+      return;
+    }
     // Blessed by Thoth: skip skill wheel, grant ceil(IQ × 1.7) skills (capped at pool size)
     if (cgState.race?.id === 'god' && cgState.subrace?.label === 'Blessed by Thoth') {
       const iq = cgState.stats.iq ?? 10;
@@ -416,9 +437,9 @@ function renderCgStep() {
       const count = Math.min(Math.ceil(iq * 1.7), poolSize);
       cgState.skillCount = count;
       box.innerHTML = `<div class="cg-card">
-        <div class="cg-label">🧠 Skill Mastery</div>
-        <div class="cg-result-box" style="margin:16px auto">${count} Skills</div>
-        <div class="cg-trait">✨ Blessed by Thoth — IQ ${iq} × 1.7 = ${count} skills (no wheel)</div>
+        <div class="cg-label">${t('chargen_skill_mastery_label')}</div>
+        <div class="cg-result-box" style="margin:16px auto">${count} ${t('chargen_skill_count_label')}</div>
+        <div class="cg-trait">✨ Blessed by Thoth — IQ ${iq} × 1.7 = ${count} ${t('chargen_skill_count_label').toLowerCase()} (no wheel)</div>
       </div>`;
       playTone(880, 'sine', 0.5, 0.12, 0.6);
       setTimeout(() => advanceCg(), quickCreateMode ? 0 : 1400);
@@ -438,10 +459,11 @@ function renderCgStep() {
       const adjLabel = adj === 0 ? '0 Skills' : `${adj} Skill${adj !== 1 ? 's' : ''}`;
       return `${adjLabel} <span style="opacity:0.6;font-size:0.8em">(${raw} +${skillBonus} ${cgState.subrace?.label})</span>`;
     } : null;
-    cgRenderSpin(box, `${cgState.race.emoji} How many Skills?`, items, (_w, idx) => {
+    cgRenderSpin(box, `${cgState.race.emoji} ${t('chargen_skill_count_label')}`, items, (_w, idx) => {
       cgState.skillCount = idx + skillBonus;
       advanceCg();
-    }, null, null, skillTransform);
+    }, null, null, skillTransform,
+    { category: 'skill_count', keys: items.map((_, i) => String(i)) });
     _cgDebug(box, 'Pick Skill Count', Array.from({length: items.length}, (_, i) => ({
       label: i === 0 ? '0 Skills' : `${i + skillBonus} Skill${(i + skillBonus) !== 1 ? 's' : ''}`,
       onClick: () => { cgState.skillCount = i + skillBonus; advanceCg(); }
@@ -548,7 +570,7 @@ function cgUpdatePreview() {
 
   // ── Skills ──────────────────────────────────────────────────
   if (s.skills?.length > 0) {
-    html += `<div class="cgp-section-label">✦ Skills</div><div class="cgp-skills">`;
+    html += `<div class="cgp-section-label">${t('fighter_card_skills_label')}</div><div class="cgp-skills">`;
     s.skills.forEach(sk => {
       const descAttr = sk.desc ? ` data-desc="${sk.desc.replace(/"/g,'&quot;')}"` : '';
       const typeAttr = sk.type ? ` data-type="${sk.type}"` : '';
@@ -659,14 +681,14 @@ function cgUpdatePreview() {
 function cgRenderName(box) {
   box.innerHTML = `
     <div class="cg-card">
-      <div class="cg-label">Step 1 — Enter Character Name</div>
+      <div class="cg-label">${t('chargen_step1_label')}</div>
       <div class="cg-name-row">
-        <input class="cg-name-input" id="cgNameInput" placeholder="Enter name..." maxlength="24" value="${cgState.name}" autofocus>
-        <button class="cg-random-btn" id="cgRandomName" title="Random hero name">🎲</button>
+        <input class="cg-name-input" id="cgNameInput" placeholder="${t('chargen_name_placeholder')}" maxlength="24" value="${cgState.name}" autofocus>
+        <button class="cg-random-btn" id="cgRandomName" title="Random hero name">${t('chargen_btn_random_name')}</button>
       </div>
       <div class="cg-nav">
-        <button class="cg-btn" id="cgBackMenu">← Back</button>
-        <button class="cg-btn primary" id="cgNameNext">Next →</button>
+        <button class="cg-btn" id="cgBackMenu">${t('chargen_btn_back')}</button>
+        <button class="cg-btn primary" id="cgNameNext">${t('chargen_btn_next')}</button>
       </div>
     </div>`;
   document.getElementById('cgRandomName').onclick = () => {
@@ -722,6 +744,12 @@ function getSubraceStatDeltas() {
     else if (srLabel === 'Ophanim')    all(1);
     else if (srLabel === 'Cherubim')   all(2);
   }
+  if (race === 'demon') {
+    if      (srLabel === 'Lucifer')   all(2);
+    else if (srLabel === 'Mammon')    all(-2);
+    else if (srLabel === 'Asmodeus')  all(-1);
+    else if (srLabel === 'Belphegor') d.speed = (d.speed||0) - 4;
+  }
   return d;
 }
 
@@ -737,7 +765,8 @@ function getSubraceSkillBonus() {
   return 0;
 }
 
-function cgRenderSpin(box, title, items, onResult, currentStats, resultPrefix, resultTransform) {
+// mysteryOpts: { category: string, keys: string[] } — optional, enables fog-of-war on this wheel
+function cgRenderSpin(box, title, items, onResult, currentStats, resultPrefix, resultTransform, mysteryOpts) {
   const hasStats = currentStats && Object.values(currentStats).some(v => v !== null);
   const statsHtml = hasStats ? `<div class="cg-stats-grid">${STAT_DISPLAY.map(sd => {
     const v = currentStats[sd.key];
@@ -759,12 +788,16 @@ function cgRenderSpin(box, title, items, onResult, currentStats, resultPrefix, r
       </div>
       <div id="cgResultBox"></div>
       <div class="cg-nav">
-        <button class="spin-btn" id="cgSpinBtn">🎰 SPIN!</button>
+        <button class="spin-btn" id="cgSpinBtn">${t('chargen_spin_btn')}</button>
       </div>
       ${cgState.race ? `<div class="cg-trait">${cgState.race.emoji} <b>${cgState.race.name}</b>${cgState.race.trait ? ' — '+cgState.race.trait : ''}</div>` : ''}
     </div>`;
 
-  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items);
+  // Mystery opts: skip in quickCreateMode (no animation delay needed)
+  const wheelOpts = (!quickCreateMode && mysteryOpts)
+    ? { mysteryCategory: mysteryOpts.category, mysteryKeys: mysteryOpts.keys }
+    : {};
+  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items, wheelOpts);
   let lastWinIdx = -1;
   const doSpin = () => {
     const btn = document.getElementById('cgSpinBtn');
@@ -775,7 +808,7 @@ function cgRenderSpin(box, title, items, onResult, currentStats, resultPrefix, r
       document.getElementById('cgResultBox').innerHTML = `<div class="cg-result-box">${resultPrefix ? `<span style="opacity:0.65;font-size:0.75em">${resultPrefix}: </span>` : ''}${displayLabel}</div>`;
       playTone(660, 'sine', 0.4, 0.15, 0.5);
       // Morph Spin button → Next button
-      btn.textContent = 'Next →';
+      btn.textContent = t('chargen_btn_next');
       btn.className = 'cg-btn primary';
       btn.disabled = false;
       let _spinAdvanced = false;
@@ -823,7 +856,7 @@ function cgRenderSkillPick(box) {
 
   box.innerHTML = `
     <div class="cg-card">
-      <div class="cg-label">🌀 Skill ${spinNum} of ${total}</div>
+      <div class="cg-label">${t('chargen_skill_of_total').replace('{n}', spinNum).replace('{total}', total)}</div>
       ${pickedHtml}
       <div class="spin-wrap">
         <canvas id="spinCanvas" width="360" height="360"></canvas>
@@ -831,12 +864,15 @@ function cgRenderSkillPick(box) {
       </div>
       <div id="cgResultBox"></div>
       <div class="cg-nav">
-        <button class="spin-btn" id="cgSpinBtn">🎰 SPIN!</button>
+        <button class="spin-btn" id="cgSpinBtn">${t('chargen_spin_btn')}</button>
       </div>
       ${cgState.race ? `<div class="cg-trait">${cgState.race.emoji} <b>${cgState.race.name}</b></div>` : ''}
     </div>`;
 
-  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items);
+  const skillWheelOpts = !quickCreateMode
+    ? { mysteryCategory: 'skill', mysteryKeys: available.map(s => s.id) }
+    : {};
+  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items, skillWheelOpts);
   let pickedSkill = null;
 
   const doSpin = () => {
@@ -848,7 +884,7 @@ function cgRenderSkillPick(box) {
         `<div class="cg-result-box">${winner.label}<br><span style="color:#888;font-size:12px">${pickedSkill.desc}</span></div>`;
       playTone(660, 'sine', 0.4, 0.15, 0.5);
       // Morph Spin button → Next/Done button
-      btn.textContent = spinNum < total ? 'Next Skill →' : 'Done ✓';
+      btn.textContent = spinNum < total ? t('chargen_btn_next_skill') : t('chargen_btn_done');
       btn.className = 'cg-btn primary';
       btn.disabled = false;
       let _skillAdvanced = false;
@@ -896,11 +932,11 @@ function cgRenderDone(box) {
     <div class="cg-card cg-done-action-card">
       <div class="cg-done-banner">
         <span class="cg-done-check">✅</span>
-        <span class="cg-done-title">Radoser ready!!</span>
+        <span class="cg-done-title">${t('chargen_done_banner')}</span>
       </div>
       <div class="cg-nav">
-        <button class="cg-btn" id="cgRestart">↺ Restart</button>
-        <button class="cg-btn primary" id="cgSave">${cgDraftMode ? '⚔️ Add to Draft' : '📜 Add to Radosers'}</button>
+        <button class="cg-btn" id="cgRestart">${t('chargen_btn_restart')}</button>
+        <button class="cg-btn primary" id="cgSave">${cgDraftMode ? t('chargen_btn_add_draft') : t('chargen_btn_add_roster')}</button>
       </div>
     </div>`;
   document.getElementById('cgRestart').onclick = () => initChargen();

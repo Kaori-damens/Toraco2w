@@ -61,34 +61,41 @@ const LANG = {
     no_saved_tournament:  'No saved tournament found.',
     no_saved_championship:'No saved championship found.',
 
+    // Game title/subtitle
+    game_subtitle:             'Inspired by Wheel of Multiverse and Weapon Ball Battles',
+
     // Tab labels
     tab_showcase:         'Showcase',
     tab_radosers:         'Radosers',
     tab_battle:           'Battle',
-    tab_wiki:             '📖 Wiki',
+    tab_wiki:             'Wiki',
     tab_changelog:        'Changelogs',
-    tab_analytics:        '📊 Analytics',
+    tab_analytics:        'Analytics',
+
+    // ── BATTLE TAB CARDS (extra keys not covered below) ───────
+    battle_card_quick_match:   'Quick Match',
+    tournament_card_title:     'Tournament',
 
     // ── CHARGEN ───────────────────────────────────────────────
-    chargen_header:               '⚗️ CHARACTER CREATION',
+    chargen_header:               'RADOSERS CREATION',
     chargen_name_placeholder:     'Enter name...',
     chargen_btn_random_name:      '🎲',
     chargen_btn_next:             'Next →',
     chargen_btn_back:             '← Back',
-    chargen_spin_btn:             '🎰 SPIN!',
+    chargen_spin_btn:             'SPIN!',
     chargen_btn_next_skill:       'Next Skill →',
     chargen_btn_done:             'Done ✓',
-    chargen_choose_race:          'Choose Race',
-    chargen_has_weapon_title:     '🎰 Has Weapon?',
-    chargen_armed_label:          '⚔️ Armed',
-    chargen_unarmed_label:        '✊ Unarmed',
-    chargen_unique_weapon_title:  '🎰 Unique Weapon?',
-    chargen_unique_weapon_yes:    '✨ Unique Weapon!',
-    chargen_unique_weapon_no:     '⚔️ Normal Weapon',
-    chargen_weapon_title:         '🗡️ Weapon',
-    chargen_unique_weapon_heading:'✨ Unique Weapon',
+    chargen_choose_race:          'Define your bloodline...',
+    chargen_has_weapon_title:     'Your Steel',
+    chargen_armed_label:          'Armed',
+    chargen_unarmed_label:        'Unarmed',
+    chargen_unique_weapon_title:  'Is it Soulbound?',
+    chargen_unique_weapon_yes:    '✨ Soulbound Weapon!',
+    chargen_unique_weapon_no:     'Normal Weapon',
+    chargen_weapon_title:         'Weapon',
+    chargen_unique_weapon_heading:'✨ Soulbound Weapon',
     chargen_step1_label:          'Step 1 — Enter Character Name',
-    chargen_skill_count_label:    'How many Skills?',
+    chargen_skill_count_label:    'Claim your talents',
     chargen_skill_of_total:       '🌀 Skill {n} of {total}',
     chargen_0_skills:             '0 Skills',
     chargen_done_banner:          'Radoser ready!!',
@@ -97,15 +104,15 @@ const LANG = {
     chargen_btn_add_roster:       '📜 Add to Radosers',
     chargen_subrace_title:        '👑 Race Skill',
     chargen_spin_to_reveal:       '— Spin to reveal —',
-    chargen_fists_label:          '👊 Fists (Unarmed)',
-    chargen_unique_badge:         '★ UNIQUE',
+    chargen_fists_label:          'Fists (Unarmed)',
+    chargen_unique_badge:         '★SOULBOUND',
     chargen_pending_value:        '—',
-    chargen_stats_section:        '📊 Stats',
-    chargen_weapon_section:       '⚔️ Weapon',
+    chargen_stats_section:        'Stats',
+    chargen_weapon_section:       'Weapon',
     chargen_skills_section:       '✦ Skills',
     chargen_subrace_section:      '⬡ Sub-Race',
-    chargen_armed_trait_auto:     '✨ Blessed by Athena — Weapon Mastery: always armed',
-    chargen_skill_mastery_label:  '🧠 Skill Mastery',
+    chargen_armed_trait_auto:     'Blessed by Athena — Weapon Mastery: always armed',
+    chargen_skill_mastery_label:  'Skill Mastery',
 
     // Chargen — Debug modal
     debug_none_subrace:   '— None —',
@@ -157,13 +164,13 @@ const LANG = {
 
     // Stats modal (showCharStats)
     smo_weapon_label:   'Weapon:',
-    smo_max_hp:         '❤️ Max HP',
-    smo_launch_speed:   '🚀 Launch Speed',
-    smo_base_damage:    '⚔️ Base Damage',
-    smo_crit_rate:      '⚡ Crit Rate',
-    smo_crit_damage:    '💥 Crit Damage',
-    smo_evade_chance:   '🌀 Evade Chance',
-    smo_attack_speed:   '🔥 Attack Speed',
+    smo_max_hp:         'Max HP',
+    smo_launch_speed:   'Launch Speed',
+    smo_base_damage:    'Base Damage',
+    smo_crit_rate:      'Crit Rate',
+    smo_crit_damage:    'Crit Damage',
+    smo_evade_chance:   'Evade Chance',
+    smo_attack_speed:   'Attack Speed',
 
     // Import modal
     import_title:               '📥 Import Radosers',
@@ -223,11 +230,11 @@ const LANG = {
     arena_custom_btn:   '⚙️ Custom',
     hud_pause:          '⏸ Pause',
     hud_resume:         '▶ Resume',
-    hud_gravity_on:     '🌍 Gravity: On',
-    hud_gravity_off:    '🌍 Gravity: Off',
+    hud_gravity_on:     'Gravity: On',
+    hud_gravity_off:    'Gravity: Off',
     hud_stop_auto:      '⏹ Stop Auto',
     hud_overtime:       'OVERTIME',
-    hud_battle_log:     '📋 Battle Log',
+    hud_battle_log:     'Battle Log',
 
     // Arena builder modal
     ab_square_label:  'Size',
@@ -244,8 +251,40 @@ const LANG = {
     ab_hole_note:     'Void in the center — bounce outward',
 
     // In-battle speech / announcements
-    speech_bad_start:   '😴 Bad Start',
-    speech_great_start: '🔥 Great Start!',
+    speech_bad_start:   'Bad Start',
+    speech_great_start: 'Great Start!',
+
+    // ── PVP REWARD WHEEL ──────────────────────────────────────
+    pvp_reward_title:       'Victory Reward',
+    pvp_spin_btn:           'SPIN!',
+    pvp_accept_continue:    '✓ Accept & Continue',
+    pvp_default_winner:     'Winner',
+    pvp_winner_wins:        'wins!',
+    pvp_leviathan_block:    "Leviathan's Envy — Stat reward ignored",
+    pvp_belphegor_block:    "Belphegor's Sloth — Skill reward ignored",
+    wheel_spinning:         '🎡 Spinning…',
+    btn_continue:           '✓ Continue',
+
+    // ── COPYCAT WHEEL ─────────────────────────────────────────
+    cc_title:               '🎭 Copycat',
+    cc_spin_btn:            '🎭 SPIN!',
+    cc_label:               'Copycat',
+
+    // ── ANGEL BLESSING ────────────────────────────────────────
+    ab_title:               '⚡ Divine Favor',
+    ab_desc:                'Lowest stat · Received before PvP reward',
+
+    // ── ELEMENTAL WHEEL ───────────────────────────────────────
+    ew_title:               '🌌 Elemental Blessing',
+    ew_spin_btn:            'SPIN!',
+    ew_spinning:            'Spinning…',
+    ew_label:               'Elemental Blessing!',
+    ew_default_name:        'Primordial',
+    ew_result_air:          '+1 {stat} (lowest stat)',
+    ew_result_water:        '+1 {stat} (highest stat)',
+    ew_result_fire:         '+1 Skill: {skill}',
+    ew_result_fire_empty:   'No skills left in pool',
+    ew_result_earth:        '+1 DUR, +1 STR',
 
     // ── RESULT SCREEN ─────────────────────────────────────────
     result_draw:            '🤝 DRAW!',
@@ -253,7 +292,8 @@ const LANG = {
     result_parries:         'Parries',
     result_damage:          'Damage',
     result_scaling:         'Scaling',
-    result_btn_rematch:     '⚔️ Rematch',
+    result_duration:        'Duration',
+    result_btn_rematch:     'Rematch',
     result_btn_next_game:   '▶ Next Game',
     result_btn_view_bracket:'🏆 View Bracket',
     result_btn_battle_log:  '📋 Battle Log',
@@ -325,6 +365,7 @@ const LANG = {
     champ_section_lineup:   'Lineup Preview',
     champ_btn_start:        '🏆 Start Championship',
     champ_draft_empty:      'No players yet — start creating!',
+    champ_draft_full:       'Draft complete! {n} players ready.',
     champ_btn_create_player:'⚗️ Create Player',
     champ_btn_quick_create: '⚡ Quick Create',
     champ_no_radosers:      'No Radosers yet — create some first!',
@@ -441,6 +482,9 @@ const LANG = {
     no_saved_tournament:  'Không tìm thấy giải đấu đã lưu.',
     no_saved_championship:'Không tìm thấy championship đã lưu.',
 
+    // Game title/subtitle
+    game_subtitle:        'Lấy cảm hứng từ Wheel of Multiverse và Weapon Ball Battles',
+
     // Tab labels
     tab_showcase:         'Trưng bày',
     tab_radosers:         'Radosers',
@@ -448,6 +492,10 @@ const LANG = {
     tab_wiki:             '📖 Wiki',
     tab_changelog:        'Cập nhật',
     tab_analytics:        '📊 Thống kê',
+
+    // ── BATTLE TAB CARDS (extra keys) ─────────────────────────
+    battle_card_quick_match:   'Đấu Nhanh',
+    tournament_card_title:     'Giải Đấu',
 
     // ── CHARGEN ───────────────────────────────────────────────
     chargen_header:               '⚗️ TẠO NHÂN VẬT',
@@ -625,8 +673,41 @@ const LANG = {
     speech_bad_start:   '😴 Khởi đầu tệ',
     speech_great_start: '🔥 Khởi đầu xuất sắc!',
 
+    // ── PVP REWARD WHEEL ──────────────────────────────────────
+    pvp_reward_title:       '🎁 Phần Thưởng Chiến Thắng',
+    pvp_spin_btn:           '🎰 QUAY!',
+    pvp_accept_continue:    '✓ Nhận & Tiếp tục',
+    pvp_default_winner:     'Người thắng',
+    pvp_winner_wins:        'chiến thắng!',
+    pvp_leviathan_block:    '😈 Đố Kỵ Leviathan — Bỏ qua phần thưởng chỉ số',
+    pvp_belphegor_block:    '😈 Lười Biếng Belphegor — Bỏ qua phần thưởng kỹ năng',
+    wheel_spinning:         '🎡 Đang quay…',
+    btn_continue:           '✓ Tiếp tục',
+
+    // ── COPYCAT WHEEL ─────────────────────────────────────────
+    cc_title:               '🎭 Sao Chép',
+    cc_spin_btn:            '🎭 QUAY!',
+    cc_label:               'Sao Chép',
+
+    // ── ANGEL BLESSING ────────────────────────────────────────
+    ab_title:               '⚡ Ân Điển Thần Thánh',
+    ab_desc:                'Chỉ số thấp nhất · Nhận trước PvP reward',
+
+    // ── ELEMENTAL WHEEL ───────────────────────────────────────
+    ew_title:               '🌌 Ân Huệ Nguyên Tố',
+    ew_spin_btn:            '🌀 QUAY!',
+    ew_spinning:            '🌀 Đang quay…',
+    ew_label:               'Ân Huệ Nguyên Tố!',
+    ew_default_name:        'Nguyên Thủy',
+    ew_result_air:          '+1 {stat} (chỉ số thấp nhất)',
+    ew_result_water:        '+1 {stat} (chỉ số cao nhất)',
+    ew_result_fire:         '+1 Kỹ Năng: {skill}',
+    ew_result_fire_empty:   'Không còn kỹ năng trong pool',
+    ew_result_earth:        '+1 DUR, +1 STR',
+
     // ── RESULT SCREEN ─────────────────────────────────────────
     result_draw:            '🤝 HÒA!',
+    result_duration:        'Thời lượng',
     result_hits:            'Lần đánh',
     result_parries:         'Lần đỡ',
     result_damage:          'Sát Thương',
@@ -703,6 +784,7 @@ const LANG = {
     champ_section_lineup:   'Xem Trước Đội Hình',
     champ_btn_start:        '🏆 Bắt Đầu Championship',
     champ_draft_empty:      'Chưa có người chơi nào — bắt đầu tạo!',
+    champ_draft_full:       'Draft hoàn tất! {n} người sẵn sàng.',
     champ_btn_create_player:'⚗️ Tạo Người Chơi',
     champ_btn_quick_create: '⚡ Tạo Nhanh',
     champ_no_radosers:      'Chưa có Radoser nào — tạo một vài cái trước!',
@@ -798,3 +880,58 @@ const LANG = {
     analytics_subtab_heuristic:'📋 Heuristic',
   },
 };
+
+// ============================================================
+// applyI18nStatic — Phase 2 (Cách A)
+// Scans all [data-i18n] / [data-i18n-placeholder] elements and
+// updates them, then re-renders any active dynamic screens.
+// ============================================================
+function applyI18nStatic() {
+  // 1. Static text nodes
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    const val = t(key);
+    if (val !== key) el.textContent = val;
+  });
+
+  // 2. Input placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    const val = t(key);
+    if (val !== key) el.placeholder = val;
+  });
+
+  // 3. Re-render dynamic screens
+  _i18nRefreshScreens();
+}
+
+function _i18nRefreshScreens() {
+  // Roster — always safe to re-render (no-op if empty)
+  if (typeof renderRoster === 'function') renderRoster();
+
+  // Chargen — only if the chargen screen is visible
+  const cgBox = document.getElementById('cg-content');
+  if (cgBox && cgBox.closest('.screen')?.classList.contains('active')) {
+    if (typeof renderCgStep === 'function') renderCgStep();
+  }
+
+  // Championship setup
+  const csSetup = document.getElementById('championship-setup');
+  if (csSetup?.classList.contains('active')) {
+    if (typeof buildChampionshipSetup === 'function') buildChampionshipSetup();
+  }
+
+  // Championship bracket
+  const csBracket = document.getElementById('bracket');
+  if (csBracket?.classList.contains('active') && state?.championship) {
+    if (typeof renderChampionshipBracket === 'function') renderChampionshipBracket();
+  }
+
+  // Tournament bracket
+  if (csBracket?.classList.contains('active') && state?.tournament) {
+    if (typeof renderTournamentBracket === 'function') renderTournamentBracket();
+  }
+
+  // Fighters panel (Battle tab — always rendered when roster changes)
+  if (typeof buildFightersPanel === 'function') buildFightersPanel();
+}

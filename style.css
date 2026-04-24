@@ -4558,3 +4558,319 @@ canvas#gameCanvas {
   border-color: #6677cc;
   color: #dde8ff;
 }
+
+/* ── Debugger Toggle Button ──────────────────────────────── */
+#debugger-toggle-btn {
+  position: fixed;
+  bottom: 52px;
+  right: 16px;
+  z-index: 9999;
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  color: #778899;
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+  opacity: 0.5;
+}
+#debugger-toggle-btn:hover {
+  opacity: 1;
+  background: #252545;
+  border-color: #556;
+  color: #aab;
+}
+#debugger-toggle-btn.debugger-on {
+  opacity: 1;
+  background: #1a2e1a;
+  border-color: #44bb44;
+  color: #88ff88;
+}
+
+/* ── Debugger Password Modal ─────────────────────────────── */
+#debugger-pw-box {
+  background: #12121e;
+  border: 1px solid #3a3a5c;
+  border-radius: 12px;
+  padding: 28px 28px 24px;
+  width: 320px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#debugger-pw-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #dde4ff;
+  letter-spacing: 0.04em;
+}
+#debugger-pw-sub {
+  font-size: 12px;
+  color: #778;
+}
+#debugger-pw-input {
+  background: #1c1c30;
+  border: 1px solid #3a3a5c;
+  border-radius: 7px;
+  color: #dde4ff;
+  font-size: 14px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#debugger-pw-input:focus {
+  border-color: #6677cc;
+}
+#debugger-pw-error {
+  font-size: 12px;
+  color: #ff6b6b;
+  min-height: 16px;
+}
+#debugger-pw-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.debugger-pw-cancel {
+  background: #1c1c30;
+  border: 1px solid #3a3a5c;
+  border-radius: 7px;
+  color: #778;
+  font-size: 13px;
+  padding: 7px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.debugger-pw-cancel:hover {
+  border-color: #556;
+  color: #aab;
+}
+.debugger-pw-confirm {
+  background: linear-gradient(135deg, #2a3a6e, #3a4a9e);
+  border: 1px solid #4455cc;
+  border-radius: 7px;
+  color: #dde4ff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 18px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.debugger-pw-confirm:hover {
+  background: linear-gradient(135deg, #3a4a8e, #4a5aae);
+}
+
+/* ── Debug-hidden: ẩn các element debug khi không ở debug mode ── */
+.debug-hidden {
+  display: none !important;
+}
+
+/* ── Load Config Button (fixed, above debugger toggle) ───── */
+#load-config-btn {
+  position: fixed;
+  bottom: 88px;
+  right: 16px;
+  z-index: 9999;
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  color: #778899;
+  font-family: 'Arial Black', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+#load-config-btn:hover {
+  background: #252545;
+  border-color: #6677cc;
+  color: #dde8ff;
+}
+
+/* ── Config Loader Modal ─────────────────────────────────── */
+#config-loader-box {
+  background: #0e0e1c;
+  border: 1px solid #2a2a4a;
+  border-radius: 14px;
+  width: 600px;
+  max-width: 96vw;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  margin: auto;
+}
+
+.cl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 14px;
+  background: #12122a;
+  border-bottom: 1px solid #2a2a4a;
+  gap: 12px;
+}
+.cl-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #dde4ff;
+  letter-spacing: 0.04em;
+}
+.cl-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cl-reset-all-btn {
+  background: #1c1c30;
+  border: 1px solid #4a3a2a;
+  border-radius: 7px;
+  color: #cc9944;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cl-reset-all-btn:hover {
+  background: #2a2a1a;
+  border-color: #cc9944;
+  color: #ffcc66;
+}
+.cl-close-btn {
+  background: transparent;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  color: #778;
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cl-close-btn:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+/* Tabs */
+.cl-tabs {
+  display: flex;
+  border-bottom: 1px solid #2a2a4a;
+  background: #0e0e1c;
+}
+.cl-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #556;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 0;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: color 0.15s, border-color 0.15s;
+}
+.cl-tab:hover { color: #aab; }
+.cl-tab.cl-tab-active {
+  color: #8899ff;
+  border-bottom-color: #8899ff;
+}
+
+/* Pane */
+.cl-pane {
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 20px;
+}
+.cl-desc {
+  font-size: 12px;
+  color: #889;
+  line-height: 1.5;
+}
+.cl-desc code {
+  background: #1c1c30;
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: #aabbff;
+  font-size: 11px;
+}
+.cl-note {
+  color: #667;
+  font-size: 11px;
+}
+.cl-textarea {
+  width: 100%;
+  height: 220px;
+  background: #0a0a18;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  color: #c8d0e8;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.cl-textarea:focus { border-color: #4455aa; }
+
+.cl-btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cl-btn {
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+}
+.cl-btn-upload {
+  background: #1c1c30;
+  border-color: #3a3a5c;
+  color: #aab;
+}
+.cl-btn-upload:hover { background: #252545; border-color: #5566aa; color: #dde; }
+
+.cl-btn-download {
+  background: #1a2a1a;
+  border-color: #2a4a2a;
+  color: #88bb88;
+}
+.cl-btn-download:hover { background: #223322; border-color: #44aa44; color: #aaffaa; }
+
+.cl-btn-apply {
+  background: linear-gradient(135deg, #1a3a6a, #2a4a9a);
+  border-color: #3a5acc;
+  color: #dde8ff;
+  margin-left: auto;
+}
+.cl-btn-apply:hover { background: linear-gradient(135deg, #2a4a8a, #3a5aaa); }
+
+/* Status */
+.cl-status {
+  font-size: 12px;
+  min-height: 18px;
+  border-radius: 5px;
+  padding: 0 4px;
+}
+.cl-status-ok    { color: #66ee88; }
+.cl-status-error { color: #ff6b6b; }
+.cl-status-info  { color: #88aaff; }

@@ -123,10 +123,11 @@ function applySkillPassives(ball, fighter) {
   const sk = ball.skills;
   if (!sk || sk.length === 0) return;
 
-  if (sk.includes('iron_body'))   { ball.maxHp += 20; ball.hp = ball.maxHp; }
-  if (sk.includes('swift'))       { ball.maxSpd *= 1.15; ball.baseMaxSpd = ball.maxSpd; }
-  if (sk.includes('sharp_eye'))   { ball.critChance += 0.10; }
-  if (sk.includes('heavy_mass'))  { ball.mass *= 1.30; }
+  const SKF = window.SKILL_FORMULAS;
+  if (sk.includes('iron_body'))   { ball.maxHp += SKF.iron_body.hpBonus; ball.hp = ball.maxHp; }
+  if (sk.includes('swift'))       { ball.maxSpd *= SKF.swift.speedMult; ball.baseMaxSpd = ball.maxSpd; }
+  if (sk.includes('sharp_eye'))   { ball.critChance += SKF.sharp_eye.critBonus; }
+  if (sk.includes('heavy_mass'))  { ball.mass *= SKF.heavy_mass.massMult; }
   // Weapon passives applied at match start
   if (sk.includes('long_reach') && ball.weaponDef?.id === 'spear') {
     ball.weapon.bonusLength = (ball.weapon.bonusLength || 0) + 20;
@@ -473,6 +474,7 @@ function skillOnHit(attacker, defender, dmg) {
   if (sk.warCryReady) {
     sk.warCryReady = false;
     flashSkillHUD(attacker, SKILL_MAP['war_cry']);
+    addBattleLog('skill_trigger', { attacker: getBallLabel(attacker), aColor: attacker.color, text: '📣 War Cry!' });
   }
 
   // First Blood: stun duration scales BIQ — 20 + BIQ×4 frames (BIQ=5→40f, BIQ=10→60f)
@@ -482,6 +484,7 @@ function skillOnHit(attacker, defender, dmg) {
     defender.weapon.spinSlowTimer = Math.max(defender.weapon.spinSlowTimer, fbStun);
     spawnDamageNumber(defender.x, defender.y - defender.radius - 18, `🩸 STUNNED! (${(fbStun/60).toFixed(1)}s)`, '#ff6633');
     flashSkillHUD(attacker, SKILL_MAP['first_blood']);
+    addBattleLog('skill_trigger', { attacker: getBallLabel(attacker), aColor: attacker.color, text: `🩸 First Blood — stunned ${getBallLabel(defender)} (${(fbStun/60).toFixed(1)}s)` });
   }
 
   // Counter: consume after use (mult already applied in getDamage); fix 2: clear expiry too
@@ -489,6 +492,7 @@ function skillOnHit(attacker, defender, dmg) {
     sk.counterActive = false;
     sk.counterExpiry = null;
     flashSkillHUD(attacker, SKILL_MAP['counter']);
+    addBattleLog('skill_trigger', { attacker: getBallLabel(attacker), aColor: attacker.color, text: '🔄 Counter!' });
   }
 
   // Flow State: +MA×1% max speed per consecutive hit (reset on being hit)
@@ -503,7 +507,7 @@ function skillOnHit(attacker, defender, dmg) {
 
   // Vampiric: heal 5% of damage dealt, minimum 1 HP per hit
   if (attacker.skills.includes('vampiric')) {
-    const heal = Math.max(1, dmg * 0.05);
+    const heal = Math.max(1, dmg * window.SKILL_FORMULAS.vampiric.healPct);
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
     spawnDamageNumber(attacker.x, attacker.y - attacker.radius, '+' + heal.toFixed(1), '#88ff88');
     addBattleLog('heal', { attacker: getBallLabel(attacker), aColor: attacker.color, heal, hpAfter: +attacker.hp.toFixed(1), source: 'Vampiric' });
@@ -924,6 +928,8 @@ const RACE_SKILL_DEFS = {
                 desc:'Periodically slams the ground, pushing all enemies away with a shockwave. Enemies caught close also take damage. Power scales with STR, recharges faster with DUR.' },
   god:        { id:'race_god_gift',     name:'God Gift',     icon:'✨',
                 desc:'Unique passive based on your blessing. Surtr: ground slam at 70s. Raijin: gain speed with each wall bounce. Shiva: switch to pure fists at 70s. Atlas: regenerate HP every 1.5s (scales with DUR). Thoth/Athena: bonuses applied at character creation.' },
+  demon:      { id:'race_blood_contract', name:'Blood Contract', icon:'📜',
+                desc:'Sacrifice 15% current HP to activate a dark pact (5–7s). While active: every hit you receive also heals you for 50% of the damage dealt. Scale DUR (+absorb%), MA (duration + faster cooldown). Cooldown ~25s.' },
 };
 
 function getRaceSkillDef(race) { return RACE_SKILL_DEFS[race] ?? null; }
@@ -1033,6 +1039,18 @@ function initRaceSkillState(ball) {
       ball.rs_durRegenTimer = 0;     // counts frames toward next regen tick
     }
     // Blessed by Thoth + Blessed by Athena: no runtime state needed in battle
+  }
+  if (race === 'demon') {
+    const dur = ball.charDUR ?? 5;
+    // Cooldown: MA=5→1500f(25s), MA=10→1200f(20s), floor 900f(15s)
+    ball.rs_maxCooldown = Math.max(900, 1800 - ma * 60);
+    ball.rs_cooldown    = ball.rs_maxCooldown;
+    ball.rs_active      = false;
+    ball.rs_timer       = 0;
+    // Duration: MA=5→330f(5.5s), MA=10→420f(7s)
+    ball.rs_duration    = Math.round(240 + ma * 18);
+    // Absorb: DUR=5→65%, DUR=10→80%, cap 85%
+    ball.rs_absorbPct   = Math.min(0.85, 0.50 + dur * 0.03);
   }
 }
 
@@ -1216,7 +1234,7 @@ function updateRaceSkills(ball, players, rstate) {
             addBattleLog('hit', {
               attacker: getBallLabel(ball), aColor: ball.color,
               defender: getBallLabel(en),  dColor: en.color,
-              dmg: flameDmg, weapon: 'Flame Breath', isCrit: false
+              damage: flameDmg, defHp: +Math.max(0, en.hp).toFixed(1), weapon: 'Flame Breath', isCrit: false
             });
             if (en.hp <= 0 && en.alive) { en.alive = false; skillOnKill(ball, en); }
           }
@@ -1440,6 +1458,34 @@ function updateRaceSkills(ball, players, rstate) {
         ball.hp = Math.min(ball.maxHp, ball.hp + regen);
         spawnDamageNumber(ball.x, ball.y - ball.radius - 12,
           `🛡️ +${regen.toFixed(1)}`, '#88ddff');
+      }
+    }
+  }
+
+  // ── DEMON: Blood Contract ─────────────────────────────────────
+  if (race === 'demon' && ball.raceSkillDef) {
+    if (ball.rs_active) {
+      ball.rs_timer--;
+      if (ball.rs_timer <= 0) {
+        ball.rs_active   = false;
+        ball.rs_cooldown = ball.rs_maxCooldown;
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '📜 Pact ended', '#aa3366');
+        addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
+          text: '📜 Blood Contract expired' });
+      }
+    } else if (ball.rs_cooldown === 0) {
+      // Sacrifice 15% current HP — need at least 2 HP to activate
+      const sacrifice = ball.hp * 0.15;
+      if (ball.hp - sacrifice >= 1) {
+        ball.hp      -= sacrifice;
+        ball.rs_active = true;
+        ball.rs_timer  = ball.rs_duration;
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 24, `📜 BLOOD CONTRACT! (−${sacrifice.toFixed(1)})`, '#cc0044');
+        spawnBigAnnouncement?.('📜 BLOOD CONTRACT!', '#cc0044');
+        addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
+          text: `📜 Blood Contract! (−${sacrifice.toFixed(1)} HP sacrifice)` });
+      } else {
+        ball.rs_cooldown = 60; // retry in 1s if too low HP
       }
     }
   }

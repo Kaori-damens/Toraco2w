@@ -82,17 +82,17 @@
   <!-- Title -->
   <div id="menu-hero">
     <div class="game-title">TORACO</div>
-    <div class="game-subtitle">Inspired by Wheel of Multiverse and Weapon Ball Battles</div>
+    <div class="game-subtitle" data-i18n="game_subtitle">Inspired by Wheel of Multiverse and Weapon Ball Battles</div>
   </div>
 
   <!-- Tab Navigation -->
   <div class="menu-tabs">
-    <button class="menu-tab active" data-tab="tab-showcase">Showcase</button>
-    <button class="menu-tab"        data-tab="tab-radosers">Radosers</button>
-    <button class="menu-tab"        data-tab="tab-battle">Battle</button>
-    <button class="menu-tab"        data-tab="tab-wiki">📖 Wiki</button>
-    <button class="menu-tab"        data-tab="tab-changelog">Changelogs</button>
-    <button class="menu-tab"        data-tab="tab-analytics" onclick="initAnalytics()">📊 Analytics</button>
+    <button class="menu-tab active" data-tab="tab-showcase" data-i18n="tab_showcase">Showcase</button>
+    <button class="menu-tab"        data-tab="tab-radosers" data-i18n="tab_radosers">Radosers</button>
+    <button class="menu-tab"        data-tab="tab-battle"   data-i18n="tab_battle">Battle</button>
+    <button class="menu-tab"        data-tab="tab-wiki"     data-i18n="tab_wiki">📖 Wiki</button>
+    <button class="menu-tab"        data-tab="tab-changelog" data-i18n="tab_changelog">Changelogs</button>
+    <button class="menu-tab"        data-tab="tab-analytics" data-i18n="tab_analytics" onclick="initAnalytics()">📊 Analytics</button>
   </div>
 
   <!-- Tab: Showcase -->
@@ -108,22 +108,22 @@
   <!-- Tab: Radosers -->
   <div class="menu-tab-pane" id="tab-radosers">
     <div class="tab-footer-btns">
-      <button class="quick-create-btn" id="quickCreateBtn">⚡ Quick Create</button>
-      <button class="create-char-btn"  id="createCharBtn">⚗️ Create Character</button>
+      <button class="quick-create-btn" id="quickCreateBtn" data-i18n="roster_btn_quick_create">⚡ Quick Create</button>
+      <button class="create-char-btn"  id="createCharBtn"  data-i18n="roster_btn_create_char">⚗️ Create Character</button>
       <button class="create-char-btn"  id="debugRadoserBtn" style="background:#1a0a2e;border-color:#9933ff;color:#cc88ff;">🐛 Debug Radoser</button>
-      <button class="roster-io-btn export-btn" id="exportRosterBtn">📤 Export</button>
-      <button class="roster-io-btn import-btn" id="importRosterBtn">📥 Import</button>
-      <button class="roster-io-btn bulk-create-btn" id="bulkCreateBtn">🏭 Bulk Create</button>
+      <button class="roster-io-btn export-btn" id="exportRosterBtn" data-i18n="roster_btn_export">📤 Export</button>
+      <button class="roster-io-btn import-btn" id="importRosterBtn" data-i18n="roster_btn_import">📥 Import</button>
+      <button class="roster-io-btn bulk-create-btn" id="bulkCreateBtn" data-i18n="roster_btn_bulk_create">🏭 Bulk Create</button>
     </div>
     <!-- Search + Filter bar -->
     <div class="roster-search-bar">
       <div class="roster-search-wrap">
         <span class="roster-search-icon">🔍</span>
-        <input id="rosterSearchInput" class="roster-search-input" type="text" placeholder="Name, or: race=orc, str>5, weapon=bow…" autocomplete="off" />
+        <input id="rosterSearchInput" class="roster-search-input" type="text" placeholder="Name, or: race=orc, str>5, weapon=bow…" data-i18n-placeholder="roster_search_placeholder" autocomplete="off" />
         <button class="roster-search-clear" id="rosterSearchClear">✕</button>
       </div>
       <button class="roster-filter-btn" id="rosterFilterBtn">
-        <span>Filter</span>
+        <span data-i18n="label_filter">Filter</span>
         <span class="rfb-badge" id="rosterFilterBadge" style="display:none">0</span>
         <span class="rfb-chevron" id="rosterFilterChevron">▾</span>
       </button>
@@ -152,7 +152,7 @@
     </div>
 
     <div class="roster-grid" id="rosterGrid">
-      <div class="roster-empty">No characters yet — create one above!</div>
+      <div class="roster-empty" data-i18n="roster_empty">No characters yet — create one above!</div>
     </div>
   </div>
 
@@ -209,12 +209,12 @@
       <div class="battle-card tournament-battle-card" id="championship-card">
         <div class="battle-card-header">
           <div class="battle-card-icon">🏆</div>
-          <div class="battle-card-title">Toraco Championship</div>
+          <div class="battle-card-title" data-i18n="champ_card_title">Toraco Championship</div>
         </div>
-        <div class="battle-card-desc">128 or 256-player mega tournament. Battle Royale → Last Stand → Double Elimination. BO3 Grand Finals.</div>
-        <button class="t-btn" id="championshipBtn">🏆 Enter Championship</button>
+        <div class="battle-card-desc" data-i18n="champ_card_desc">128 or 256-player mega tournament. Battle Royale → Last Stand → Double Elimination. BO3 Grand Finals.</div>
+        <button class="t-btn" id="championshipBtn" data-i18n="champ_btn_enter">🏆 Enter Championship</button>
         <div style="margin-top:8px">
-          <button class="t-btn t-btn-resume" id="cs-resume-btn" style="display:none">▶ Resume Championship</button>
+          <button class="t-btn t-btn-resume" id="cs-resume-btn" style="display:none" data-i18n="champ_btn_resume">▶ Resume Championship</button>
         </div>
       </div>
 
@@ -222,7 +222,7 @@
       <div class="battle-card" id="quick-match-card">
         <div class="battle-card-header">
           <div class="battle-card-icon">⚔️</div>
-          <div class="battle-card-title">Quick Match</div>
+          <div class="battle-card-title" data-i18n="battle_card_quick_match">Quick Match</div>
         </div>
         <div id="fighters-panel"></div>
         <div class="arena-row">
@@ -270,20 +270,20 @@
           <button class="a-btn a-btn-hole" data-a="hole_re_3sq_l">L.Re■■■</button>
           <button class="a-btn a-btn-custom" data-a="custom" id="arenaCustomBtn">⚙️ Custom</button>
         </div>
-        <button class="start-btn" id="startBtn">⚔️ FIGHT!</button>
+        <button class="start-btn" id="startBtn" data-i18n="btn_fight">⚔️ FIGHT!</button>
       </div>
 
       <!-- Tournament -->
       <div class="battle-card tournament-battle-card" id="tournament-card">
         <div class="battle-card-header">
           <div class="battle-card-icon">🏆</div>
-          <div class="battle-card-title">Tournament</div>
+          <div class="battle-card-title" data-i18n="tournament_card_title">Tournament</div>
         </div>
-        <div class="battle-card-desc">Single-elimination bracket. Compete with up to 64 Radosers across BO1, BO3, or BO5 matches.</div>
-        <button class="t-btn" id="tournamentBtn">🏆 Enter Tournament</button>
+        <div class="battle-card-desc" data-i18n="tournament_card_desc">Single-elimination bracket. Compete with up to 64 Radosers across BO1, BO3, or BO5 matches.</div>
+        <button class="t-btn" id="tournamentBtn" data-i18n="tournament_btn_enter">🏆 Enter Tournament</button>
         <div id="tournament-resume-wrap" style="display:none;margin-top:8px">
           <div id="tournament-resume-info" style="font-size:11px;color:#778;margin-bottom:6px;text-align:center"></div>
-          <button class="t-btn t-btn-resume" id="tournamentResumeBtn">▶ Resume Tournament</button>
+          <button class="t-btn t-btn-resume" id="tournamentResumeBtn" data-i18n="tournament_btn_resume">▶ Resume Tournament</button>
         </div>
       </div>
 
@@ -325,12 +325,12 @@
         <!-- Dynamic boss preview (filled by _updatePVEBossPreview in pve.js) -->
         <div id="pve-boss-preview" class="pve-boss-preview"></div>
 
-        <button class="pve-open-btn" id="pveCardOpenBtn">⚡ Select Party</button>
-        <button class="pve-open-btn" id="pveCardCloseBtn" style="display:none">▲ Hide Roster</button>
+        <button class="pve-open-btn" id="pveCardOpenBtn"  data-i18n="pve_btn_select_party">⚡ Select Party</button>
+        <button class="pve-open-btn" id="pveCardCloseBtn" style="display:none" data-i18n="pve_btn_hide_roster">▲ Hide Roster</button>
         <div id="pve-roster-area" style="display:none">
           <div id="pve-fighters-panel" class="pve-fighters-panel"></div>
           <div id="pve-fighter-count" class="pve-fighter-count">0 / 8 selected</div>
-          <button class="start-btn" id="pveStartBtn" disabled>⚡ RAID!</button>
+          <button class="start-btn" id="pveStartBtn" disabled data-i18n="pve_btn_raid">⚡ RAID!</button>
         </div>
       </div>
 
@@ -808,6 +808,105 @@
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 118</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🌌 <b>Primordial Being — Balance</b>: Khi thắng trong tournament/championship, Primordial Being chỉ nhận Elemental Wheel thay vì nhận cả Elemental Wheel lẫn PVP Reward như trước. Giảm thiểu scale quá mạnh qua 2 vòng quay mỗi trận thắng. Cập nhật mô tả race trait.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 117</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>😈 <b>Demon — Blood Contract (Race Skill)</b>: Demon nay có race skill chủ động. Mỗi ~25s, tự động kích hoạt khế ước máu — hi sinh 15% HP hiện tại để đổi lấy pact 5–7s: mọi sát thương nhận vào cũng đồng thời hồi máu (50% absorb, scale DUR). Cooldown giảm theo MA.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 116</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🌐 <b>Localization Phase 2 — EN/VI</b>: Nút 🌐 EN/VI góc dưới-phải giờ hoạt động. Tabs, nút, card title, chargen flow, championship draft, màn hình kết quả đều phản hồi đổi ngôn ngữ ngay lập tức không cần reload.</li>
+              <li>🔧 <b>Auto Championship — Poll-based fix</b>: Sửa 2 bugs trong chế độ Auto: (1) Elemental wheel racing — dùng poll thay fixed +800ms; (2) Fog-of-war timing — poll đến khi pvp-reward-result visible trước khi bấm Continue.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 115</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>😈 <b>Beelzebub — 0 skills chargen bug</b>: Sửa bug Beelzebub (Gluttony) vẫn có thể spin ra 1–4 skills khi tạo nhân vật thủ công qua chargen. Giờ wheel skill count bị bỏ qua hoàn toàn, hiển thị card "0 Skills" cố định như Blessed by Thoth. Bulk create đã đúng từ trước.</li>
+              <li>😈 <b>Demon subrace — Stat delta chargen bug</b>: Sửa bug Lucifer (+2 all), Mammon (−2 all), Asmodeus (−1 all), Belphegor (−4 SPD) không hiển thị và không áp delta vào chỉ số khi quay wheel tạo nhân vật. Nguyên nhân: thiếu block `demon` trong hàm <code>getSubraceStatDeltas()</code>.</li>
+              <li>🎡 <b>Spin Wheel — Random stop position</b>: Bánh xe tạo nhân vật giờ dừng tại vị trí ngẫu nhiên trong ô trúng (15%–85% chiều rộng slice), thay vì luôn dừng đúng giữa. Cho cảm giác "suýt trượt" hoặc "qua vạch 1 tí" tự nhiên hơn.</li>
+              <li>🐛 <b>Debug mode — Championship</b>: Nút "⚡ Quick Create" trong tab Draft của Championship nay ẩn khi Debug mode OFF. Nút "⚡ Fill N Remaining" vẫn hiện cho tất cả người chơi.</li>
+              <li>🥊 <b>Fists — Parry stun hit bug</b>: Sửa bug Fists có thể gây sát thương 3 lần liên tiếp vào target đang bị parry stun. Nguyên nhân: weapon.cooldown vẫn đếm ngược khi frozen, dẫn đến hit vào target không thể né. Giờ cả attacker lẫn defender đều không thể tấn công/nhận đòn trong trạng thái parry-frozen.</li>
+              <li>🔥 <b>Battle Log — Fix NaN damage (Dragon)</b>: Sửa bug Flame Breath log hiển thị "NaN" thay vì số sát thương thực tế.</li>
+              <li>📣 <b>Battle Log — Skill Trigger</b>: Battle log giờ ghi lại khi skill combat kích hoạt: War Cry, First Blood (kèm thời gian stun), Counter, Phoenix.</li>
+              <li>⬆ <b>Battle Log — Weapon Scale</b>: Battle log giờ ghi lại mỗi khi vũ khí scale lên — +dmg (Sword/Spear/Scythe), +arrow (Bow), +star (Shuriken), +knockback (Hammer), −CD (Fists/Scythe), +reach (Spear), v.v.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 114</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>📂 <b>Load Config</b>: Nút "📂 Config" xuất hiện khi bật Debug mode — mở modal upload JSON để config game runtime. Hỗ trợ 3 loại file: <b>race.json</b> (weight/tên/emoji race trong chargen wheel), <b>stats.json</b> (công thức HP, speed, crit, evade, deflect), <b>formula.json</b> (rage multiplier, STR scaling, dagger/fists MA scaling). Mỗi tab có nút Upload file, Download giá trị hiện tại, và Apply với validation.</li>
+              <li>🔄 <b>Khôi phục cài đặt gốc</b>: Nút "Khôi phục cài đặt gốc" trong modal reset toàn bộ 3 config về default ban đầu, có confirm dialog trước khi thực hiện.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 113</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Debugger Mode</b>: Nút "Debug" cố định góc phải bên dưới — mặc định tắt khi vào web. Click → nhập mật khẩu để bật. Khi bật: hiện đầy đủ debug panel chargen, tab Wiki/Analytics/Changelogs, nút Debug Radoser, Quick Create, Bulk Create, Auto championship, card Tournament và Boss Raid.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">21 Apr 2026</span>
           <span class="changelog-badge">Patch 112</span>
@@ -1791,59 +1890,59 @@
 <!-- PVP Reward Wheel Modal -->
 <div id="pvp-reward-modal" style="display:none">
   <div id="pvp-reward-box">
-    <div class="pvp-rw-title">🎁 Victory Reward</div>
+    <div class="pvp-rw-title" data-i18n="pvp_reward_title">🎁 Victory Reward</div>
     <div class="pvp-rw-winner" id="pvp-reward-winner">— Champion —</div>
     <canvas id="pvp-reward-wheel" width="320" height="320"></canvas>
     <div class="pvp-rw-spin-row">
-      <button id="pvp-spin-btn" class="pvp-spin-btn">🎰 SPIN!</button>
+      <button id="pvp-spin-btn" class="pvp-spin-btn" data-i18n="pvp_spin_btn">🎰 SPIN!</button>
     </div>
     <div id="pvp-reward-result" style="display:none">
-<div class="pvp-rw-res-label"   id="pvp-reward-res-label"></div>
+      <div class="pvp-rw-res-label"   id="pvp-reward-res-label"></div>
       <div class="pvp-rw-res-outcome" id="pvp-reward-res-outcome"></div>
-      <button class="pvp-rw-cont-btn" id="pvp-reward-continue">✓ Accept &amp; Continue</button>
+      <button class="pvp-rw-cont-btn" id="pvp-reward-continue" data-i18n="pvp_accept_continue">✓ Accept &amp; Continue</button>
     </div>
   </div>
 </div>
 
 <div id="copycat-modal" style="display:none">
   <div id="copycat-box">
-    <div class="pvp-rw-title">🎭 Copycat</div>
+    <div class="pvp-rw-title" data-i18n="cc_title">🎭 Copycat</div>
     <div class="pvp-rw-winner" id="cc-winner-label">— Copycat —</div>
     <canvas id="copycat-wheel" width="260" height="260"></canvas>
     <div class="pvp-rw-spin-row">
-      <button id="cc-spin-btn" class="pvp-spin-btn">🎭 SPIN!</button>
+      <button id="cc-spin-btn" class="pvp-spin-btn" data-i18n="cc_spin_btn">🎭 SPIN!</button>
     </div>
     <div id="cc-result" style="display:none">
       <div class="pvp-rw-res-label"   id="cc-res-label"></div>
       <div class="pvp-rw-res-outcome" id="cc-res-outcome"></div>
     </div>
-    <button class="pvp-rw-cont-btn" id="cc-continue-btn" style="display:none">✓ Continue</button>
+    <button class="pvp-rw-cont-btn" id="cc-continue-btn" style="display:none" data-i18n="btn_continue">✓ Continue</button>
   </div>
 </div>
 
 <div id="angel-blessing-modal" style="display:none">
   <div id="angel-blessing-box">
-    <div class="pvp-rw-title">⚡ Divine Favor</div>
+    <div class="pvp-rw-title" data-i18n="ab_title">⚡ Divine Favor</div>
     <div class="pvp-rw-winner" id="ab-winner-name">— Principalities —</div>
     <div id="ab-stat-gained" style="font-size:2em;font-weight:bold;color:#ffee66;text-shadow:0 0 20px #ffaa00;margin:8px 0;">+2 STAT</div>
-    <div style="color:#aabbcc;font-size:0.85em;margin-bottom:4px;">Stat thấp nhất · Nhận trước PvP reward</div>
-    <button class="pvp-rw-cont-btn" id="ab-continue-btn">✓ Accept &amp; Continue</button>
+    <div data-i18n="ab_desc" style="color:#aabbcc;font-size:0.85em;margin-bottom:4px;">Stat thấp nhất · Nhận trước PvP reward</div>
+    <button class="pvp-rw-cont-btn" id="ab-continue-btn" data-i18n="pvp_accept_continue">✓ Accept &amp; Continue</button>
   </div>
 </div>
 
 <div id="elemental-wheel-modal" style="display:none">
   <div id="elemental-wheel-box">
-    <div class="pvp-rw-title">🌌 Elemental Blessing</div>
+    <div class="pvp-rw-title" data-i18n="ew_title">🌌 Elemental Blessing</div>
     <div class="pvp-rw-winner" id="ew-winner-name">— Primordial —</div>
     <canvas id="elemental-wheel-canvas" width="280" height="280"></canvas>
     <div class="pvp-rw-spin-row">
-      <button id="ew-spin-btn" class="pvp-spin-btn">🌀 SPIN!</button>
+      <button id="ew-spin-btn" class="pvp-spin-btn" data-i18n="ew_spin_btn">🌀 SPIN!</button>
     </div>
     <div id="ew-result" style="display:none">
       <div class="pvp-rw-res-label"   id="ew-result-label"></div>
       <div class="pvp-rw-res-outcome" id="ew-result-outcome"></div>
     </div>
-    <button class="pvp-rw-cont-btn" id="ew-continue-btn" style="display:none">✓ Continue</button>
+    <button class="pvp-rw-cont-btn" id="ew-continue-btn" style="display:none" data-i18n="btn_continue">✓ Continue</button>
   </div>
 </div>
 
@@ -1898,6 +1997,8 @@
 <script src="championship.js"></script>
 <script src="ui.js"></script>
 <script src="chargen-data.js"></script>
+<script src="config-loader.js"></script>
+<script src="discovery.js"></script>
 <script src="spin-wheel.js"></script>
 <script src="chargen.js"></script>
 <script src="roster.js"></script>
@@ -2040,6 +2141,167 @@
 
 <!-- Lang toggle — fixed bottom-right -->
 <button id="lang-toggle-btn" onclick="setLang(_currentLang === 'en' ? 'vi' : 'en')">🌐 VI</button>
+
+<!-- Debugger toggle — fixed bottom-right, above lang button -->
+<button id="debugger-toggle-btn" onclick="toggleDebugMode()">🐛 Debug</button>
+
+<!-- Load Config button — only visible in debug mode -->
+<button id="load-config-btn" class="debug-hidden" onclick="openConfigLoader()">📂 Config</button>
+
+<!-- Config Loader Modal -->
+<div id="config-loader-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.80);z-index:99990;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;">
+  <div id="config-loader-box">
+
+    <!-- Header -->
+    <div class="cl-header">
+      <span class="cl-title">📂 Load Config</span>
+      <div class="cl-header-actions">
+        <button class="cl-reset-all-btn" onclick="_clResetAll()">🔄 Khôi phục cài đặt gốc</button>
+        <button class="cl-close-btn" onclick="closeConfigLoader()">✕</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="cl-tabs">
+      <button id="cl-tab-race"    class="cl-tab cl-tab-active" data-tab="race"    onclick="_clSwitchTab('race')"   >🌍 Race</button>
+      <button id="cl-tab-stats"   class="cl-tab"               data-tab="stats"   onclick="_clSwitchTab('stats')"  >📊 Stats</button>
+      <button id="cl-tab-formula" class="cl-tab"               data-tab="formula" onclick="_clSwitchTab('formula')">⚔️ Formula</button>
+    </div>
+
+    <!-- Pane: Race -->
+    <div id="cl-pane-race" class="cl-pane" style="display:flex">
+      <div class="cl-desc">
+        Chỉnh <code>weight</code> / <code>name</code> / <code>emoji</code> của từng race trong chargen wheel.<br>
+        <span class="cl-note">Chỉ race có <code>id</code> khớp mới được cập nhật. Không thể thêm race mới qua JSON.</span>
+      </div>
+      <textarea id="cl-textarea-race"    class="cl-textarea" placeholder="Dán JSON vào đây hoặc dùng nút Upload…"></textarea>
+      <div class="cl-btn-row">
+        <button class="cl-btn cl-btn-upload"   onclick="_clUpload('race')"   >📤 Upload file</button>
+        <button class="cl-btn cl-btn-download" onclick="_clDownload('race')" >💾 Download hiện tại</button>
+        <button class="cl-btn cl-btn-apply"    onclick="_clApply('race')"    >✅ Apply</button>
+      </div>
+      <div id="cl-status-race" class="cl-status"></div>
+    </div>
+
+    <!-- Pane: Stats -->
+    <div id="cl-pane-stats" class="cl-pane" style="display:none">
+      <div class="cl-desc">
+        Công thức convert stat → derived value (HP, tốc độ, crit, evade, deflect).<br>
+        <span class="cl-note">Có hiệu lực từ trận tiếp theo. Ví dụ: <code>hp.perDur: 15</code> → DUR=10 cho 200 HP thay vì 150.</span>
+      </div>
+      <textarea id="cl-textarea-stats"   class="cl-textarea" placeholder="Dán JSON vào đây hoặc dùng nút Upload…"></textarea>
+      <div class="cl-btn-row">
+        <button class="cl-btn cl-btn-upload"   onclick="_clUpload('stats')"   >📤 Upload file</button>
+        <button class="cl-btn cl-btn-download" onclick="_clDownload('stats')" >💾 Download hiện tại</button>
+        <button class="cl-btn cl-btn-apply"    onclick="_clApply('stats')"    >✅ Apply</button>
+      </div>
+      <div id="cl-status-stats" class="cl-status"></div>
+    </div>
+
+    <!-- Pane: Formula -->
+    <div id="cl-pane-formula" class="cl-pane" style="display:none">
+      <div class="cl-desc">
+        Toàn bộ combat formulas gộp trong 1 file: <code>combat</code> (rage, STR scaling), <code>skills</code> (damage mults, thresholds, heal %), <code>races</code> (Limit Break, Blood Price, Sharpness).<br>
+        <span class="cl-note">Có thể upload toàn bộ hoặc chỉ một section. Ví dụ: chỉ đổi <code>{"skills": {"berserker": {"baseMult": 1.5}}}</code> là đủ.</span>
+      </div>
+      <textarea id="cl-textarea-formula" class="cl-textarea" placeholder="Dán JSON vào đây hoặc dùng nút Upload…"></textarea>
+      <div class="cl-btn-row">
+        <button class="cl-btn cl-btn-upload"   onclick="_clUpload('formula')"   >📤 Upload file</button>
+        <button class="cl-btn cl-btn-download" onclick="_clDownload('formula')" >💾 Download hiện tại</button>
+        <button class="cl-btn cl-btn-apply"    onclick="_clApply('formula')"    >✅ Apply</button>
+      </div>
+      <div id="cl-status-formula" class="cl-status"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Debugger password modal -->
+<div id="debugger-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:99999;align-items:center;justify-content:center;">
+  <div id="debugger-pw-box">
+    <div id="debugger-pw-title">🐛 Debugger Mode</div>
+    <div id="debugger-pw-sub">Nhập mật khẩu để bật chế độ Debug</div>
+    <input id="debugger-pw-input" type="password" placeholder="Password…" autocomplete="off" />
+    <div id="debugger-pw-error"></div>
+    <div id="debugger-pw-btns">
+      <button class="debugger-pw-cancel" onclick="document.getElementById('debugger-pw-modal').style.display='none'">Huỷ</button>
+      <button class="debugger-pw-confirm" onclick="submitDebugPW()">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Debugger Mode ──────────────────────────────────────────
+(function () {
+  window.debugMode = false;
+
+  const DEBUG_SELECTORS = [
+    '[data-tab="tab-wiki"]',
+    '[data-tab="tab-changelog"]',
+    '[data-tab="tab-analytics"]',
+    '#quickCreateBtn',
+    '#debugRadoserBtn',
+    '#bulkCreateBtn',
+    '#champAutoBtn',
+    '#tournament-card',
+    '#pve-card',
+    '#load-config-btn',
+  ];
+
+  function applyDebugMode() {
+    DEBUG_SELECTORS.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        el.classList.toggle('debug-hidden', !window.debugMode);
+      });
+    });
+    const btn = document.getElementById('debugger-toggle-btn');
+    if (btn) {
+      btn.textContent = window.debugMode ? '🐛 Debug: ON' : '🐛 Debug';
+      btn.classList.toggle('debugger-on', window.debugMode);
+    }
+    // Re-render chargen step to show/hide debug panels
+    if (typeof renderCgStep === 'function') {
+      const cgScreen = document.getElementById('screen-chargen');
+      if (cgScreen && cgScreen.style.display !== 'none') renderCgStep();
+    }
+  }
+
+  window.toggleDebugMode = function () {
+    if (!window.debugMode) {
+      const modal = document.getElementById('debugger-pw-modal');
+      modal.style.display = 'flex';
+      const inp = document.getElementById('debugger-pw-input');
+      inp.value = '';
+      document.getElementById('debugger-pw-error').textContent = '';
+      setTimeout(() => inp.focus(), 50);
+    } else {
+      window.debugMode = false;
+      applyDebugMode();
+    }
+  };
+
+  window.submitDebugPW = function () {
+    const pw = document.getElementById('debugger-pw-input').value;
+    if (pw === 'K7777') {
+      window.debugMode = true;
+      document.getElementById('debugger-pw-modal').style.display = 'none';
+      applyDebugMode();
+    } else {
+      document.getElementById('debugger-pw-error').textContent = '❌ Sai mật khẩu';
+      document.getElementById('debugger-pw-input').value = '';
+      document.getElementById('debugger-pw-input').focus();
+    }
+  };
+
+  window.addEventListener('DOMContentLoaded', function () {
+    applyDebugMode();
+    document.getElementById('debugger-pw-input')?.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') window.submitDebugPW();
+      if (e.key === 'Escape') document.getElementById('debugger-pw-modal').style.display = 'none';
+    });
+  });
+}());
+</script>
 
 </body>
 </html>
