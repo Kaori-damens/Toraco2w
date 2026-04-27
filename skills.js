@@ -46,6 +46,8 @@ const SKILL_DEFS = [
     desc: 'At round start, steal the opponent\'s weapon. They fight with Fists for the rest of the round.' },
   { id: 'shadow_clone', name: 'Shadow Clone',  icon: '', type: 'pre_combat',  unique: true,
     desc: 'Begin each round with a shadow clone. The first 2 hits against you are absorbed by the clone before it vanishes.' },
+  { id: 'disarm', name: 'Disarm', icon: '⚔️', type: 'in_combat',
+    desc: 'On hit or on parry: disarm the enemy (30s cooldown). They drop their weapon on the floor and fight with Fists at −50% damage. Retrieve the weapon by touching it. Other fighters can kick it further away.' },
 
   // ── WEAPON SKILLS (only available if ball has matching weapon) ──
   // 🥊 Fists
@@ -113,6 +115,26 @@ const SKILL_DEFS = [
     desc: 'Shurikens that hit after 2 or more wall bounces deal +100% damage' },
   { id: 'fan_throw',       name: 'Fan Throw',         icon: '', type: 'in_combat',  weapon: 'shuriken',
     desc: 'Every 5th throw fires 3 shurikens in a fan spread instead of 1' },
+
+  // ── SPAWN MECHANIC — Tier 1 ──────────────────────────────
+  { id: 'soul_puppet',      name: 'Soul Puppet',       icon: '👻', type: 'in_combat',
+    desc: 'On kill: launch 3 homing soul orbs toward random enemies (STR-scaled damage each).' },
+  { id: 'bone_wall',        name: 'Bone Wall',          icon: '🦴', type: 'in_combat',
+    desc: 'On being hit: scatter 5 bone shards outward, each dealing (STR×1.2) damage.' },
+  { id: 'war_banner',       name: 'War Banner',         icon: '🚩', type: 'pre_combat',
+    desc: 'Begin each round with +30% damage for 10 seconds.' },
+  { id: 'necromancer_pact', name: "Necromancer's Pact", icon: '💀', type: 'pre_combat',
+    desc: 'Spawn 2 skeleton minions at round start. They seek enemies and deal (STR×0.8) damage per hit.' },
+
+  // ── SPAWN MECHANIC — Tier 2 ──────────────────────────────
+  { id: 'spirit_echo',      name: 'Spirit Echo',        icon: '🌀', type: 'in_combat',
+    desc: 'Each hit has 40% chance to fire a spirit orb that deals (BIQ×0.6 + STR×0.4) extra damage.' },
+  { id: 'horde_call',       name: 'Horde Call',         icon: '⚔️', type: 'in_combat',
+    desc: 'Every 15 seconds, summon a wave of 3 skeleton minions.' },
+  { id: 'mirror_clone',     name: 'Mirror Clone',       icon: '🪞', type: 'pre_combat',
+    desc: 'Spawn a mirror clone at round start with 50% of your stats. Clone fights independently and does not count toward the win.' },
+  { id: 'plague_bearer',    name: 'Plague Bearer',      icon: '🦠', type: 'in_combat',
+    desc: 'Hits apply plague: 2 damage every 2 seconds for 10 seconds. Stacks up to 3 times.' },
 ];
 
 const SKILL_MAP = Object.fromEntries(SKILL_DEFS.map(s => [s.id, s]));
@@ -213,6 +235,11 @@ function initRoundSkillState(ball) {
     sk_bowShotCount:   0,
     sk_volleyCount:    ball.skills.includes('volley') ? 3 : 0,
     sk_zoneTimer:      0,
+    disarmLastUsed:    -9999,
+    // Spawn skill states
+    warBannerActive:   false,
+    warBannerTimer:    0,
+    hordeTimer:        0,
   };
 }
 
@@ -355,7 +382,8 @@ function skillOnPreCombat(ball) {
   // Passive skills: handled by .always-active CSS class set in buildHUD() — no flash needed here.
 
   // Flash pre-combat skills (they arm themselves at round start)
-  const preCombats = ['war_cry','fortify','adrenaline','predator','first_blood','shadow_clone'];
+  const preCombats = ['war_cry','fortify','adrenaline','predator','first_blood','shadow_clone',
+                      'war_banner','necromancer_pact','mirror_clone'];
   for (const pid of preCombats) {
     if (ball.skills.includes(pid) && SKILL_MAP[pid]) flashSkillHUD(ball, SKILL_MAP[pid]);
   }
@@ -433,6 +461,28 @@ function skillOnPreCombat(ball) {
     if (anyDrained) spawnBigAnnouncement?.('🧟 LICH TROLL — soul drain!', '#aa44ff');
   }
 
+  // War Banner: +30% damage for 10s
+  if (ball.skills.includes('war_banner')) {
+    ball.skillState.warBannerActive = true;
+    ball.skillState.warBannerTimer  = 600; // 10s
+    spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '🚩 WAR BANNER!', '#ffaa33');
+    flashSkillHUD(ball, SKILL_MAP['war_banner']);
+  }
+
+  // Necromancer's Pact: spawn 2 skeleton minions
+  if (ball.skills.includes('necromancer_pact')) {
+    _spawnSkillMinions(ball, 'skeleton', 2);
+    spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '💀 PACT!', '#aaffaa');
+    flashSkillHUD(ball, SKILL_MAP['necromancer_pact']);
+  }
+
+  // Mirror Clone: spawn 1 clone fighter (full Ball)
+  if (ball.skills.includes('mirror_clone') && typeof state !== 'undefined') {
+    _spawnMirrorClone(ball);
+    spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '🪞 CLONE!', '#aaddff');
+    flashSkillHUD(ball, SKILL_MAP['mirror_clone']);
+  }
+
   // Predator: check HP once at round start — lock in for entire round
   if (ball.skills.includes('predator')) {
     const enemies = state.players.filter(p => p !== ball && p.alive);
@@ -462,6 +512,56 @@ function skillOnPreCombat(ball) {
       }
     }
   }
+}
+
+// ── DISARM helper ─────────────────────────────────────────────
+function _doDisarm(attacker, defender) {
+  if (!attacker.skills?.includes('disarm')) return;
+  if (!defender?.alive) return;
+  if (defender.weaponDef?.id === 'fists') return;   // can't disarm fists
+  if (defender.disarmedDebuff) return;               // already disarmed
+
+  const cooldown = 1800; // 30s
+  const lastUsed = attacker.skillState?.disarmLastUsed ?? -9999;
+  const now = typeof state !== 'undefined' ? state.matchTime : 0;
+  if (now - lastUsed < cooldown) return;
+
+  if (attacker.skillState) attacker.skillState.disarmLastUsed = now;
+
+  // Fling weapon away from attacker — high speed so it lands far
+  const dx = defender.x - attacker.x, dy = defender.y - attacker.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const spd  = 12 + Math.random() * 6;  // 12–18 px/frame
+  if (typeof state !== 'undefined') {
+    state.droppedWeapons = state.droppedWeapons || [];
+    state.droppedWeapons.push({
+      x: defender.x, y: defender.y,
+      vx: (dx/dist) * spd + (Math.random()-0.5)*3,
+      vy: (dy/dist) * spd + (Math.random()-0.5)*3,
+      owner:       defender,
+      weaponDef:   defender.weaponDef,
+      weaponState: defender.weapon,
+      r: 20,
+      angle: Math.random() * Math.PI * 2,
+      life: 1800, maxLife: 1800,
+      kickCooldown: 0,
+      spawnGrace: 45,  // không thể nhặt trong 45 frame đầu
+    });
+  }
+
+  // Switch defender to temp fists
+  defender._disarmedOrigDef    = defender.weaponDef;
+  defender._disarmedOrigWeapon = defender.weapon;
+  defender.weaponDef   = WEAPON_MAP['fists'];
+  defender.weapon      = defender._initWeapon('fists');
+  defender.disarmedDebuff = true;
+
+  spawnDamageNumber(defender.x, defender.y - defender.radius - 26, '⚔️ DISARMED!', '#ffaa00');
+  spawnBigAnnouncement?.('⚔️ DISARMED!', '#ffaa00');
+  addBattleLog('skill_trigger', { attacker: getBallLabel(attacker), aColor: attacker.color,
+    text: `⚔️ Disarm → ${getBallLabel(defender)} dropped ${defender._disarmedOrigDef?.name}!` });
+  flashSkillHUD(attacker, SKILL_MAP['disarm']);
+  if (typeof audienceReact === 'function') audienceReact('disarm_react');
 }
 
 // ── ON-HIT hook ────────────────────────────────────────────
@@ -494,6 +594,9 @@ function skillOnHit(attacker, defender, dmg) {
     flashSkillHUD(attacker, SKILL_MAP['counter']);
     addBattleLog('skill_trigger', { attacker: getBallLabel(attacker), aColor: attacker.color, text: '🔄 Counter!' });
   }
+
+  // Disarm: trigger on hit
+  _doDisarm(attacker, defender);
 
   // Flow State: +MA×1% max speed per consecutive hit (reset on being hit)
   if (attacker.skills.includes('flow_state')) {
@@ -542,6 +645,34 @@ function skillOnHit(attacker, defender, dmg) {
     spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 26, `🩸 BURST! +${healAmt}HP`, '#ff3333');
     spawnSparks(attacker.x, attacker.y, 10);
     addBattleLog('race_skill', { attacker: getBallLabel(attacker), aColor: attacker.color, text: `🩸 Blood Price burst!` });
+    addBattleLog('heal', { attacker: getBallLabel(attacker), aColor: attacker.color, heal: healAmt, hpAfter: +attacker.hp.toFixed(1), source: 'Blood Price' });
+  }
+
+  // Spirit Echo: 40% chance to fire a spirit orb toward defender
+  if (attacker.skills.includes('spirit_echo') && defender?.alive && typeof state !== 'undefined') {
+    if (Math.random() < 0.40) {
+      const dx = defender.x - attacker.x, dy = defender.y - attacker.y;
+      const d  = Math.hypot(dx, dy) || 1;
+      const spd = 6;
+      const echoDmg = (attacker.charBIQ ?? 5) * 0.6 + (attacker.charSTR ?? 5) * 0.4;
+      const orb = new Projectile(attacker.x, attacker.y, (dx/d)*spd, (dy/d)*spd, attacker, 'spirit_orb', echoDmg);
+      orb.lifetimer = 180; // 3s
+      orb.trackTarget = defender;
+      state.projectiles.push(orb);
+      flashSkillHUD(attacker, SKILL_MAP['spirit_echo']);
+    }
+  }
+
+  // Plague Bearer: apply plague stack to defender (up to 3 stacks)
+  if (attacker.skills.includes('plague_bearer') && defender?.alive) {
+    const stacks = Math.min(3, (defender._plagueStacks || 0) + 1);
+    defender._plagueStacks = stacks;
+    defender._plagueTimer  = 600; // 10s reset on each new hit
+    defender._plagueTick   = defender._plagueTick || 0;
+    defender._plagueOwner  = attacker;
+    spawnDamageNumber(defender.x, defender.y - defender.radius - 14,
+      `🦠 PLAGUE ×${stacks}`, '#44cc44');
+    flashSkillHUD(attacker, SKILL_MAP['plague_bearer']);
   }
 
   // ── Race: Primordial Void Grip ────────────────────────────────
@@ -726,6 +857,9 @@ function skillOnParry(b1, b2) {
       spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `🗡️ PUNISH! (${(ppFrames/60).toFixed(1)}s)`, '#ffdd00');
       if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['parry_punish']);
     }
+
+    // Disarm: trigger on parry (ball parried, opp gets disarmed)
+    _doDisarm(ball, opp);
   }
 }
 
@@ -757,6 +891,30 @@ function skillOnEvade(ball) {
 // Called from takeDamage when a ball's HP drops to 0.
 function skillOnKill(killer, victim) {
   if (!killer || !killer.skillState) return;
+
+  // Soul Puppet: on kill → fire 3 homing soul orbs toward random alive enemies
+  if (killer.skills?.includes('soul_puppet') && typeof state !== 'undefined') {
+    const enemies = state.players.filter(p => p.alive && p !== killer &&
+      (killer.teamId >= 0 ? p.teamId !== killer.teamId : true));
+    if (enemies.length > 0) {
+      for (let i = 0; i < 3; i++) {
+        const target = enemies[Math.floor(Math.random() * enemies.length)];
+        const dx = target.x - killer.x, dy = target.y - killer.y;
+        const d  = Math.hypot(dx, dy) || 1;
+        const spd = 4.5 + Math.random() * 1.5;
+        const aDev = (Math.random() - 0.5) * 0.6;
+        const orbDmg = (killer.charSTR ?? 5) * 1.5;
+        const orb = new Projectile(killer.x, killer.y,
+          Math.cos(Math.atan2(dy,dx)+aDev)*spd, Math.sin(Math.atan2(dy,dx)+aDev)*spd,
+          killer, 'soul_orb', orbDmg);
+        orb.lifetimer   = 240; // 4s
+        orb.trackTarget = target;
+        state.projectiles.push(orb);
+      }
+      spawnDamageNumber(killer.x, killer.y - killer.radius - 18, '👻 SOUL PUPPET!', '#cc44ff');
+      flashSkillHUD(killer, SKILL_MAP['soul_puppet']);
+    }
+  }
 
   // Blood Frenzy: heal 25 HP
   if (killer.skills?.includes('blood_frenzy')) {
@@ -905,6 +1063,225 @@ function skillOnPostCombat(ball, won, fighter) {
   }
 }
 
+// ── ON-TAKE-DAMAGE hook (bone_wall) ───────────────────────────────
+function skillOnTakeDamage(ball, attacker, dmg) {
+  // Bone Wall: scatter 5 bone shard projectiles outward when hit
+  if (ball.skills?.includes('bone_wall') && typeof state !== 'undefined') {
+    const str = ball.charSTR ?? 5;
+    const shardDmg = str * 1.2;
+    for (let i = 0; i < 5; i++) {
+      const a   = (i / 5) * Math.PI * 2 + Math.random() * 0.4;
+      const spd = 7 + Math.random() * 3;
+      const sh  = new Projectile(ball.x, ball.y, Math.cos(a)*spd, Math.sin(a)*spd,
+                    ball, 'bone_shard_proj', shardDmg);
+      sh.immuneFrames = 3;
+      sh.lifetimer    = 90; // 1.5s
+      state.projectiles.push(sh);
+    }
+    if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['bone_wall']);
+  }
+}
+
+// ── PER-FRAME skill update (timers, plague ticks) ─────────────────
+function skillPerFrameUpdate(ball) {
+  const sk = ball.skillState;
+  if (!sk) return;
+
+  // War Banner: decay timer each frame
+  if (sk.warBannerActive && sk.warBannerTimer > 0) {
+    sk.warBannerTimer--;
+    if (sk.warBannerTimer === 0) {
+      sk.warBannerActive = false;
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🚩 Banner ended', '#998866');
+    }
+  }
+
+  // Horde Call: spawn 3 minions every 15s
+  if (ball.skills?.includes('horde_call') && typeof state !== 'undefined') {
+    sk.hordeTimer = (sk.hordeTimer || 0) + 1;
+    if (sk.hordeTimer >= 900) {
+      sk.hordeTimer = 0;
+      _spawnSkillMinions(ball, 'skeleton', 3);
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 20, '⚔️ HORDE!', '#ffaa44');
+      if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['horde_call']);
+    }
+  }
+
+  // Plague: tick damage on this ball if plagued
+  if (ball._plagueTimer > 0) {
+    ball._plagueTimer--;
+    ball._plagueTick = (ball._plagueTick || 0) + 1;
+    if (ball._plagueTick >= 120) { // tick every 2s
+      ball._plagueTick = 0;
+      const dmgTick = 2 * (ball._plagueStacks || 1);
+      ball.hp = Math.max(0, ball.hp - dmgTick);
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 12, `🦠 -${dmgTick}`, '#44cc44');
+      if (ball.hp <= 0 && ball.alive) {
+        ball.alive = false;
+        if (ball._plagueOwner) skillOnKill(ball._plagueOwner, ball);
+      }
+    }
+    if (ball._plagueTimer <= 0) {
+      ball._plagueStacks = 0;
+      ball._plagueOwner  = null;
+    }
+  }
+}
+
+// ── SKILL MINION HELPERS ──────────────────────────────────────────
+function _spawnSkillMinions(owner, type, count) {
+  if (typeof state === 'undefined') return;
+  state.skillMinions = state.skillMinions || [];
+  const str = owner.charSTR ?? 5;
+  for (let i = 0; i < count; i++) {
+    const a   = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+    const off = 30 + Math.random() * 20;
+    state.skillMinions.push({
+      x:         owner.x + Math.cos(a) * off,
+      y:         owner.y + Math.sin(a) * off,
+      vx: 0, vy: 0,
+      hp:    type === 'skeleton' ? 20 : 30,
+      maxHp: type === 'skeleton' ? 20 : 30,
+      r:     type === 'skeleton' ? 9  : 11,
+      color: type === 'skeleton' ? '#aaffaa' : '#88ccff',
+      owner,
+      teamId:      owner.teamId,
+      damage:      str * 0.8,
+      attackRange: 32,
+      attackCd:    0,
+      attackCdMax: 70,
+      alive:    true,
+      type,
+      lifetime: type === 'skeleton' ? 1200 : 900,
+      _age:     0,
+    });
+  }
+}
+
+function _spawnMirrorClone(owner) {
+  if (typeof state === 'undefined' || typeof Ball === 'undefined') return;
+  // Build a simplified fighter config from owner's stats
+  const cs = {
+    strength: Math.round((owner.charSTR ?? 5) * 0.5),
+    speed:    Math.round((owner.charSPD ?? 5) * 0.5),
+    durability: Math.round((owner.charDUR ?? 5) * 0.5),
+    iq:       Math.round((owner.charIQ  ?? 5) * 0.5),
+    battleiq: Math.round((owner.charBIQ ?? 5) * 0.5),
+    ma:       Math.round((owner.charMA  ?? 5) * 0.5),
+  };
+  const clone = new Ball(
+    owner.x + (Math.random() - 0.5) * 40,
+    owner.y + (Math.random() - 0.5) * 40,
+    owner.color,
+    owner.weaponDef?.id || 'fists',
+    owner.side || 'left',
+    cs,
+    owner.teamId
+  );
+  clone.isMirrorClone   = true;
+  clone.mirrorCloneOwner = owner;
+  clone.charName  = `[Clone] ${owner.charName || '?'}`;
+  clone.charEmoji = owner.charEmoji || '';
+  clone.skills    = [];
+  initRoundSkillState(clone);
+  state.players.push(clone);
+}
+
+// ── UPDATE SKILL MINIONS (called from game-loop step) ─────────────
+function updateSkillMinions() {
+  if (!state.skillMinions?.length) return;
+  for (let i = state.skillMinions.length - 1; i >= 0; i--) {
+    const m = state.skillMinions[i];
+    if (!m.alive) { state.skillMinions.splice(i, 1); continue; }
+    m._age++;
+    if (m.lifetime > 0 && m._age >= m.lifetime) { m.alive = false; continue; }
+
+    // Find nearest enemy player
+    let nearest = null, nearestD = Infinity;
+    for (const p of state.players) {
+      if (!p.alive || p === m.owner || p.isMirrorClone) continue;
+      if (m.teamId >= 0 && p.teamId === m.teamId) continue;
+      const d = Math.hypot(p.x - m.x, p.y - m.y);
+      if (d < nearestD) { nearestD = d; nearest = p; }
+    }
+
+    if (nearest) {
+      const dx = nearest.x - m.x, dy = nearest.y - m.y;
+      const d  = Math.hypot(dx, dy) || 1;
+      m.vx += (dx / d) * 0.35;
+      m.vy += (dy / d) * 0.35;
+      const spd = Math.hypot(m.vx, m.vy);
+      if (spd > 2.5) { m.vx = m.vx / spd * 2.5; m.vy = m.vy / spd * 2.5; }
+
+      // Melee attack when close enough
+      m.attackCd = Math.max(0, m.attackCd - 1);
+      if (nearestD < m.r + (nearest.radius || 16) + 4 && m.attackCd === 0) {
+        m.attackCd = m.attackCdMax;
+        if (nearest.takeDamage) nearest.takeDamage(m.damage, m.x, m.y, false, null, false, false);
+      }
+    } else {
+      m.attackCd = Math.max(0, m.attackCd - 1);
+    }
+
+    m.x += m.vx;
+    m.y += m.vy;
+    m.vx *= 0.80;
+    m.vy *= 0.80;
+
+    // Simple arena boundary bounce
+    if (typeof checkArenaWall === 'function' && state.arena) {
+      const hit = checkArenaWall(m.x, m.y, m.r, state.arena, false);
+      if (hit) {
+        if (hit.nx !== 0) { m.vx *= -0.5; m.x += hit.nx * 2; }
+        if (hit.ny !== 0) { m.vy *= -0.5; m.y += hit.ny * 2; }
+      }
+    }
+
+    // Take damage from projectiles
+    for (let j = state.projectiles.length - 1; j >= 0; j--) {
+      const proj = state.projectiles[j];
+      if (!proj.alive || proj.immuneFrames > 0) continue;
+      if (proj.owner === m.owner) continue;
+      if (m.teamId >= 0 && proj.owner?.teamId === m.teamId) continue;
+      if (Math.hypot(proj.x - m.x, proj.y - m.y) < m.r + proj.r) {
+        m.hp -= proj.damage;
+        if (!proj.piercing) proj.alive = false;
+        if (m.hp <= 0) { m.alive = false; break; }
+      }
+    }
+  }
+}
+
+// ── DRAW SKILL MINIONS (called from game-loop render) ─────────────
+function drawSkillMinions(ctx) {
+  if (!state.skillMinions?.length) return;
+  for (const m of state.skillMinions) {
+    if (!m.alive) continue;
+    ctx.save();
+    // Pulsing opacity near death
+    const hpFrac = m.hp / m.maxHp;
+    ctx.globalAlpha = hpFrac < 0.35 ? 0.5 + 0.35 * Math.sin(Date.now() * 0.015) : 0.88;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+    ctx.fillStyle   = m.color;
+    ctx.shadowColor = m.color;
+    ctx.shadowBlur  = 6;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+    ctx.globalAlpha = 1;
+    // HP bar
+    const bw = m.r * 2.2, bh = 3;
+    const bx = m.x - bw / 2, by = m.y - m.r - 6;
+    ctx.fillStyle = '#333'; ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = hpFrac > 0.5 ? '#44ff88' : hpFrac > 0.25 ? '#ffcc44' : '#ff4444';
+    ctx.fillRect(bx, by, bw * hpFrac, bh);
+    ctx.restore();
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // RACE SKILLS — unique active abilities, auto-assigned by race
 // ═══════════════════════════════════════════════════════════════════
@@ -928,6 +1305,8 @@ const RACE_SKILL_DEFS = {
                 desc:'Periodically slams the ground, pushing all enemies away with a shockwave. Enemies caught close also take damage. Power scales with STR, recharges faster with DUR.' },
   god:        { id:'race_god_gift',     name:'God Gift',     icon:'✨',
                 desc:'Unique passive based on your blessing. Surtr: ground slam at 70s. Raijin: gain speed with each wall bounce. Shiva: switch to pure fists at 70s. Atlas: regenerate HP every 1.5s (scales with DUR). Thoth/Athena: bonuses applied at character creation.' },
+  skeleton:   { id:'race_bone_scatter',   name:'Bone Scatter',  icon:'🦴',
+                desc:'Passive: 50% chance on each hit to scatter bone shards (1 shard per 4 BIQ, min 1). Pick up own shards to heal (DUR×1.5 HP each) and gain a speed burst. Enemy contact destroys shards.' },
   demon:      { id:'race_blood_contract', name:'Blood Contract', icon:'📜',
                 desc:'Sacrifice 15% current HP to activate a dark pact (5–7s). While active: every hit you receive also heals you for 50% of the damage dealt. Scale DUR (+absorb%), MA (duration + faster cooldown). Cooldown ~25s.' },
 };
@@ -1039,6 +1418,14 @@ function initRaceSkillState(ball) {
       ball.rs_durRegenTimer = 0;     // counts frames toward next regen tick
     }
     // Blessed by Thoth + Blessed by Athena: no runtime state needed in battle
+  }
+  if (race === 'skeleton') {
+    ball.rs_maxCooldown     = 0;  // fully passive — no cooldown bar
+    ball.rs_shardHeal       = (ball.charDUR ?? 5) * 1.5;       // DUR=5→7.5 HP, DUR=10→15 HP
+    ball.rs_shardCount      = Math.max(1, Math.floor((ball.charBIQ ?? 5) / 4)); // BIQ=4→1, BIQ=8→2
+    ball.rs_shardSpeedMult  = 1.30;  // +30% speed cap boost
+    ball.rs_shardSpeedDur   = 180;   // 3s per shard pickup
+    ball.rs_shardSpeedTimer = 0;
   }
   if (race === 'demon') {
     const dur = ball.charDUR ?? 5;
@@ -1458,7 +1845,18 @@ function updateRaceSkills(ball, players, rstate) {
         ball.hp = Math.min(ball.maxHp, ball.hp + regen);
         spawnDamageNumber(ball.x, ball.y - ball.radius - 12,
           `🛡️ +${regen.toFixed(1)}`, '#88ddff');
+        addBattleLog('heal', { attacker: getBallLabel(ball), aColor: ball.color,
+          heal: +regen.toFixed(1), hpAfter: +ball.hp.toFixed(1), source: 'Atlas Regen' });
       }
+    }
+  }
+
+  // ── SKELETON: Bone Scatter — speed timer tick ────────────────
+  if (race === 'skeleton' && ball.raceSkillDef) {
+    if ((ball.rs_shardSpeedTimer || 0) > 0) {
+      ball.rs_shardSpeedTimer--;
+      if (ball.rs_shardSpeedTimer === 0)
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🦴 speed fades', '#ccaa66');
     }
   }
 
@@ -1588,6 +1986,95 @@ function updateRaceSkillProjectiles(rstate) {
     }
     if (s.timer <= 0) rstate.smiteEffects.splice(i, 1);
   }
+
+  // ── Skeleton Bone Shards — pickup / enemy-destroy ─────────────
+  rstate.boneShards = rstate.boneShards || [];
+  for (let i = rstate.boneShards.length - 1; i >= 0; i--) {
+    const sh = rstate.boneShards[i];
+    sh.life--;
+    sh.angle += 0.04; // slow visual rotation
+    if (sh.life <= 0) { rstate.boneShards.splice(i, 1); continue; }
+
+    let hit = false;
+    for (const ball of players) {
+      if (!ball.alive) continue;
+      if (Math.hypot(ball.x - sh.x, ball.y - sh.y) > ball.radius + sh.r) continue;
+
+      if (ball.charRace === 'skeleton') {
+        // Any skeleton can pick up any bone shard (skeleton vs skeleton: shared loot)
+        const heal = sh.owner.rs_shardHeal ?? 7.5;
+        ball.hp = Math.min(ball.maxHp, ball.hp + heal);
+        ball.rs_shardSpeedTimer = (ball.rs_shardSpeedTimer || 0) + (ball.rs_shardSpeedDur || 180);
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 14, `🦴 +${heal.toFixed(1)} HP`, '#eedd88');
+        if (typeof addBattleLog === 'function')
+          addBattleLog('heal', { attacker: getBallLabel(ball), aColor: ball.color,
+            heal: +heal.toFixed(1), hpAfter: +ball.hp.toFixed(1), source: 'Bone Scatter' });
+      }
+      // Skeleton pickup AND non-skeleton step-on both destroy the shard
+      rstate.boneShards.splice(i, 1);
+      hit = true;
+      break;
+    }
+    if (hit) continue;
+  }
+
+  // ── Dropped Weapons (Disarm skill) ────────────────────────────
+  rstate.droppedWeapons = rstate.droppedWeapons || [];
+  for (let i = rstate.droppedWeapons.length - 1; i >= 0; i--) {
+    const dw = rstate.droppedWeapons[i];
+    dw.life--;
+    // Friction
+    dw.vx *= 0.93;
+    dw.vy *= 0.93;
+    dw.x += dw.vx;
+    dw.y += dw.vy;
+    dw.angle += (dw.vx + dw.vy) * 0.04;
+
+    // Wall bounce (simple canvas bounds 0-1000)
+    if (dw.x - dw.r < 0)    { dw.x = dw.r;      dw.vx = Math.abs(dw.vx) * 0.6; }
+    if (dw.x + dw.r > 1000) { dw.x = 1000-dw.r; dw.vx = -Math.abs(dw.vx) * 0.6; }
+    if (dw.y - dw.r < 0)    { dw.y = dw.r;      dw.vy = Math.abs(dw.vy) * 0.6; }
+    if (dw.y + dw.r > 1000) { dw.y = 1000-dw.r; dw.vy = -Math.abs(dw.vy) * 0.6; }
+
+    if (dw.kickCooldown > 0) dw.kickCooldown--;
+    if (dw.spawnGrace > 0) dw.spawnGrace--;
+
+    let expired = dw.life <= 0;
+    if (dw.spawnGrace > 0) continue; // grace period — no pickup/kick yet
+    for (const ball of players) {
+      if (!ball.alive) continue;
+      const dist = Math.hypot(ball.x - dw.x, ball.y - dw.y);
+      if (dist > ball.radius + dw.r) continue;
+
+      if (ball === dw.owner) {
+        // Owner picks up weapon and recovers
+        ball.weaponDef           = dw.weaponDef;
+        ball.weapon              = dw.weaponState;
+        ball.disarmedDebuff      = false;
+        delete ball._disarmedOrigDef;
+        delete ball._disarmedOrigWeapon;
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '⚔️ REARMED!', '#88ffaa');
+        addBattleLog('skill_trigger', { attacker: getBallLabel(ball), aColor: ball.color,
+          text: '⚔️ Picked up weapon!' });
+        expired = true;
+      } else if (dw.kickCooldown <= 0) {
+        // Non-owner kicks weapon away
+        const dx = dw.x - ball.x, dy = dw.y - ball.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const kick = 5 + Math.random() * 3;
+        dw.vx = (dx/d) * kick + (Math.random()-0.5)*2;
+        dw.vy = (dy/d) * kick + (Math.random()-0.5)*2;
+        dw.kickCooldown = 30;
+        spawnSparks(dw.x, dw.y, 4);
+      }
+      break;
+    }
+
+    if (expired) {
+      // Weapon disappears without recovery — owner keeps fists debuff until death
+      rstate.droppedWeapons.splice(i, 1);
+    }
+  }
 }
 
 // Called from skillOnHit when a melee weapon hits a Primordial
@@ -1650,6 +2137,63 @@ function drawRaceSkillEffects(ctx, rstate) {
       ctx.moveTo(net.x + Math.cos(ra)*net.r, net.y + Math.sin(ra)*net.r);
       ctx.lineTo(net.x - Math.cos(ra)*net.r, net.y - Math.sin(ra)*net.r);
       ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  // Skeleton Bone Shards on the floor
+  (rstate.boneShards || []).forEach(sh => {
+    const alpha = Math.min(1, sh.life / 60) * 0.92; // fade out last 1s
+    const cx = sh.x, cy = sh.y, a = sh.angle;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Glow
+    ctx.shadowColor = '#e8d8a0';
+    ctx.shadowBlur  = 10;
+    // Draw a simple bone shape: 2 circles at ends + rect shaft
+    const L = sh.r * 1.1, bR = sh.r * 0.55;
+    ctx.fillStyle = '#d4c07a';
+    ctx.strokeStyle = '#8b6914';
+    ctx.lineWidth = 1.2;
+    // Shaft
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(a);
+    ctx.beginPath();
+    ctx.rect(-L, -bR * 0.38, L * 2, bR * 0.76);
+    ctx.fill(); ctx.stroke();
+    // End knobs
+    for (const ex of [-L, L]) {
+      ctx.beginPath(); ctx.arc(ex, 0, bR, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.restore();
+  });
+
+  // Dropped Weapons (Disarm)
+  (rstate.droppedWeapons || []).forEach(dw => {
+    const alpha = Math.min(1, dw.life / 60) * 0.92;
+    const ownerNearby = dw.owner && Math.hypot(dw.owner.x - dw.x, dw.owner.y - dw.y) < 80;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(dw.x, dw.y);
+    ctx.rotate(dw.angle);
+    // Glow — orange normally, pulse green when owner is nearby
+    ctx.shadowColor = ownerNearby ? '#66ff88' : '#ffaa33';
+    ctx.shadowBlur  = ownerNearby ? 18 + 6 * Math.sin(t * 0.25) : 12;
+    // Draw a simple crossed-sword icon: two rects at ±45°
+    const wColor = dw.weaponDef?.color ?? '#cccccc';
+    ctx.fillStyle   = wColor;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth   = 1.2;
+    for (const rot of [Math.PI/4, -Math.PI/4]) {
+      ctx.save();
+      ctx.rotate(rot);
+      ctx.beginPath();
+      ctx.rect(-dw.r*0.18, -dw.r, dw.r*0.36, dw.r*2);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
     }
     ctx.restore();
   });

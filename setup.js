@@ -115,10 +115,14 @@ function initGame() {
   state.projectiles  = [];
   state.trollNets    = [];
   state.smiteEffects = [];
+  state.boneShards      = [];
+  state.skillMinions    = [];
+  state.droppedWeapons  = [];
   state.trapObjects  = (typeof initTrapObjects === 'function' && arenaConfig.traps)
     ? initTrapObjects(arenaConfig) : [];
   state.frame = 0;
   state.ended = false;
+  if (typeof resetArenaEvents === 'function') resetArenaEvents();
   state.winner = null;
   state.winTeam    = -1;
   state.speedFloorActive = false;
@@ -151,12 +155,16 @@ function startGame() {
   _accumulator = 0;
   if (rafId) cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(gameLoop);
+  // Audience stand
+  if (typeof initAudience === 'function') initAudience();
+  if (typeof startAudienceChatter === 'function') startAudienceChatter();
 }
 
 function stopGame() {
   state.running = false;
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   resetArenaFit();
+  if (typeof stopAudienceChatter === 'function') stopAudienceChatter();
 }
 
 // ── Auto-fit canvas viewport to arena bounding box ─────────────────
@@ -169,14 +177,29 @@ function applyArenaFit(arena) {
   if (!arena || !clip || !canvas) return;
 
   let ax, ay, aw, ah;
-  if (arena.type === 'circle' || arena.type === 'hole_ci') {
+  if (arena.type === 'circle' || arena.type === 'hole_ci' || arena.type === 'shrinking_ring') {
     ax = arena.cx - arena.r;
     ay = arena.cy - arena.r;
     aw = arena.r * 2;
     ah = arena.r * 2;
+  } else if (arena.type === 'diamond') {
+    ax = arena.cx - arena.hw;
+    ay = arena.cy - arena.hh;
+    aw = arena.hw * 2;
+    ah = arena.hh * 2;
+  } else if (arena.type === 'octagon') {
+    // Use circumradius (R = r / cos(π/8) ≈ 1.082·r) for bounding box
+    const R = arena.r / Math.cos(Math.PI / 8);
+    ax = arena.cx - R;
+    ay = arena.cy - R;
+    aw = R * 2;
+    ah = R * 2;
   } else {
-    // square, rect, hole_sq, hole_re
-    ax = arena.x; ay = arena.y; aw = arena.w; ah = arena.h;
+    // square, rect, hole_sq, hole_re, cross
+    ax = arena.x ?? (arena.cx - (arena.arm ?? 300));
+    ay = arena.y ?? (arena.cy - (arena.arm ?? 300));
+    aw = arena.w ?? (arena.arm ?? 300) * 2;
+    ah = arena.h ?? (arena.arm ?? 300) * 2;
   }
 
   // Add padding, clamp so we never go outside 0-1000

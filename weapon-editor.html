@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Weapon Shape Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0e0e1a; color: #ccc; font-family: sans-serif; font-size: 13px;
+       display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── Toolbar ── */
+#toolbar {
+  background: #16162a; border-bottom: 1px solid #2a2a40;
+  padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+#toolbar h1 { font-size: 14px; color: #fff; margin-right: 6px; }
+#weapon-select { background: #1e1e34; color: #ddd; border: 1px solid #333; border-radius: 4px;
+                  padding: 4px 8px; font-size: 13px; cursor: pointer; }
+.sep { width: 1px; height: 22px; background: #2a2a40; }
+.tbtn { padding: 5px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.tbtn-add  { background: #1e3a1e; color: #88ff88; }
+.tbtn-add:hover  { background: #163016; }
+.tbtn-del  { background: #3a1a1a; color: #ff8888; }
+.tbtn-del:hover  { background: #2a1010; }
+.tbtn-act  { background: #1e2d4a; color: #88aaff; }
+.tbtn-act:hover  { background: #162240; }
+.tbtn-copy { background: #2a2240; color: #bbaaff; }
+.tbtn-copy:hover { background: #1e1830; }
+.tbtn-copy.ok    { background: #1e3a20; color: #88ffaa; }
+.tbtn-reset { background: #2a2a20; color: #ffdd88; }
+.tbtn-reset:hover { background: #202015; }
+#spin-label { font-size: 12px; color: #888; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+/* ── Main ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Shape list ── */
+#shape-panel {
+  width: 170px; background: #13131f; border-right: 1px solid #222;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#shape-panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+                   color: #555; padding: 8px 10px 6px; border-bottom: 1px solid #1e1e30; }
+#shape-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.shape-item {
+  padding: 5px 10px; cursor: pointer; display: flex; align-items: center;
+  gap: 6px; border-left: 2px solid transparent; user-select: none;
+}
+.shape-item:hover { background: #1a1a2e; }
+.shape-item.selected { background: #1a2240; border-left-color: #4488ff; }
+.shape-item.hidden { opacity: 0.4; }
+.shape-type-tag {
+  font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+  background: #2a2a40; color: #888;
+}
+.shape-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vis-toggle { cursor: pointer; font-size: 11px; color: #555; flex-shrink: 0; }
+.vis-toggle:hover { color: #aaa; }
+
+/* ── Canvas ── */
+#canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center;
+               background: #0e0e1a; overflow: hidden; position: relative; }
+#canvas { cursor: crosshair; display: block; }
+
+/* ── Props panel ── */
+#props-panel {
+  width: 230px; background: #13131f; border-left: 1px solid #222;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#props-panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+                   color: #555; padding: 8px 10px 6px; border-bottom: 1px solid #1e1e30; flex-shrink: 0; }
+#props-body { flex: 1; overflow-y: auto; padding: 8px 10px; }
+.prop-row { margin-bottom: 8px; }
+.prop-row label { display: block; font-size: 11px; color: #666; margin-bottom: 3px; }
+.prop-row input[type=text],
+.prop-row input[type=number],
+.prop-row select,
+.prop-row textarea {
+  width: 100%; background: #1a1a2e; color: #ccc; border: 1px solid #2a2a40;
+  border-radius: 3px; padding: 4px 6px; font-size: 12px; font-family: monospace;
+}
+.prop-row input[type=text]:focus,
+.prop-row input[type=number]:focus { border-color: #4466aa; outline: none; }
+.prop-row textarea { resize: vertical; min-height: 60px; font-size: 11px; }
+.prop-row input[type=color] { width: 40px; height: 26px; padding: 1px; border: 1px solid #2a2a40;
+                               border-radius: 3px; cursor: pointer; background: #1a1a2e; }
+.color-row { display: flex; align-items: center; gap: 6px; }
+.color-row input[type=text] { flex: 1; }
+.prop-row-h { display: flex; gap: 6px; }
+.prop-row-h .prop-row { flex: 1; }
+.prop-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #444;
+                 margin: 12px 0 6px; border-top: 1px solid #1e1e30; padding-top: 8px; }
+#no-selection { color: #444; font-size: 12px; padding: 16px 10px; }
+
+/* ── Tabs ── */
+#tab-bar { background: #12121e; border-bottom: 1px solid #222; display: flex; padding: 0 12px; flex-shrink: 0; }
+.tab-btn { padding: 6px 16px; font-size: 12px; border: none; background: none; color: #555; cursor: pointer;
+           border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab-btn:hover { color: #aaa; }
+.tab-btn.active { color: #88aaff; border-bottom-color: #4466ff; }
+/* New weapon meta section */
+#nw-meta-section { overflow-y: auto; max-height: 270px; border-bottom: 1px solid #1e1e30;
+                    padding: 8px 10px; flex-shrink: 0; }
+#nw-meta-section h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+                       color: #555; margin-bottom: 8px; }
+.nw-base-row { display: flex; gap: 4px; align-items: center; }
+.nw-base-row select { flex: 1; background: #1a1a2e; color: #ddd; border: 1px solid #333;
+                       border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- ── Toolbar ── -->
+<div id="toolbar">
+  <h1>⚔ Weapon Editor</h1>
+  <select id="weapon-select"></select>
+  <div class="sep"></div>
+  <button class="tbtn tbtn-add" onclick="addShape('line')">+ Line</button>
+  <button class="tbtn tbtn-add" onclick="addShape('polygon')">+ Polygon</button>
+  <button class="tbtn tbtn-add" onclick="addShape('circle')">+ Circle</button>
+  <button class="tbtn tbtn-add" onclick="addShape('arc')">+ Arc</button>
+  <button class="tbtn tbtn-del" id="btn-del" onclick="deleteSelected()">✕ Delete</button>
+  <div class="sep"></div>
+  <label id="spin-label"><input type="checkbox" id="spin-chk"> Spin preview</label>
+  <div class="sep"></div>
+  <button class="tbtn tbtn-copy" id="btn-copy" onclick="copyJson()">📋 Copy JSON</button>
+  <button class="tbtn tbtn-reset" onclick="resetWeapon()">↺ Reset</button>
+</div>
+
+<!-- ── Tabs ── -->
+<div id="tab-bar">
+  <button class="tab-btn active" id="tab-edit" onclick="switchTab('edit')">Edit Existing</button>
+  <button class="tab-btn" id="tab-new" onclick="switchTab('new')">⊕ New Weapon</button>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+  <div id="shape-panel">
+    <h3>Shapes</h3>
+    <div id="shape-list"></div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="canvas" width="680" height="440"></canvas>
+  </div>
+
+  <div id="props-panel">
+    <h3>Properties</h3>
+    <!-- New weapon metadata form (hidden in edit tab) -->
+    <div id="nw-meta-section" style="display:none">
+      <h4>Weapon Info</h4>
+      <div class="prop-row-h">
+        <div class="prop-row" style="flex:2"><label>ID</label>
+          <input type="text" id="nw-id" placeholder="my_weapon"></div>
+        <div class="prop-row" style="flex:1"><label>Icon</label>
+          <input type="text" id="nw-icon" placeholder="⚔️"></div>
+      </div>
+      <div class="prop-row"><label>Name</label>
+        <input type="text" id="nw-name" placeholder="My Weapon"></div>
+      <div class="prop-row"><label>Color</label>
+        <div class="color-row">
+          <input type="color" id="nw-color-picker" value="#aaddff">
+          <input type="text" id="nw-color" value="#aaddff">
+        </div></div>
+      <div class="prop-row"><label>Description</label>
+        <input type="text" id="nw-desc" placeholder="Weapon description"></div>
+      <div class="prop-row-h">
+        <div class="prop-row"><label>AI Type</label>
+          <select id="nw-aitype">
+            <option value="melee">melee</option>
+            <option value="ranged">ranged</option>
+          </select></div>
+        <div class="prop-row"><label>baseLength</label>
+          <input type="number" id="nw-baselen" value="40" step="1"></div>
+      </div>
+      <div class="prop-row-h">
+        <div class="prop-row"><label>baseSpeed</label>
+          <input type="number" id="nw-spd" value="0.05" step="0.005"></div>
+        <div class="prop-row"><label>baseDmg</label>
+          <input type="number" id="nw-dmg" value="1" step="0.1"></div>
+      </div>
+      <div class="prop-row-h">
+        <div class="prop-row"><label>baseKB</label>
+          <input type="number" id="nw-kb" value="4" step="1"></div>
+        <div class="prop-row"><label>hitRadius</label>
+          <input type="number" id="nw-hr" value="8" step="1"></div>
+        <div class="prop-row"><label>cooldown</label>
+          <input type="number" id="nw-cd" value="28" step="1"></div>
+      </div>
+      <div class="prop-section">Start from existing</div>
+      <div class="nw-base-row">
+        <select id="nw-base-sel"></select>
+        <button class="tbtn tbtn-act" onclick="loadBaseShapes()" style="padding:4px 8px;font-size:11px">Load</button>
+      </div>
+    </div>
+    <div id="props-body">
+      <div id="no-selection">Select a shape to edit its properties.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════
+const BALL_R  = 24;      // game ball radius (px)
+const ED_R    = 80;      // editor display radius
+const SCALE   = ED_R / BALL_R;   // ≈ 3.333
+const CX      = 200;     // ball center x in canvas
+const CY      = 220;     // ball center y in canvas
+const HANDLE_R = 6;      // drag handle radius (px)
+
+// ══════════════════════════════════════════════════════
+// WEAPON SHAPE DATA  (game-pixel coords, origin=ball center, +x=forward)
+// ══════════════════════════════════════════════════════
+let _sid = 0;
+const sid = () => 's' + (++_sid);
+
+function line(label, pts, stroke, lw, lc='round') {
+  return { id:sid(), type:'line', label, points:pts, stroke, lineWidth:lw, lineCap:lc, opacity:1, visible:true };
+}
+function poly(label, pts, fill, stroke='rgba(0,0,0,0.4)', lw=1.5) {
+  return { id:sid(), type:'polygon', label, points:pts, fill, stroke, lineWidth:lw, opacity:1, visible:true };
+}
+function circ(label, cx, cy, r, fill, stroke, lw=2) {
+  return { id:sid(), type:'circle', label, cx, cy, r, fill, stroke, lineWidth:lw, opacity:1, visible:true };
+}
+function arc(label, cx, cy, r, sa, ea, stroke, lw, lc='round') {
+  return { id:sid(), type:'arc', label, cx, cy, r, startAngle:sa, endAngle:ea, stroke, lineWidth:lw, lineCap:lc, opacity:1, visible:true };
+}
+const PI = Math.PI;
+
+const DEFAULT_SHAPES = {
+
+fists: [
+  circ('Fist Front', 46, 0, 11, '#ff9944', '#332200'),
+  circ('Fist Back', -33, 0, 9, '#ff9944', '#332200'),
+],
+
+sword: [
+  line('Blade',  [[24,0],[74,0]], '#ddeeff', 5),
+  line('Edge',   [[24,-1.5],[74,-1.5]], '#ffffff', 1.5),
+  line('Guard',  [[30,-12],[30,12]], '#aa8833', 8),
+],
+
+dagger: [
+  line('Blade', [[24,0],[52,0]], '#ffe077', 4),
+  line('Spine', [[24,0],[52,0]], '#ffffff', 1),
+  poly('Tip',   [[52,0],[47,3],[47,-3]], '#ffee99', null, 0),
+],
+
+spear: [
+  line('Shaft', [[-34,0],[19,0]], '#cc9944', 4),
+  line('Blade', [[19,0],[89,0]], '#aaddff', 3),
+  poly('Tip',   [[89,0],[81,6],[81,-6]], '#ddeeff', null, 0),
+],
+
+bow: [
+  arc ('Bow Arc',  30, 0, 22, -0.55*PI, 0.55*PI, '#886633', 3),
+  line('String',   [[27,-21.7],[30,0],[27,21.7]], '#cccc88', 1.5),
+  line('Arrow',    [[30,0],[52,0]], '#cc9944', 2),
+  poly('Arrowhead',[[52,0],[46,-4],[46,4]], '#ccddaa', null, 0),
+],
+
+scythe: [
+  line('Shaft',     [[19,0],[72,0]], '#553366', 4),
+  arc ('Blade',     62, 0, 22, -0.8*PI, 0.3*PI, '#dd77ff', 3),
+  arc ('Edge',      62, -1, 21, -0.75*PI, 0.2*PI, '#ffffff', 1),
+],
+
+hammer: [
+  line('Handle', [[28,0],[62,0]], '#886633', 5),
+  poly('Head',   [[55,-10],[69,-10],[69,10],[55,10]], '#cc4422', '#882211', 2),
+  poly('Shine',  [[57,-8],[62,-8],[62,8],[57,8]], 'rgba(255,150,100,0.4)', null, 0),
+],
+
+shuriken: [
+  poly('Blade R', [[28,0],[44,0],[33,5]],   '#003322', '#44eebb', 2),
+  poly('Blade D', [[28,0],[28,16],[23,5]],  '#003322', '#44eebb', 2),
+  poly('Blade L', [[28,0],[12,0],[23,-5]],  '#003322', '#44eebb', 2),
+  poly('Blade U', [[28,0],[28,-16],[33,-5]],'#003322', '#44eebb', 2),
+],
+
+rapier: [
+  line('Blade', [[24,0],[64,0]], '#aae0ff', 2),
+  line('Spine', [[24,0],[64,0]], 'rgba(255,255,255,0.55)', 1),
+  circ('Tip',   64, 0, 3, '#ddeeff', null),
+  line('Guard', [[30,-8],[30,8]], '#88bbdd', 5),
+],
+
+katana: [
+  line('Blade',  [[24,0],[86,0]], '#e8e8ff', 3),
+  line('Spine',  [[24,0],[86,0]], 'rgba(255,255,255,0.6)', 1),
+  line('Fuller', [[24,0],[86,0]], 'rgba(160,160,220,0.4)', 1),
+],
+
+jingubang: [
+  line('Shaft',    [[-44,0],[76,0]], '#996611', 6, 'butt'),
+  line('Shimmer',  [[-44,0],[76,0]], '#ffcc44', 2, 'butt'),
+  poly('Cap Front',[[72.5,-6],[79.5,-6],[79.5,6],[72.5,6]], '#cc8800', '#ffd700', 1),
+  poly('Cap Back', [[-46.8,-4.8],[-41.2,-4.8],[-41.2,4.8],[-46.8,4.8]], '#cc8800', '#ffd700', 1),
+  poly('Mid Band', [[48,-4],[52,-4],[52,4],[48,4]], '#995500', '#ffd700', 1),
+],
+
+excalibur: [
+  line('Glow',  [[24,0],[79,0]], 'rgba(255,255,170,0.25)', 10),
+  line('Blade', [[24,0],[79,0]], '#e8e0a0', 5),
+  line('Edge',  [[24,-1.5],[79,-1.5]], '#ffffff', 1.5),
+  line('Guard', [[30,-14],[30,14]], '#aa8833', 8),
+],
+
+mjolnir: [
+  line('Handle', [[28,0],[62,0]], '#886633', 5),
+  poly('Head',   [[55,-10],[69,-10],[69,10],[55,10]], '#2244aa', '#112288', 2),
+  poly('Shine',  [[57,-8],[62,-8],[62,8],[57,8]], 'rgba(100,150,255,0.4)', null, 0),
+  line('Arc 1',  [[57,-7],[61,-4],[65,-7]], '#aaddff', 1.5),
+  line('Arc 2',  [[57,0],[61,3],[65,0]], '#aaddff', 1.5),
+  line('Arc 3',  [[57,7],[61,4],[65,7]], '#aaddff', 1.5),
+],
+
+iron_fist: [
+  circ('Fist Front', 46, 0, 11, '#ff6622', '#331100'),
+  circ('Fist Back', -33, 0, 9, '#ff6622', '#331100'),
+  circ('Ember 1', 46, -10, 3, '#ffaa00', null),
+  circ('Ember 2', 46, -17, 3, '#ff6600', null),
+],
+
+shadowfang: [
+  line('Blade', [[24,0],[54,0]], '#9933dd', 4),
+  line('Spine', [[24,0],[54,0]], '#cc88ff', 1),
+  poly('Tip',   [[54,0],[49,3],[49,-3]], '#220044', null, 0),
+],
+
+gungnir: [
+  line('Shaft', [[-34,0],[19,0]], '#cc9930', 4),
+  line('Blade', [[19,0],[92,0]], '#ffe070', 2),
+  poly('Tip',   [[92,0],[82,7],[82,-7]], '#fffacc', null, 0),
+  circ('Rune 1', 41, 0, 2.5, 'rgba(255,230,80,0.7)', null),
+  circ('Rune 2', 58, 0, 2.5, 'rgba(255,230,80,0.7)', null),
+  circ('Rune 3', 75, 0, 2.5, 'rgba(255,230,80,0.7)', null),
+],
+
+harvester: [
+  line('Shaft',     [[19,0],[74,0]], '#553366', 4),
+  arc ('Blade',     62, 0, 22, -0.8*PI, 0.3*PI, '#dd77ff', 3),
+  arc ('Edge',      62, -1, 21, -0.75*PI, 0.2*PI, '#ffffff', 1),
+  circ('Soul Orb 1', 38, -10, 4, '#cc44ff', null),
+  circ('Soul Orb 2', 38,  10, 4, '#cc44ff', null),
+],
+
+caliburn: [
+  line('Blade', [[24,0],[66,0]], '#aae0ff', 2),
+  line('Spine', [[24,0],[66,0]], 'rgba(255,255,255,0.55)', 1),
+  circ('Tip',   66, 0, 3, '#ddeeff', null),
+  line('Guard', [[30,-9],[30,9]], '#88bbdd', 5),
+],
+
+medusa_bow: [
+  arc ('Bow Arc',   30, 0, 22, -0.55*PI, 0.55*PI, '#226633', 3),
+  line('String',    [[27,-21.7],[30,0],[27,21.7]], '#88ffaa', 1.5),
+  line('Arrow',     [[30,0],[52,0]], '#66ffaa', 2),
+  poly('Arrowhead', [[52,0],[46,-4],[46,4]], '#66ffaa', null, 0),
+  circ('Scale 1', 50.64, -7.55, 3, null, '#44cc88', 1),
+  circ('Scale 2', 52, 0, 3, null, '#44cc88', 1),
+  circ('Scale 3', 50.64, 7.55, 3, null, '#44cc88', 1),
+],
+
+fuma_shuriken: [
+  poly('Blade R', [[28,0],[48,0],[34,6]],   '#001122', '#44eebb', 2),
+  poly('Blade D', [[28,0],[28,20],[22,6]],  '#001122', '#44eebb', 2),
+  poly('Blade L', [[28,0],[8,0],[22,-6]],   '#001122', '#44eebb', 2),
+  poly('Blade U', [[28,0],[28,-20],[34,-6]],'#001122', '#44eebb', 2),
+],
+
+muramasa: [
+  line('Aura',  [[24,0],[88,0]], 'rgba(255,30,60,0.2)', 10),
+  line('Blade', [[24,0],[88,0]], '#ff4466', 3),
+  line('Spine', [[24,0],[88,0]], 'rgba(255,100,120,0.5)', 1),
+],
+
+};
+
+// ══════════════════════════════════════════════════════
+// WEAPON META (for selector)
+// ══════════════════════════════════════════════════════
+const WEAPONS_META = [
+  { id:'fists',       name:'Fists',          icon:'🥊' },
+  { id:'sword',       name:'Sword',          icon:'⚔️' },
+  { id:'dagger',      name:'Dagger',         icon:'🗡️' },
+  { id:'spear',       name:'Spear',          icon:'🔱' },
+  { id:'bow',         name:'Bow',            icon:'🏹' },
+  { id:'scythe',      name:'Scythe',         icon:'🌙' },
+  { id:'hammer',      name:'Hammer',         icon:'🔨' },
+  { id:'shuriken',    name:'Shuriken',       icon:'⭐' },
+  { id:'rapier',      name:'Rapier',         icon:'🤺' },
+  { id:'katana',      name:'Katana',         icon:'⚔️' },
+  { id:'jingubang',   name:'Jingubang',      icon:'🪄' },
+  { id:'excalibur',   name:'Excalibur ⭐',   icon:'🌟' },
+  { id:'mjolnir',     name:'Mjolnir',        icon:'⚡' },
+  { id:'iron_fist',   name:'Flaming Fist',   icon:'🔥' },
+  { id:'shadowfang',  name:'Shadowfang',     icon:'🌑' },
+  { id:'gungnir',     name:'Gungnir ⭐',     icon:'✨' },
+  { id:'harvester',   name:'Harvester',      icon:'💀' },
+  { id:'caliburn',    name:'Caliburn',       icon:'⚡' },
+  { id:'medusa_bow',  name:'Medusa Bow ⭐',  icon:'🐍' },
+  { id:'fuma_shuriken',name:'Fuma Shuriken', icon:'🌀' },
+  { id:'muramasa',    name:'Muramasa ⭐',    icon:'🩸' },
+];
+
+// ══════════════════════════════════════════════════════
+// EDITOR STATE
+// ══════════════════════════════════════════════════════
+const state = {
+  tab:       'edit',      // 'edit' | 'new'
+  weaponId:  'sword',
+  shapes:    [],          // working copy
+  selected:  null,        // shape id
+  drag:      null,        // { shapeId, handleType, handleIdx, startMx, startMy }
+  spinAngle: 0,
+  spinRAF:   null,
+};
+
+// Deep-clone shapes from defaults (or user-modified versions stored per weapon)
+const userShapes = {};  // { weaponId: [...shapes] }
+
+const newWeaponMeta = {
+  id: 'new_weapon', name: 'New Weapon', icon: '⚔️', color: '#aaddff',
+  desc: '', aiType: 'melee',
+  baseLength: 40, baseSpeed: 0.05, baseDamage: 1, baseKnockback: 4,
+  hitRadius: 8, attackCooldown: 28,
+};
+let newWeaponShapes = [];
+
+function loadWeapon(id) {
+  state.weaponId = id;
+  state.selected = null;
+  const src = userShapes[id] ?? DEFAULT_SHAPES[id] ?? [];
+  state.shapes = JSON.parse(JSON.stringify(src));
+  buildShapeList();
+  renderCanvas();
+  showProps(null);
+}
+
+function saveCurrentWeapon() {
+  if (state.tab === 'new') {
+    newWeaponShapes = JSON.parse(JSON.stringify(state.shapes));
+  } else {
+    userShapes[state.weaponId] = JSON.parse(JSON.stringify(state.shapes));
+  }
+}
+
+function switchTab(tab) {
+  if (state.tab === tab) return;
+  saveCurrentWeapon();
+  state.tab = tab;
+  state.selected = null;
+  document.getElementById('tab-edit').classList.toggle('active', tab === 'edit');
+  document.getElementById('tab-new').classList.toggle('active', tab === 'new');
+  const wsel = document.getElementById('weapon-select');
+  const wSep = wsel.nextElementSibling;
+  wsel.style.display = tab === 'edit' ? '' : 'none';
+  wSep.style.display  = tab === 'edit' ? '' : 'none';
+  document.getElementById('nw-meta-section').style.display = tab === 'new' ? '' : 'none';
+  const copyBtn  = document.getElementById('btn-copy');
+  const resetBtn = document.querySelector('.tbtn-reset');
+  copyBtn.textContent  = tab === 'new' ? '📋 Export Template' : '📋 Copy JSON';
+  resetBtn.textContent = tab === 'new' ? '✕ Clear Shapes'    : '↺ Reset';
+  if (tab === 'edit') {
+    loadWeapon(state.weaponId);
+  } else {
+    state.shapes = JSON.parse(JSON.stringify(newWeaponShapes));
+    fillNewWeaponMetaUI();
+    buildShapeList();
+    renderCanvas();
+    showProps(null);
+  }
+}
+
+function fillNewWeaponMetaUI() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('nw-id',      newWeaponMeta.id);
+  set('nw-name',    newWeaponMeta.name);
+  set('nw-icon',    newWeaponMeta.icon);
+  set('nw-color',   newWeaponMeta.color);
+  set('nw-desc',    newWeaponMeta.desc);
+  set('nw-aitype',  newWeaponMeta.aiType);
+  set('nw-baselen', newWeaponMeta.baseLength);
+  set('nw-spd',     newWeaponMeta.baseSpeed);
+  set('nw-dmg',     newWeaponMeta.baseDamage);
+  set('nw-kb',      newWeaponMeta.baseKnockback);
+  set('nw-hr',      newWeaponMeta.hitRadius);
+  set('nw-cd',      newWeaponMeta.attackCooldown);
+  const cp = document.getElementById('nw-color-picker');
+  if (cp && newWeaponMeta.color.startsWith('#')) cp.value = newWeaponMeta.color.slice(0, 7);
+  // Wire inputs (replace node to clear stale listeners)
+  const wireNw = (id, key, parse) => {
+    const old = document.getElementById(id); if (!old) return;
+    const fresh = old.cloneNode(true); old.parentNode.replaceChild(fresh, old);
+    fresh.addEventListener('input', e => { newWeaponMeta[key] = parse ? parse(e.target.value) : e.target.value; });
+  };
+  wireNw('nw-id',      'id');
+  wireNw('nw-name',    'name');
+  wireNw('nw-icon',    'icon');
+  wireNw('nw-desc',    'desc');
+  wireNw('nw-aitype',  'aiType');
+  wireNw('nw-baselen', 'baseLength',    v => +v);
+  wireNw('nw-spd',     'baseSpeed',     v => +v);
+  wireNw('nw-dmg',     'baseDamage',    v => +v);
+  wireNw('nw-kb',      'baseKnockback', v => +v);
+  wireNw('nw-hr',      'hitRadius',     v => +v);
+  wireNw('nw-cd',      'attackCooldown',v => +v);
+  wireNw('nw-color',   'color', v => {
+    const p = document.getElementById('nw-color-picker');
+    if (p && v.startsWith('#') && v.length >= 7) p.value = v.slice(0, 7);
+    return v;
+  });
+  const picker = document.getElementById('nw-color-picker');
+  if (picker) {
+    const fp = picker.cloneNode(true); picker.parentNode.replaceChild(fp, picker);
+    fp.addEventListener('input', e => {
+      newWeaponMeta.color = e.target.value;
+      const t = document.getElementById('nw-color'); if (t) t.value = e.target.value;
+    });
+  }
+}
+
+function loadBaseShapes() {
+  const id = document.getElementById('nw-base-sel').value;
+  if (!id || !DEFAULT_SHAPES[id]) return;
+  if (!confirm(`Load shapes from "${id}"? This replaces current shapes.`)) return;
+  newWeaponShapes = JSON.parse(JSON.stringify(DEFAULT_SHAPES[id]));
+  state.shapes    = JSON.parse(JSON.stringify(newWeaponShapes));
+  state.selected  = null;
+  buildShapeList(); renderCanvas(); showProps(null);
+}
+
+// ══════════════════════════════════════════════════════
+// CANVAS RENDER
+// ══════════════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+function gx(x) { return CX + x * SCALE; }   // game-px → canvas
+function gy(y) { return CY + y * SCALE; }
+function mg(cx_, cy_) { return [(cx_ - CX) / SCALE, (cy_ - CY) / SCALE]; } // canvas → game-px
+
+function renderCanvas() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid bg
+  ctx.fillStyle = '#0e0e1a';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#18182a'; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Axis reference
+  ctx.strokeStyle = 'rgba(80,80,180,0.3)'; ctx.lineWidth = 1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(0, CY); ctx.lineTo(W, CY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(CX, 0); ctx.lineTo(CX, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Weapon direction indicator
+  ctx.strokeStyle = 'rgba(100,100,200,0.25)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(W, CY); ctx.stroke();
+
+  // Ball
+  ctx.save();
+  if (state.spinAngle !== 0) { ctx.translate(CX, CY); ctx.rotate(state.spinAngle); ctx.translate(-CX, -CY); }
+  ctx.beginPath(); ctx.arc(CX, CY, ED_R, 0, PI*2);
+  ctx.fillStyle = '#2a1a2a'; ctx.fill();
+  ctx.strokeStyle = '#4a2a4a'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Ball radius indicator ring
+  ctx.beginPath(); ctx.arc(CX, CY, ED_R, 0, PI*2);
+  ctx.strokeStyle = 'rgba(100,60,100,0.5)'; ctx.lineWidth = 0.5; ctx.stroke();
+
+  // Draw weapon shapes
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const s of state.shapes) {
+    if (!s.visible) continue;
+    ctx.save();
+    ctx.globalAlpha = s.opacity ?? 1;
+    drawShape(ctx, s, false);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Draw selection handles (no spin transform)
+  if (state.selected) {
+    const s = state.shapes.find(x => x.id === state.selected);
+    if (s) drawHandles(s);
+  }
+}
+
+function drawShape(ctx_, s, isHighlight) {
+  const sc = SCALE;
+  ctx_.save();
+  if (isHighlight) {
+    ctx_.strokeStyle = '#4488ff'; ctx_.lineWidth = 2; ctx_.setLineDash([3,3]);
+    drawShapeOutline(ctx_, s);
+    ctx_.setLineDash([]);
+    ctx_.restore();
+    return;
+  }
+  switch (s.type) {
+    case 'line':
+      if (!s.points || s.points.length < 2) break;
+      ctx_.beginPath();
+      ctx_.moveTo(gx(s.points[0][0]), gy(s.points[0][1]));
+      for (let i=1; i<s.points.length; i++) ctx_.lineTo(gx(s.points[i][0]), gy(s.points[i][1]));
+      ctx_.strokeStyle = s.stroke || '#fff';
+      ctx_.lineWidth   = (s.lineWidth || 1) * SCALE;
+      ctx_.lineCap     = s.lineCap || 'round';
+      ctx_.stroke();
+      break;
+    case 'polygon':
+      if (!s.points || s.points.length < 2) break;
+      ctx_.beginPath();
+      ctx_.moveTo(gx(s.points[0][0]), gy(s.points[0][1]));
+      for (let i=1; i<s.points.length; i++) ctx_.lineTo(gx(s.points[i][0]), gy(s.points[i][1]));
+      ctx_.closePath();
+      if (s.fill)   { ctx_.fillStyle=s.fill; ctx_.fill(); }
+      if (s.stroke) { ctx_.strokeStyle=s.stroke; ctx_.lineWidth=(s.lineWidth||1)*SCALE; ctx_.stroke(); }
+      break;
+    case 'circle':
+      ctx_.beginPath(); ctx_.arc(gx(s.cx), gy(s.cy), s.r*SCALE, 0, PI*2);
+      if (s.fill)   { ctx_.fillStyle=s.fill; ctx_.fill(); }
+      if (s.stroke) { ctx_.strokeStyle=s.stroke; ctx_.lineWidth=(s.lineWidth||1)*SCALE; ctx_.stroke(); }
+      break;
+    case 'arc':
+      ctx_.beginPath();
+      ctx_.arc(gx(s.cx), gy(s.cy), s.r*SCALE, s.startAngle, s.endAngle);
+      ctx_.strokeStyle = s.stroke || '#fff';
+      ctx_.lineWidth   = (s.lineWidth||1)*SCALE;
+      ctx_.lineCap     = s.lineCap || 'round';
+      ctx_.stroke();
+      break;
+  }
+  ctx_.restore();
+}
+
+function drawShapeOutline(ctx_, s) {
+  switch (s.type) {
+    case 'line':
+      if (!s.points || s.points.length < 2) return;
+      ctx_.beginPath();
+      ctx_.moveTo(gx(s.points[0][0]), gy(s.points[0][1]));
+      for (let i=1; i<s.points.length; i++) ctx_.lineTo(gx(s.points[i][0]), gy(s.points[i][1]));
+      ctx_.lineWidth = (s.lineWidth || 1) * SCALE + 4;
+      ctx_.stroke();
+      break;
+    case 'polygon':
+      if (!s.points) return;
+      ctx_.beginPath();
+      ctx_.moveTo(gx(s.points[0][0]), gy(s.points[0][1]));
+      for (let i=1; i<s.points.length; i++) ctx_.lineTo(gx(s.points[i][0]), gy(s.points[i][1]));
+      ctx_.closePath(); ctx_.stroke();
+      break;
+    case 'circle':
+      ctx_.beginPath(); ctx_.arc(gx(s.cx), gy(s.cy), s.r*SCALE+3, 0, PI*2); ctx_.stroke();
+      break;
+    case 'arc':
+      ctx_.beginPath(); ctx_.arc(gx(s.cx), gy(s.cy), s.r*SCALE, s.startAngle, s.endAngle); ctx_.stroke();
+      break;
+  }
+}
+
+function drawHandles(s) {
+  const handles = getHandles(s);
+  for (let i=0; i<handles.length; i++) {
+    const [hx, hy, type] = handles[i];
+    ctx.beginPath(); ctx.arc(hx, hy, HANDLE_R, 0, PI*2);
+    ctx.fillStyle = type === 'center' ? 'rgba(255,180,40,0.9)' : 'rgba(80,160,255,0.9)';
+    ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  // Also draw selection outline
+  ctx.save();
+  ctx.strokeStyle = 'rgba(80,160,255,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4,3]);
+  drawShapeOutline(ctx, s);
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// Returns array of [canvasX, canvasY, type] for a shape's handles
+function getHandles(s) {
+  const h = [];
+  if (s.type === 'line' || s.type === 'polygon') {
+    for (const [px,py] of (s.points||[])) h.push([gx(px), gy(py), 'vertex']);
+  } else if (s.type === 'circle') {
+    h.push([gx(s.cx), gy(s.cy), 'center']);
+    h.push([gx(s.cx + s.r), gy(s.cy), 'radius']);
+  } else if (s.type === 'arc') {
+    h.push([gx(s.cx), gy(s.cy), 'center']);
+    h.push([gx(s.cx + s.r*Math.cos(s.startAngle)), gy(s.cy + s.r*Math.sin(s.startAngle)), 'arc-start']);
+    h.push([gx(s.cx + s.r*Math.cos(s.endAngle)),   gy(s.cy + s.r*Math.sin(s.endAngle)),   'arc-end']);
+  }
+  return h;
+}
+
+// ══════════════════════════════════════════════════════
+// HIT TESTING
+// ══════════════════════════════════════════════════════
+function hitHandle(mx, my, s) {
+  const handles = getHandles(s);
+  for (let i=0; i<handles.length; i++) {
+    const [hx, hy] = handles[i];
+    if (Math.hypot(mx-hx, my-hy) <= HANDLE_R+2) return i;
+  }
+  return -1;
+}
+
+function hitShape(mx, my, s) {
+  const [gx_, gy_] = mg(mx, my);
+  const thresh = Math.max((s.lineWidth||1) * 0.5 + 4/SCALE, 5);
+  if (s.type === 'line' || s.type === 'polygon') {
+    const pts = s.points || [];
+    for (let i=0; i<pts.length-1; i++) {
+      if (distSeg(gx_, gy_, pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1]) < thresh) return true;
+    }
+    if (s.type === 'polygon' && pts.length > 2) {
+      if (distSeg(gx_, gy_, pts[pts.length-1][0], pts[pts.length-1][1], pts[0][0], pts[0][1]) < thresh) return true;
+    }
+  } else if (s.type === 'circle') {
+    return Math.abs(Math.hypot(gx_-s.cx, gy_-s.cy) - s.r) < thresh;
+  } else if (s.type === 'arc') {
+    const dist = Math.hypot(gx_-s.cx, gy_-s.cy);
+    if (Math.abs(dist - s.r) > thresh) return false;
+    let a = Math.atan2(gy_-s.cy, gx_-s.cx);
+    // normalise angle
+    while (a < s.startAngle) a += PI*2;
+    return a <= s.endAngle + PI*2;
+  }
+  return false;
+}
+
+function distSeg(px, py, ax, ay, bx, by) {
+  const dx=bx-ax, dy=by-ay;
+  const l2 = dx*dx+dy*dy;
+  if (l2===0) return Math.hypot(px-ax,py-ay);
+  const t = Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/l2));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+
+// ══════════════════════════════════════════════════════
+// MOUSE INTERACTION
+// ══════════════════════════════════════════════════════
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+  // Check handle on selected shape first
+  if (state.selected) {
+    const s = state.shapes.find(x => x.id === state.selected);
+    if (s) {
+      const hi = hitHandle(mx, my, s);
+      if (hi >= 0) {
+        state.drag = { shapeId: s.id, handleIdx: hi, prevMx: mx, prevMy: my };
+        return;
+      }
+    }
+  }
+
+  // Check click on any shape (back to front)
+  for (let i = state.shapes.length-1; i >= 0; i--) {
+    const s = state.shapes[i];
+    if (!s.visible) continue;
+    if (hitShape(mx, my, s)) {
+      state.selected = s.id;
+      state.drag = { shapeId: s.id, handleIdx: -1, prevMx: mx, prevMy: my };
+      buildShapeList();
+      showProps(s);
+      renderCanvas();
+      return;
+    }
+  }
+
+  // Clicked empty → deselect
+  state.selected = null;
+  state.drag = null;
+  buildShapeList();
+  showProps(null);
+  renderCanvas();
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!state.drag) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const dx = (mx - state.drag.prevMx) / SCALE;
+  const dy = (my - state.drag.prevMy) / SCALE;
+  state.drag.prevMx = mx; state.drag.prevMy = my;
+
+  const s = state.shapes.find(x => x.id === state.drag.shapeId);
+  if (!s) return;
+
+  const hi = state.drag.handleIdx;
+  if (hi < 0) {
+    // Move whole shape
+    moveShape(s, dx, dy);
+  } else {
+    // Move specific handle
+    const handles = getHandles(s);
+    const htype = handles[hi]?.[2];
+    if (s.type === 'line' || s.type === 'polygon') {
+      s.points[hi][0] += dx; s.points[hi][1] += dy;
+    } else if (s.type === 'circle') {
+      if (htype === 'center') { s.cx += dx; s.cy += dy; }
+      else { s.r = Math.max(1, Math.hypot(mg(mx,my)[0]-s.cx, mg(mx,my)[1]-s.cy)); }
+    } else if (s.type === 'arc') {
+      if (htype === 'center') { s.cx += dx; s.cy += dy; }
+      else {
+        const [gx_, gy_] = mg(mx, my);
+        const a = Math.atan2(gy_-s.cy, gx_-s.cx);
+        if (htype === 'arc-start') s.startAngle = a;
+        else s.endAngle = a;
+        s.r = Math.max(1, Math.hypot(gx_-s.cx, gy_-s.cy));
+      }
+    }
+  }
+
+  saveCurrentWeapon();
+  updatePropsFromShape(s);
+  renderCanvas();
+});
+
+canvas.addEventListener('mouseup', () => { state.drag = null; });
+canvas.addEventListener('mouseleave', () => { state.drag = null; });
+
+canvas.addEventListener('mousemove', e => {
+  if (state.drag) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let hit = false;
+  if (state.selected) {
+    const s = state.shapes.find(x => x.id === state.selected);
+    if (s && hitHandle(mx, my, s) >= 0) hit = true;
+  }
+  if (!hit) {
+    for (const s of state.shapes) {
+      if (s.visible && hitShape(mx, my, s)) { hit = true; break; }
+    }
+  }
+  canvas.style.cursor = hit ? 'pointer' : 'crosshair';
+}, { passive: true });
+
+function moveShape(s, dx, dy) {
+  if (s.type === 'line' || s.type === 'polygon') {
+    for (const p of s.points) { p[0]+=dx; p[1]+=dy; }
+  } else if (s.type === 'circle' || s.type === 'arc') {
+    s.cx += dx; s.cy += dy;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// SHAPE LIST UI
+// ══════════════════════════════════════════════════════
+function buildShapeList() {
+  const list = document.getElementById('shape-list');
+  list.innerHTML = '';
+  for (const s of state.shapes) {
+    const item = document.createElement('div');
+    item.className = 'shape-item' + (s.id===state.selected?' selected':'') + (!s.visible?' hidden':'');
+    item.dataset.id = s.id;
+
+    const tag = document.createElement('span');
+    tag.className = 'shape-type-tag';
+    tag.textContent = s.type[0].toUpperCase();
+
+    const lbl = document.createElement('span');
+    lbl.className = 'shape-label';
+    lbl.textContent = s.label || s.type;
+
+    const vis = document.createElement('span');
+    vis.className = 'vis-toggle';
+    vis.textContent = s.visible ? '●' : '○';
+    vis.title = 'Toggle visibility';
+    vis.onclick = e => { e.stopPropagation(); s.visible = !s.visible; saveCurrentWeapon(); buildShapeList(); renderCanvas(); };
+
+    item.appendChild(tag); item.appendChild(lbl); item.appendChild(vis);
+    item.onclick = () => {
+      state.selected = s.id;
+      buildShapeList();
+      showProps(s);
+      renderCanvas();
+    };
+    list.appendChild(item);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PROPS PANEL
+// ══════════════════════════════════════════════════════
+function showProps(s) {
+  const body = document.getElementById('props-body');
+  if (!s) { body.innerHTML = '<div id="no-selection">Select a shape to edit its properties.</div>'; return; }
+
+  body.innerHTML = `
+    <div class="prop-row"><label>Label</label>
+      <input type="text" id="p-label" value="${esc(s.label||'')}"></div>
+    <div class="prop-row"><label>Opacity</label>
+      <input type="number" id="p-opacity" value="${s.opacity??1}" min="0" max="1" step="0.05"></div>
+
+    ${ s.fill !== undefined ? `
+    <div class="prop-section">Fill</div>
+    <div class="prop-row"><label>Fill Color</label>
+      <div class="color-row">
+        <input type="color" id="p-fill-picker" value="${colorHex(s.fill)}">
+        <input type="text"  id="p-fill"   value="${esc(s.fill||'')}">
+      </div></div>` : ''}
+
+    <div class="prop-section">Stroke</div>
+    <div class="prop-row"><label>Stroke Color</label>
+      <div class="color-row">
+        <input type="color" id="p-stroke-picker" value="${colorHex(s.stroke)}">
+        <input type="text"  id="p-stroke" value="${esc(s.stroke||'')}">
+      </div></div>
+    <div class="prop-row-h">
+      <div class="prop-row"><label>Width</label>
+        <input type="number" id="p-lw" value="${s.lineWidth||1}" min="0.5" step="0.5"></div>
+      ${ s.lineCap !== undefined ? `
+      <div class="prop-row"><label>Cap</label>
+        <select id="p-lc">
+          <option ${s.lineCap==='round'?'selected':''}>round</option>
+          <option ${s.lineCap==='butt'?'selected':''}>butt</option>
+          <option ${s.lineCap==='square'?'selected':''}>square</option>
+        </select></div>` : ''}
+    </div>
+
+    ${ (s.type==='line'||s.type==='polygon') ? `
+    <div class="prop-section">Points  <span style="color:#555;font-size:10px">[x,y] game-px</span></div>
+    <div class="prop-row">
+      <textarea id="p-points">${JSON.stringify(s.points, null, 1)}</textarea></div>` : ''}
+
+    ${ s.type==='circle' ? `
+    <div class="prop-section">Circle</div>
+    <div class="prop-row-h">
+      <div class="prop-row"><label>cx</label><input type="number" id="p-cx" value="${s.cx}" step="0.5"></div>
+      <div class="prop-row"><label>cy</label><input type="number" id="p-cy" value="${s.cy}" step="0.5"></div>
+      <div class="prop-row"><label>r</label><input type="number" id="p-r" value="${s.r}" step="0.5" min="0.5"></div>
+    </div>` : ''}
+
+    ${ s.type==='arc' ? `
+    <div class="prop-section">Arc  <span style="color:#555;font-size:10px">radians</span></div>
+    <div class="prop-row-h">
+      <div class="prop-row"><label>cx</label><input type="number" id="p-cx" value="${round2(s.cx)}" step="0.5"></div>
+      <div class="prop-row"><label>cy</label><input type="number" id="p-cy" value="${round2(s.cy)}" step="0.5"></div>
+      <div class="prop-row"><label>r</label><input type="number" id="p-r" value="${round2(s.r)}" step="0.5" min="0.5"></div>
+    </div>
+    <div class="prop-row-h">
+      <div class="prop-row"><label>Start (rad)</label><input type="number" id="p-sa" value="${round2(s.startAngle)}" step="0.05"></div>
+      <div class="prop-row"><label>End (rad)</label><input type="number" id="p-ea" value="${round2(s.endAngle)}" step="0.05"></div>
+    </div>` : ''}
+  `;
+
+  // Wire events
+  const wire = (id, fn) => { const el=document.getElementById(id); if(el) el.addEventListener('input', fn); };
+  wire('p-label',   e => { s.label = e.target.value; buildShapeList(); });
+  wire('p-opacity', e => { s.opacity = +e.target.value; renderCanvas(); });
+  wire('p-fill',    e => { s.fill = e.target.value||null; syncColor('p-fill-picker',s.fill); renderCanvas(); });
+  wire('p-stroke',  e => { s.stroke=e.target.value||null; syncColor('p-stroke-picker',s.stroke); renderCanvas(); });
+  wire('p-lw',      e => { s.lineWidth = +e.target.value; renderCanvas(); });
+  wire('p-lc',      e => { s.lineCap = e.target.value; renderCanvas(); });
+  wire('p-points',  e => { try { s.points = JSON.parse(e.target.value); renderCanvas(); } catch{} });
+  wire('p-cx', e => { s.cx=+e.target.value; renderCanvas(); });
+  wire('p-cy', e => { s.cy=+e.target.value; renderCanvas(); });
+  wire('p-r',  e => { s.r=+e.target.value; renderCanvas(); });
+  wire('p-sa', e => { s.startAngle=+e.target.value; renderCanvas(); });
+  wire('p-ea', e => { s.endAngle=+e.target.value; renderCanvas(); });
+
+  // Color pickers sync
+  const fillPick = document.getElementById('p-fill-picker');
+  const strokePick = document.getElementById('p-stroke-picker');
+  if (fillPick) fillPick.addEventListener('input', e => {
+    s.fill = e.target.value;
+    const t=document.getElementById('p-fill'); if(t)t.value=s.fill;
+    renderCanvas();
+  });
+  if (strokePick) strokePick.addEventListener('input', e => {
+    s.stroke = e.target.value;
+    const t=document.getElementById('p-stroke'); if(t)t.value=s.stroke;
+    renderCanvas();
+  });
+
+  saveCurrentWeapon();
+}
+
+function updatePropsFromShape(s) {
+  const upd = (id, val) => { const el=document.getElementById(id); if(el) el.value=val; };
+  if (s.type==='line'||s.type==='polygon') upd('p-points', JSON.stringify(s.points,null,1));
+  if (s.cx!==undefined) { upd('p-cx', round2(s.cx)); upd('p-cy', round2(s.cy)); }
+  if (s.r!==undefined) upd('p-r', round2(s.r));
+  if (s.startAngle!==undefined) upd('p-sa', round2(s.startAngle));
+  if (s.endAngle!==undefined)   upd('p-ea', round2(s.endAngle));
+}
+
+function syncColor(pickerId, val) {
+  const el = document.getElementById(pickerId);
+  if (el && val && val.startsWith('#') && val.length >= 7) el.value = val.slice(0,7);
+}
+
+function colorHex(c) { if (!c) return '#000000'; if(c.startsWith('#')&&c.length>=7)return c.slice(0,7); return '#000000'; }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+function round2(n) { return Math.round(n*100)/100; }
+
+// ══════════════════════════════════════════════════════
+// ADD / DELETE SHAPES
+// ══════════════════════════════════════════════════════
+function addShape(type) {
+  let s;
+  if (type==='line')    s = line('New Line', [[30,0],[60,0]], '#ffffff', 2);
+  if (type==='polygon') s = poly('New Polygon', [[30,-10],[50,0],[30,10]], '#888888');
+  if (type==='circle')  s = circ('New Circle', 50, 0, 10, null, '#ffffff');
+  if (type==='arc')     s = arc('New Arc', 50, 0, 15, -PI*0.5, PI*0.5, '#ffffff', 2);
+  state.shapes.push(s);
+  state.selected = s.id;
+  saveCurrentWeapon();
+  buildShapeList();
+  showProps(s);
+  renderCanvas();
+}
+
+function deleteSelected() {
+  if (!state.selected) return;
+  state.shapes = state.shapes.filter(s => s.id !== state.selected);
+  state.selected = null;
+  saveCurrentWeapon();
+  buildShapeList();
+  showProps(null);
+  renderCanvas();
+}
+
+function resetWeapon() {
+  if (state.tab === 'new') {
+    if (!confirm('Clear all shapes?')) return;
+    newWeaponShapes = []; state.shapes = []; state.selected = null;
+    buildShapeList(); renderCanvas(); showProps(null);
+    return;
+  }
+  if (!confirm(`Reset ${state.weaponId} to defaults?`)) return;
+  delete userShapes[state.weaponId];
+  loadWeapon(state.weaponId);
+}
+
+// ══════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════
+
+// Converts shape array → working draw() function body
+function generateDrawCode(shapes) {
+  const r = round2;
+  const L = [];
+  L.push('    const w = ball.weapon, a = w.angle;');
+  L.push('    const cos = Math.cos(a), sin = Math.sin(a);');
+  L.push('    const wx = (x,y) => ball.x + cos*x - sin*y;');
+  L.push('    const wy = (x,y) => ball.y + sin*x + cos*y;');
+  L.push('    ctx.save();');
+  for (const s of shapes) {
+    if (!s.visible) continue;
+    L.push(`    // ${s.label||s.type}`);
+    const alpha = (s.opacity !== undefined && s.opacity !== 1) ? s.opacity : null;
+    if (alpha !== null) L.push(`    ctx.globalAlpha = ${alpha};`);
+    if (s.type === 'line') {
+      L.push(`    ctx.strokeStyle='${s.stroke}'; ctx.lineWidth=${r(s.lineWidth||1)}; ctx.lineCap='${s.lineCap||'round'}';`);
+      L.push('    ctx.beginPath();');
+      L.push(`    ctx.moveTo(wx(${r(s.points[0][0])},${r(s.points[0][1])}),wy(${r(s.points[0][0])},${r(s.points[0][1])}));`);
+      for (let i=1;i<s.points.length;i++) {
+        const [px,py]=s.points[i];
+        L.push(`    ctx.lineTo(wx(${r(px)},${r(py)}),wy(${r(px)},${r(py)}));`);
+      }
+      L.push('    ctx.stroke();');
+    } else if (s.type === 'polygon') {
+      L.push('    ctx.beginPath();');
+      L.push(`    ctx.moveTo(wx(${r(s.points[0][0])},${r(s.points[0][1])}),wy(${r(s.points[0][0])},${r(s.points[0][1])}));`);
+      for (let i=1;i<s.points.length;i++) {
+        const [px,py]=s.points[i];
+        L.push(`    ctx.lineTo(wx(${r(px)},${r(py)}),wy(${r(px)},${r(py)}));`);
+      }
+      L.push('    ctx.closePath();');
+      if (s.fill)   L.push(`    ctx.fillStyle='${s.fill}'; ctx.fill();`);
+      if (s.stroke) L.push(`    ctx.strokeStyle='${s.stroke}'; ctx.lineWidth=${r(s.lineWidth||1)}; ctx.stroke();`);
+    } else if (s.type === 'circle') {
+      L.push(`    ctx.beginPath(); ctx.arc(wx(${r(s.cx)},${r(s.cy)}),wy(${r(s.cx)},${r(s.cy)}),${r(s.r)},0,Math.PI*2);`);
+      if (s.fill)   L.push(`    ctx.fillStyle='${s.fill}'; ctx.fill();`);
+      if (s.stroke) L.push(`    ctx.strokeStyle='${s.stroke}'; ctx.lineWidth=${r(s.lineWidth||1)}; ctx.stroke();`);
+    } else if (s.type === 'arc') {
+      L.push(`    ctx.beginPath(); ctx.arc(wx(${r(s.cx)},${r(s.cy)}),wy(${r(s.cx)},${r(s.cy)}),${r(s.r)},${r(s.startAngle)}+a,${r(s.endAngle)}+a);`);
+      L.push(`    ctx.strokeStyle='${s.stroke}'; ctx.lineWidth=${r(s.lineWidth||1)}; ctx.lineCap='${s.lineCap||'round'}'; ctx.stroke();`);
+    }
+    if (alpha !== null) L.push('    ctx.globalAlpha = 1;');
+  }
+  L.push('    ctx.restore();');
+  return L.join('\n');
+}
+
+function cleanShapes(shapes) {
+  return shapes.map(s => {
+    const o = Object.assign({}, s);
+    delete o.id;
+    if (o.points) o.points = o.points.map(p => [round2(p[0]), round2(p[1])]);
+    if (o.cx !== undefined) { o.cx = round2(o.cx); o.cy = round2(o.cy); }
+    if (o.r  !== undefined) o.r = round2(o.r);
+    if (o.startAngle !== undefined) o.startAngle = round2(o.startAngle);
+    if (o.endAngle   !== undefined) o.endAngle   = round2(o.endAngle);
+    return o;
+  });
+}
+
+function copyJson() {
+  let text, btnLabel;
+  if (state.tab === 'new') {
+    const m = newWeaponMeta;
+    const shapes = cleanShapes(state.shapes);
+    text = `// ── ${m.name} ──────────────────────────────────────
+// Add to WEAPON_DEFS in weapons.js
+{
+  id: '${m.id}', name: '${m.name}', icon: '${m.icon}', color: '${m.color}',
+  desc: '${m.desc}',
+  aiType: '${m.aiType}',
+  baseLength: ${m.baseLength}, baseSpeed: ${m.baseSpeed},
+  baseDamage: ${m.baseDamage}, baseKnockback: ${m.baseKnockback},
+  hitRadius: ${m.hitRadius}, attackCooldown: ${m.attackCooldown},
+  scaling: { type: 'damage', amount: 1 }, scalingLabel: 'Damage',
+  draw(ctx, ball) {
+${generateDrawCode(state.shapes)}
+  },
+  getHitPoints(ball) {
+    const w = ball.weapon;
+    const len = ball.radius + this.baseLength;
+    return [{ x: ball.x + Math.cos(w.angle)*len, y: ball.y + Math.sin(w.angle)*len, r: this.hitRadius }];
+  },
+  onHit(w) { w.hits++; },
+},
+
+// Shapes (weapon-local coords, origin=ball center, +x=forward):
+${JSON.stringify(shapes, null, 2)}`;
+    btnLabel = '📋 Export Template';
+  } else {
+    const out = cleanShapes(state.shapes);
+    text = `// ${state.weaponId}\n` + JSON.stringify(out, null, 2);
+    btnLabel = '📋 Copy JSON';
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ Copied!'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = btnLabel; btn.classList.remove('ok'); }, 1800);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// SPIN PREVIEW
+// ══════════════════════════════════════════════════════
+document.getElementById('spin-chk').addEventListener('change', e => {
+  if (e.target.checked) {
+    const tick = () => { state.spinAngle += 0.025; renderCanvas(); state.spinRAF = requestAnimationFrame(tick); };
+    state.spinRAF = requestAnimationFrame(tick);
+  } else {
+    cancelAnimationFrame(state.spinRAF);
+    state.spinAngle = 0;
+    renderCanvas();
+  }
+});
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+const sel = document.getElementById('weapon-select');
+const nwBaseSel = document.getElementById('nw-base-sel');
+for (const w of WEAPONS_META) {
+  const opt = document.createElement('option');
+  opt.value = w.id; opt.textContent = `${w.icon} ${w.name}`;
+  sel.appendChild(opt);
+  nwBaseSel.appendChild(opt.cloneNode(true));
+}
+sel.value = 'sword';
+sel.addEventListener('change', e => loadWeapon(e.target.value));
+
+loadWeapon('sword');
+</script>
+</body>
+</html>

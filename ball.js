@@ -136,6 +136,7 @@ class Ball {
       // Iron Fist
       emberStacks: 0,
       combustionPending: false,
+      salvoTimer: 0,
       // Gungnir
       gungnirThrowTimer: 0,
       // Harvester
@@ -188,9 +189,12 @@ class Ball {
       if (expired) { this.skillState.counterActive = false; this.skillState.counterExpiry = null; }
       else dmg *= (SKF.counter.baseMult + (this.charBIQ ?? 5) * SKF.counter.biqScaling);
     }
+    if (this.skillState?.warBannerActive) dmg *= 1.30;
     if (this.skillLearningMult > 1)    dmg *= this.skillLearningMult;
     // Mind Break debuff: opponent reduced this ball's outgoing damage at round start
     if (this.mindBreakDebuff > 0)      dmg *= (1 - this.mindBreakDebuff);
+    // Disarm debuff: −50% damage while weapon is on the floor
+    if (this.disarmedDebuff)           dmg *= 0.5;
     // Human Limit Break: each hit stacks damage (no expiry)
     if (this.charRace === 'human' && this.rs_active) dmg *= (1 + (this.rs_stacks || 0) * RF.human.limitBreak.perStack);
     // Dwarf Master Forge: Sharpness stacks dmg each
@@ -289,6 +293,8 @@ class Ball {
     }
     // Human Limit Break: speed cap boost while active
     if (this.charRace === 'human' && this.rs_active) effectiveMaxSpd *= window.RACE_FORMULAS.human.limitBreak.speedMult;
+    // Skeleton Bone Scatter: speed boost while shard timer active
+    if (this.charRace === 'skeleton' && (this.rs_shardSpeedTimer || 0) > 0) effectiveMaxSpd *= (this.rs_shardSpeedMult || 1.30);
     const spd = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
     if (spd > effectiveMaxSpd) { this.vx = this.vx/spd*effectiveMaxSpd; this.vy = this.vy/spd*effectiveMaxSpd; }
 
@@ -510,21 +516,44 @@ class Ball {
       }
     }
     this._lastX = this.x; this._lastY = this.y;
-    // Iron Fist: combustion AOE on pending flag
-    if (udef?.id === 'iron_fist' && this.weapon.combustionPending && typeof state !== 'undefined') {
-      this.weapon.combustionPending = false;
-      spawnBigAnnouncement?.('🔥 COMBUSTION!', this.color);
-      spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 COMBUSTION!', '#ff6600');
-      spawnSparks(this.x, this.y, 20);
-      for (const en of state.players) {
-        if (en === this || !en.alive) continue;
-        if (Math.hypot(en.x-this.x, en.y-this.y) < 100) {
-          const aoeDmg = this.getDamage() * 3;
-          en.takeDamage(aoeDmg, this.x, this.y, false, this, false, true);
-          spawnDamageNumber(en.x, en.y - en.radius - 16, `🔥 -${aoeDmg.toFixed(1)}`, '#ff6600');
+    // Iron Fist: arm salvo — countdown 100f then fire
+    if (udef?.id === 'iron_fist' && typeof state !== 'undefined') {
+      if (this.weapon.combustionPending) {
+        this.weapon.combustionPending = false;
+        this.weapon.salvoTimer = 100;
+        spawnDamageNumber(this.x, this.y - this.radius - 20, '🔥 LOADING…', '#ff8833');
+      }
+      if (this.weapon.salvoTimer > 0) {
+        this.weapon.salvoTimer--;
+        // Pulsing warning glow handled in draw() via salvoTimer > 0 check
+        if (this.weapon.salvoTimer === 0) {
+          const target = state.players.filter(p => p !== this && p.alive
+            && (this.teamId >= 0 ? p.teamId !== this.teamId : true))
+            .reduce((best, p) => !best ||
+              Math.hypot(p.x-this.x, p.y-this.y) < Math.hypot(best.x-this.x, best.y-this.y) ? p : best, null);
+          if (target) {
+            spawnBigAnnouncement?.('🔥 FLAMING SALVO!', '#ff4400');
+            spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 SALVO!', '#ff6600');
+            spawnSparks(this.x, this.y, 20);
+            const baseAngle = Math.atan2(target.y - this.y, target.x - this.x);
+            for (let i = 0; i < 5; i++) {
+              const spread = ((i / 4) - 0.5) * (Math.PI / 5); // ±18° fan
+              const a   = baseAngle + spread;
+              const spd = 5.5 + Math.random() * 1.0;
+              const proj = new Projectile(
+                this.x + Math.cos(a) * (this.radius + 4),
+                this.y + Math.sin(a) * (this.radius + 4),
+                Math.cos(a) * spd, Math.sin(a) * spd,
+                this, 'fire_fist', this.getDamage() * 1.5
+              );
+              proj.lifetimer   = 200;
+              proj.trackTarget = target;
+              state.projectiles.push(proj);
+            }
+            sfxScale(); sfxScale();
+          }
         }
       }
-      sfxScale(); sfxScale();
     }
     // Gungnir: auto-throw spear every 120 frames
     if (udef?.id === 'gungnir' && typeof state !== 'undefined') {
@@ -851,6 +880,7 @@ class Ball {
       this.stats.evades++;
       spawnDamageNumber(this.x, this.y - this.radius, 'EVADE', '#aaffee');
       skillOnEvade(this);
+      if (typeof audienceReact === 'function') audienceReact('evade');
       return false;
     }
 
@@ -909,6 +939,12 @@ class Ball {
     this.hp -= dmg;
     this.stats.damageTaken += dmg;
 
+    // Low HP audience reaction — triggers once per match when first crossing 20%
+    if (!this._wasLowHp && this.hp > 0 && this.hp / this.maxHp < 0.20) {
+      this._wasLowHp = true;
+      if (typeof audienceReact === 'function') audienceReact('low_hp');
+    }
+
     // Race: Demon Blood Contract — incoming damage also heals while pact is active
     if (this.charRace === 'demon' && this.rs_active && attacker !== this) {
       const healAmt = Math.min(this.maxHp - this.hp, dmg * this.rs_absorbPct);
@@ -940,6 +976,27 @@ class Ball {
     if (this.charRace === 'god' && this.charSubrace?.label === 'Blessed by Raijin' && (this.rs_speedStacks || 0) > 0) {
       this.rs_speedStacks = 0;
       this.maxSpd = this.baseMaxSpd;
+    }
+
+    // Race: Skeleton Bone Scatter — 50% chance to scatter shards when hit
+    if (this.charRace === 'skeleton' && this.raceSkillDef && this.alive && Math.random() < 0.50) {
+      const count = this.rs_shardCount || 1;
+      if (typeof state !== 'undefined') {
+        state.boneShards = state.boneShards || [];
+        for (let i = 0; i < count; i++) {
+          const ang  = Math.random() * Math.PI * 2;
+          const dist = 28 + Math.random() * 36;
+          state.boneShards.push({
+            x: this.x + Math.cos(ang) * dist,
+            y: this.y + Math.sin(ang) * dist,
+            owner: this,
+            life: 600,     // 10s at 60fps
+            maxLife: 600,
+            r: 9,
+            angle: Math.random() * Math.PI, // visual rotation
+          });
+        }
+      }
     }
 
     // Race: Orc Blood Price — accumulate stacks each time hit; at 5 stacks, arm burst
@@ -998,6 +1055,9 @@ class Ball {
         this.skillState.flurryReady = false;
       }
     }
+    // Skill: bone_wall scatter + plague tick
+    if (typeof skillOnTakeDamage === 'function') skillOnTakeDamage(this, attacker, dmg);
+
     // Combo Breaker (Fists): hit while chain ≥ 3 → auto counter-attack
     if (!isReactCounter && this.skills.includes('combo_breaker') && this.weaponDef?.id === 'fists' && attacker?.alive) {
       const chain = this.skillState?.brawlerChain || 0;
@@ -1027,6 +1087,7 @@ class Ball {
       spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 PHOENIX!', '#ff9900');
       if (typeof addBattleLog === 'function')
         addBattleLog('skill_trigger', { attacker: getBallLabel(this), aColor: this.color, text: '🔥 Phoenix — survived lethal hit!' });
+      if (typeof audienceReact === 'function') audienceReact('phoenix_react');
       return true;
     }
 
@@ -1034,10 +1095,28 @@ class Ball {
       this.hp = 0;
       this.alive = false;
       this._killedBy = attacker;
+      if (isProjectile && typeof audienceReact === 'function') audienceReact('proj_kill');
       sfxDeath();
       spawnDeathExplosion(this.x, this.y, this.color);
       this.speechText = ['RIP', 'Ouch!', '💀', 'GG'][Math.floor(Math.random()*4)];
       this.speechFrames = 120;
+      // Skeleton: drop bones on death — any skeleton can pick them up
+      if (this.charRace === 'skeleton' && typeof state !== 'undefined') {
+        const dropCount = Math.max(2, Math.floor((this.charBIQ ?? 5) / 4) + 1);
+        state.boneShards = state.boneShards || [];
+        for (let i = 0; i < dropCount; i++) {
+          const ang = (i / dropCount) * Math.PI * 2 + Math.random() * 0.4;
+          state.boneShards.push({
+            x: this.x + Math.cos(ang) * (18 + Math.random() * 22),
+            y: this.y + Math.sin(ang) * (18 + Math.random() * 22),
+            owner: this,
+            isDeathDrop: true,   // any skeleton can pick this up for healing
+            life: 480, maxLife: 480,
+            r: 11,
+            angle: Math.random() * Math.PI,
+          });
+        }
+      }
       skillOnKill(attacker, this);
     }
     return true;

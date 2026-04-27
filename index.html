@@ -287,6 +287,16 @@
         </div>
       </div>
 
+      <!-- Mob Encounter -->
+      <div class="battle-card mob-battle-card" id="mob-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">👺</div>
+          <div class="battle-card-title">Mob Encounter</div>
+        </div>
+        <div class="battle-card-desc">Fight waves of enemies with 1–4 Radosers. Multiple encounters with increasing difficulty.</div>
+        <button class="t-btn" id="mob-open-btn">👺 Choose Encounter</button>
+      </div>
+
       <!-- Boss Raid (PVE) -->
       <div class="battle-card pve-battle-card" id="pve-card">
         <div class="battle-card-header">
@@ -809,6 +819,118 @@
 
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">25 Apr 2026</span>
+          <span class="changelog-badge">Patch 123</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏟️ <b>4 Dynamic Arena mới</b> — Arena có cơ chế đặc biệt thay đổi theo thời gian, dùng được ở tất cả mode:
+                <ul>
+                  <li>💀 <b>Diamond Rift</b>: Hình thoi. Mỗi 30s đục 1 lỗ tròn (tối đa 5 lỗ, tích lũy qua trận). Lỗ có viền đỏ phát sáng.</li>
+                  <li>💨 <b>Tempest Octagon</b>: Bát giác. Mỗi 15s gió thổi từ 1 góc ngẫu nhiên (NE/NW/SE/SW), đẩy tất cả radoser mạnh. Visual: mũi tên gió xanh.</li>
+                  <li>⚠️ <b>Shrinking Ring</b>: Tròn lớn (r=350). Mỗi 22s thu nhỏ 45px (tối đa 4 lần, dừng ở r=140). Ai ở ngoài vùng mới bị push vào tâm.</li>
+                  <li>🌋 <b>Volcanic Cross</b>: Thập giá. Mỗi 12s xuất hiện 2 vent lửa: cảnh báo đỏ 2s (icon 🌋) rồi phun AoE knockback + 8 damage trong bán kính 75px.</li>
+                </ul>
+              </li>
+              <li>🔧 <b>Kiến trúc</b>: Thêm <code>arena-events.js</code> — hệ thống event độc lập, dễ thêm mechanic mới. <code>diamond</code> và <code>octagon</code> là 2 hình dạng arena hoàn toàn mới với collision chính xác.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 122</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚔️ <b>Mob Encounter — PVE Wave Mode</b>: Thêm chế độ PVE mới trong tab Battle. Chọn 1–4 Radoser từ roster, chọn encounter, chiến đấu theo wave.
+                <ul>
+                  <li>👺 <b>Goblin Horde</b> (2 sao): 2 wave — Wave 1: 6 goblin scout; Wave 2: 4 goblin gồm 2 brute. Tổng stat mỗi goblin = 18.</li>
+                  <li>⚔️ <b>Ishin, Holy Sword</b> (4 sao): 1 pha đấu. Ishin có 3 Phase Transition tại 75 / 50 / 25% HP: PT1 tăng tốc 6 giây, PT2 giảm cooldown vũ khí, PT3 kích hoạt Berserker.</li>
+                  <li>🧩 <b>Kiến trúc</b>: Thêm <code>mob-data.js</code> (template & encounter defs), <code>mob-encounter.js</code> (modal UI + wave controller + spawn logic). Game-loop nhận <code>matchMode='mob'</code>, ủy quyền win-condition cho <code>mobEncounterCheckWin()</code>.</li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">25 Apr 2026</span>
+          <span class="changelog-badge">Patch 122</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🔥 <b>Flaming Fist — Rework Salvo</b>: Bỏ AOE Combustion burst cũ. Khi đủ 5 Ember stacks, bắn ra 5 fire fist projectile theo hình quạt ±18°, mỗi nắm đấm tự tìm kẻ thù gần nhất (tracking như Gungnir), gây ×1.5 sát thương mỗi cái. Visual: knuckle cam/đỏ với flame trail.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">24 Apr 2026</span>
+          <span class="changelog-badge">Patch 121</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>👻 <b>Soul Puppet</b> (Tier 1 spawn skill): On kill — phóng 3 soul orb tìm kiếm kẻ địch gần nhất, mỗi orb gây STR×1.5 sát thương.</li>
+              <li>🦴 <b>Bone Wall</b> (Tier 1 spawn skill): Mỗi khi bị đánh trúng — tán ra 5 bone shard tầm gần, mỗi mảnh gây STR×1.2 sát thương.</li>
+              <li>🚩 <b>War Banner</b> (Tier 1 spawn skill): Đầu round — +30% sát thương trong 10 giây đầu tiên.</li>
+              <li>💀 <b>Necromancer's Pact</b> (Tier 1 spawn skill): Đầu round — triệu hồi 2 skeleton minion tự động truy đuổi và tấn công kẻ địch (STR×0.8 dmg, sống 20s).</li>
+              <li>🌀 <b>Spirit Echo</b> (Tier 2 spawn skill): Mỗi đòn đánh có 40% cơ hội phóng thêm spirit orb tìm kiếm mục tiêu, gây BIQ×0.6 + STR×0.4 sát thương.</li>
+              <li>⚔️ <b>Horde Call</b> (Tier 2 spawn skill): Mỗi 15 giây — triệu hồi thêm 3 skeleton minion.</li>
+              <li>🪞 <b>Mirror Clone</b> (Tier 2 spawn skill): Đầu round — tạo ra 1 bản sao chiến đấu độc lập với 50% chỉ số gốc. Clone không được tính vào điều kiện thắng.</li>
+              <li>🦠 <b>Plague Bearer</b> (Tier 2 spawn skill): Đòn đánh áp plague lên kẻ địch: 2 dmg mỗi 2 giây trong 10 giây, stack tối đa 3 lần.</li>
+              <li>🔮 <b>Projectile mới</b>: Thêm visual + tracking cho soul_orb (tím), bone_shard_proj (trắng), spirit_orb (teal).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">25 Apr 2026</span>
+          <span class="changelog-badge">Patch 120</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏟️ <b>Khán đài — Audience Stand</b>: Thêm khán đài bên dưới arena. Các Radoser trong roster (không tham chiến) tự động xuất hiện cổ vũ với 2 hàng ghế, animation lắc lư, và textbox hội thoại random theo thời gian (20 câu meme, dễ chỉnh sửa trong <code>audience.js</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">21 Apr 2026</span>
+          <span class="changelog-badge">Patch 119</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚔️ <b>Disarm (Skill mới)</b>: Kích hoạt khi hit trúng HOẶC parry thành công. Kẻ địch bị làm rơi vũ khí — vũ khí bay khỏi tay, rơi xuống sàn như vật thể vật lý. Khi bị tước vũ khí: bắt buộc dùng Fists, sát thương ra giảm 50%. Owner lăn qua vũ khí để lấy lại (hiển thị xanh pulse). Kẻ địch chạm vào: đá văng đi. Cooldown 30s. Không tác dụng lên Fists.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">24 Apr 2026</span>
           <span class="changelog-badge">Patch 118</span>
           <span class="changelog-chevron">▼</span>
@@ -817,6 +939,7 @@
           <div class="changelog-body-inner">
             <ul class="changelog-list">
               <li>🌌 <b>Primordial Being — Balance</b>: Khi thắng trong tournament/championship, Primordial Being chỉ nhận Elemental Wheel thay vì nhận cả Elemental Wheel lẫn PVP Reward như trước. Giảm thiểu scale quá mạnh qua 2 vòng quay mỗi trận thắng. Cập nhật mô tả race trait.</li>
+              <li>💀 <b>Skeleton — Bone Scatter (Race Skill)</b>: Passive mới. Mỗi lần bị đánh trúng, 50% cơ hội văng ra 1+ mảnh xương (1 mảnh/4 BIQ, tối thiểu 1). Skeleton lăn qua mảnh xương của mình: hồi HP (DUR×1.5 mỗi mảnh) + +30% speed 3s. Kẻ địch đạp qua: xương biến mất. Xương hiển thị rõ trên sàn, tồn tại 10s.</li>
             </ul>
           </div>
         </div>
@@ -1690,6 +1813,8 @@
         <div id="canvas-clip-wrapper">
           <canvas id="gameCanvas" width="1000" height="1000"></canvas>
         </div>
+        <!-- Audience Stand -->
+        <div id="audience-stand"></div>
         <!-- Live Battle Log -->
         <div id="live-log-wrap">
           <div id="live-log-header">📋 Battle Log <span id="live-log-toggle">▲</span></div>
@@ -2002,6 +2127,7 @@
 <script src="spin-wheel.js"></script>
 <script src="chargen.js"></script>
 <script src="roster.js"></script>
+<script src="audience.js"></script>
 <script src="asset-editor.js"></script>
 <script src="maps.js"></script>
 <script src="boss.js"></script>
@@ -2021,6 +2147,9 @@
 <script src="boss-maddox-moves.js"></script>
 <script src="boss-maddox.js"></script>
 <script src="pve.js"></script>
+<script src="mob-data.js"></script>
+<script src="mob-encounter.js"></script>
+<script src="arena-events.js"></script>
 <script src="pvp-reward.js"></script>
 <script src="tournament-stats.js"></script>
 <script src="analytics.js"></script>
@@ -2302,6 +2431,48 @@
   });
 }());
 </script>
+
+<!-- ══ MOB ENCOUNTER MODAL ══════════════════════════════ -->
+<div id="mob-modal" style="display:none">
+  <div id="mob-modal-box">
+    <div class="mob-modal-header">
+      <span class="mob-modal-title">⚔️ Mob Encounter</span>
+      <button class="mob-modal-x" id="mob-modal-x">✕</button>
+    </div>
+
+    <!-- Step 1: Party -->
+    <div id="mob-step-1" class="mob-step">
+      <div class="mob-step-label">Step 1 — Select Party <span class="mob-step-hint">(1–4 Radosers)</span></div>
+      <div id="mob-party-grid" class="mob-party-grid"></div>
+      <div id="mob-party-count" class="mob-party-count">0 / 4 selected</div>
+      <div class="mob-modal-btns">
+        <button class="mob-btn-sec" id="mob-cancel-btn">Cancel</button>
+        <button class="mob-btn-pri" id="mob-next-btn" disabled>Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Encounter -->
+    <div id="mob-step-2" class="mob-step" style="display:none">
+      <div class="mob-step-label">Step 2 — Choose Enemy</div>
+      <div id="mob-encounter-grid" class="mob-encounter-grid"></div>
+      <!-- Detail panel — populated when an encounter is selected -->
+      <div id="mob-enc-detail" class="mob-enc-detail" style="display:none"></div>
+      <div class="mob-modal-btns">
+        <button class="mob-btn-sec" id="mob-back-btn">← Back</button>
+        <button class="mob-btn-pri" id="mob-fight-btn" disabled>⚔️ Fight!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MOB RESULT OVERLAY ════════════════════════════════ -->
+<div id="mob-result-overlay" style="display:none">
+  <div id="mob-result-box">
+    <div id="mob-result-title"></div>
+    <div id="mob-result-desc"></div>
+    <button class="mob-btn-pri" id="mob-result-menu-btn">↩ Back to Menu</button>
+  </div>
+</div>
 
 </body>
 </html>

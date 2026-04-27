@@ -901,7 +901,7 @@ const WEAPON_DEFS = [
   {
     id: 'iron_fist', name: 'Flaming Fist', icon: '🔥', color: '#ff6622',
     unique: true, baseWeapon: 'fists',
-    desc: 'Ember-charged fists. Each hit stacks 1 Ember (max 5). At 5 Embers: Combustion AOE burst (100px radius).',
+    desc: 'Ember-charged fists. Each hit stacks 1 Ember (max 5). At 5 Embers: launch a Flaming Salvo — 5 homing fire fists that track the nearest enemy (×1.5 dmg each).',
     aiType: 'melee',
     baseLength: 22, baseSpeed: 0.24, baseDamage: 2.5, baseKnockback: 2,
     hitRadius: 11, attackCooldown: 16,

@@ -235,7 +235,17 @@ function step() {
     updateTraps(state.trapObjects, players, state.frame);
   }
 
+  // Dynamic arena events (diamond holes, wind, shrink, vents)
+  if (typeof updateArenaEvents === 'function') updateArenaEvents();
+
   updateParticles();
+
+  // Skill minions (necromancer_pact, horde_call, mirror_clone)
+  if (typeof updateSkillMinions === 'function') updateSkillMinions();
+  // Per-frame skill timers (war_banner, horde_call, plague)
+  if (state.phase === 'playing') {
+    for (const b of players) { if (b.alive && typeof skillPerFrameUpdate === 'function') skillPerFrameUpdate(b); }
+  }
 
   // ── Per-second stats snapshot ──
   if (state.phase === 'playing' && state.matchTime % 60 === 0) {
@@ -273,6 +283,7 @@ function step() {
   if (!state.rageModeActive && state.matchTime >= 80 * 60) {
     state.rageModeActive = true;
     spawnBigAnnouncement('RAGE MODE!', '#ff4400');
+    if (typeof audienceReact === 'function') audienceReact('rage_mode');
   }
 
   // ── God Time Loss: after 1m46s (6360 frames), god auto-loses vs non-demon/non-god ──
@@ -295,8 +306,8 @@ function step() {
   }
 
 
-  // Check game end
-  const alive = players.filter(b => b.alive);
+  // Check game end (exclude mirror clones — they're minion fighters, not real contestants)
+  const alive = players.filter(b => b.alive && !b.isMirrorClone);
 
   if (state.pveMode) {
     // PVE lose: all players dead (boss win is triggered by Boss.die())
@@ -305,6 +316,9 @@ function step() {
       state.running = false;
       setTimeout(() => showPVEResult(false), 1200);
     }
+  } else if (state.matchMode === 'mob') {
+    // Mob encounter — delegated to mob-encounter.js
+    if (typeof mobEncounterCheckWin === 'function') mobEncounterCheckWin(alive);
   } else if (!state.ended && players.length > 1) {
     if (state.matchMode === '2v2') {
       const t0 = alive.filter(b => b.teamId === 0).length;
@@ -321,6 +335,9 @@ function step() {
       if (alive.length <= 1) {
         state.ended = true;
         state.winner = alive.length === 0 ? 'draw' : alive[0];
+        if (state.winner && state.winner !== 'draw' && state.winner._wasLowHp
+            && typeof audienceReact === 'function')
+          audienceReact('comeback');
         setTimeout(() => showResult(), 1200);
       }
     }
@@ -334,6 +351,9 @@ function render() {
   ctx.fillRect(0, 0, CW, CH);
 
   drawArena(ctx, state.arena);
+
+  // Dynamic arena event visuals (holes, wind arrows, vent warnings, shrink ring)
+  if (typeof drawArenaEvents === 'function') drawArenaEvents(ctx);
 
   // Entry cannons — drawn above arena, below balls
   if (state.phase === 'countdown') drawEntryCannons(ctx);
@@ -369,6 +389,9 @@ function render() {
   }
 
   drawParticles(ctx);
+
+  // Skill minions
+  if (typeof drawSkillMinions === 'function') drawSkillMinions(ctx);
 
   // Race skill effects (global: lightning, nets)
   drawRaceSkillEffects(ctx, state);

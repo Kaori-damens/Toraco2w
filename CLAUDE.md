@@ -83,6 +83,16 @@
 | `asset-editor.js` | Editor vẽ hình dạng race | `AE` object, `AE_RACE_DEFAULTS` — polygon/ellipse per race |
 | `style.css` | Main stylesheet | Layout, HUD, result screen, changelog tab |
 | `game.js` | **BACKUP — KHÔNG DÙNG** | File gốc monolithic, giữ để tham khảo logic cũ |
+| `i18n.js` | Localization EN/VI | `t('key')` lấy string theo ngôn ngữ hiện tại, `setLang('vi'/'en')` đổi ngôn ngữ. `LANG.en` / `LANG.vi` chứa toàn bộ string. Lưu vào `localStorage('toraco_lang')`. |
+| `discovery.js` | Fog of War — theo dõi items đã thấy | `discoverItem(category, id)`, `hasDiscovered(category, id)`. Categories: `race`, `subrace`, `weapon`, `skill`, `pvp_reward`. Persist localStorage `toraco_discovered`. |
+| `analytics.js` | Match tracking + simulation | `trackMatchAnalytics({duration, mode, winners, losers})` gọi từ `result.js`. Lưu tối đa 500 match vào localStorage `rng_analytics_v1`. Còn có simulation và heuristic tools (debug only). |
+| `audience.js` | Khán đài — spectator system | `initAudience()` chọn 1–16 khán giả ngẫu nhiên từ season pool (loại trừ người đang đấu), vẽ ball mini + tên. `startAudienceChatter()` / `stopAudienceChatter()` điều khiển bubble tự động. `audienceReact(trigger, data)` trigger dialogue theo event (double_parry, crit, big_damage, evade, proj_kill, disarm_react, phoenix_react, low_hp, comeback, rage_mode, quick_kill, long_match, same_weapon, same_race, unique_weapon). Mỗi trigger có cooldown riêng trong `_AUD_REACT_CDS`. |
+
+### Mob Encounter
+| File | Chức năng | Tìm gì ở đây |
+|------|-----------|--------------|
+| `mob-data.js` | Templates mob & encounter definitions | `MOB_TEMPLATES` — mỗi mob có race, weaponId, charStats. `ENCOUNTER_DEFS` — danh sách encounter có tên, mô tả, wave list. Thêm mob/encounter mới ở đây, không cần sửa file khác. |
+| `mob-encounter.js` | Wave controller, spawn logic, modal UI | `showMobModal()`, `startMobEncounter()`, `mobEncounterCheckWin()`. State runtime trong `_mobEnc`. Gọi từ `pve.js`. |
 
 ### Debug & Config System
 | File | Chức năng | Tìm gì ở đây |
@@ -161,6 +171,9 @@ dmg += MA * 0.5;  // MA=10 → +5 flat
 | Weapon special (Excalibur beam, Gungnir throw, Jingubang AoE…) | `ball.js` → `update()` |
 
 ---
+
+## Quy tắc file mới — BẮT BUỘC
+- **Mỗi khi tạo file `.js` mới**, PHẢI thêm ngay một dòng entry vào bảng tương ứng trong File Map ở trên (chọn section phù hợp nhất). Format: `| \`tên-file.js\` | Chức năng ngắn | Tìm gì ở đây — functions/objects chính |`
 
 ## Quy tắc viết lách — ÁP DỤNG MỌI NƠI
 - **Chữ cái đầu dòng/đầu ô/đầu mô tả luôn viết hoa** — kể cả sau dấu `—`, dấu `:`, hay sau ký hiệu `+`/`−`. Ví dụ: `— Chỉ xuất hiện...`, `20s: Mỗi 2s...`

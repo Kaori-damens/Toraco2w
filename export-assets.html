@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Asset Exporter</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #12121f; font-family: sans-serif; color: #ddd; padding: 24px; }
+
+  h2 { color: #fff; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 13px; margin-bottom: 24px; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: 12px; margin-bottom: 24px;
+    background: #1c1c30; border-radius: 8px; padding: 12px 16px;
+  }
+  .toolbar label { font-size: 13px; color: #aaa; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .toolbar input[type=radio] { accent-color: #4a90d9; }
+  .sep { width: 1px; height: 20px; background: #333; }
+  .btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .btn-primary { background: #3a7bd5; color: #fff; }
+  .btn-primary:hover { background: #2d63b5; }
+  .btn-dl { background: #2a5a2a; color: #88ff88; }
+  .btn-dl:hover { background: #1e451e; }
+
+  /* ── Section headers ── */
+  .section-title {
+    font-size: 12px; font-weight: bold; color: #888; letter-spacing: 1px;
+    text-transform: uppercase; margin: 20px 0 10px;
+    border-bottom: 1px solid #222; padding-bottom: 6px;
+  }
+
+  /* ── Grid ── */
+  .grid { display: flex; flex-wrap: wrap; gap: 16px; }
+
+  .card {
+    background: #1c1c30; border-radius: 10px; padding: 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    border: 1px solid #2a2a40;
+  }
+  .card:hover { border-color: #3a3a60; }
+  .card-name { font-size: 12px; color: #bbb; text-align: center; }
+  .card canvas { border-radius: 6px; display: block; }
+  .card .btn { font-size: 11px; padding: 5px 12px; width: 100%; text-align: center; }
+  .btn-copy { background: #2a3a55; color: #88aaff; }
+  .btn-copy:hover { background: #1e2d44; }
+  .btn-copy.copied { background: #1e4a2a; color: #88ffaa; }
+  .card-btns { display: flex; gap: 6px; width: 100%; }
+  .card-btns .btn { flex: 1; }
+</style>
+</head>
+<body>
+
+<h2>Asset Exporter</h2>
+<p class="subtitle">Render assets từ code game → download PNG → import vào Figma làm reference</p>
+
+<div class="toolbar">
+  <span style="font-size:12px;color:#666;margin-right:4px">Background:</span>
+  <label><input type="radio" name="bg" value="transparent" checked> Transparent</label>
+  <label><input type="radio" name="bg" value="dark"> Dark</label>
+  <label><input type="radio" name="bg" value="grid"> Grid</label>
+  <div class="sep"></div>
+  <button class="btn btn-dl" onclick="downloadAll()">⬇ Download All Weapons (ZIP)</button>
+</div>
+
+<div class="section-title">Demon — Race Asset</div>
+<div class="grid" id="grid-races"></div>
+
+<div class="section-title">🐉 Dragon Horn Types — 9 kiểu sừng</div>
+<div class="grid" id="grid-horns"></div>
+
+<div class="section-title">Weapons</div>
+<div class="grid" id="grid-weapons"></div>
+
+<!-- ── Mock game globals so weapons.js loads cleanly ── -->
+<script>
+  const BALL_R = 24;
+  const sfxScale = () => {};
+  const sfxShoot = () => {};
+  const sfxHit   = () => {};
+  const sfxLightning = () => {};
+  const sfxDeath  = () => {};
+  const sfxParry  = () => {};
+  const sfxWallBounce = () => {};
+  const spawnProjectile = () => {};
+  const spawnSparks     = () => {};
+  const spawnBigAnnouncement = () => {};
+  const spawnDamageNumber    = () => {};
+</script>
+<script src="weapons.js"></script>
+
+<script>
+// ─────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────
+const W = 340, H = 200;  // weapon canvas
+const DW = 280, DH = 280; // demon canvas
+const R  = 50;            // render ball radius (game = 24)
+
+// ─────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────
+function getBg() {
+  return document.querySelector('input[name="bg"]:checked')?.value || 'transparent';
+}
+
+function drawBg(ctx, cw, ch) {
+  ctx.clearRect(0, 0, cw, ch);
+  const bg = getBg();
+  if (bg === 'dark') {
+    ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, 0, cw, ch);
+  } else if (bg === 'grid') {
+    ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, 0, cw, ch);
+    ctx.strokeStyle = '#252535'; ctx.lineWidth = 1;
+    for (let x = 0; x < cw; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,ch); ctx.stroke(); }
+    for (let y = 0; y < ch; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cw,y); ctx.stroke(); }
+  }
+}
+
+// Fake ball — covers every property any weapon.draw() might read
+function makeFakeBall(cx, cy) {
+  return {
+    x: cx, y: cy,
+    radius: R,
+    vx: 0, vy: 0,
+    weapon: {
+      angle: 0,
+      hits: 0,
+      attackCooldown: 28,
+      bonusDamage: 0,
+      bonusLength: 0,
+      bonusKnockback: 0,
+      momentumStacks: 0,
+      momentumTimer: 0,
+      caliburnStacks: 0,
+      caliburnSpeedTimer: 0,
+      excaliburTransformTimer: 0,
+      gungnirThrowTimer: 0,
+      whirlTimer: 0,
+      whirlJustActivated: false,
+      iaiReady: false,
+      muramasaFrenzy: 0,
+      muramasaFrenzyTimer: 0,
+      riposteStacks: 0,
+      riposteWindow: 0,
+      soulShards: 0,
+      soulBurstPending: false,
+      combustionPending: false,
+      emberStacks: 0,
+      fireInterval: 0,
+      arrowSpeedBonus: 0,
+    }
+  };
+}
+
+// ─────────────────────────────────────────────────────
+// WEAPON RENDERER
+// ─────────────────────────────────────────────────────
+function renderWeapon(canvas, def) {
+  const ctx = canvas.getContext('2d');
+  drawBg(ctx, W, H);
+
+  // Ball sits left-center, weapon points right
+  const bx = 80, by = H / 2;
+  const ball = makeFakeBall(bx, by);
+
+  // Ghost ball
+  ctx.save();
+  ctx.globalAlpha = 0.13;
+  ctx.beginPath(); ctx.arc(bx, by, R, 0, Math.PI * 2);
+  ctx.fillStyle = def.color || '#aaaaff'; ctx.fill();
+  ctx.restore();
+
+  // Weapon draw — scale ctx so weapon renders at our R instead of game's BALL_R(24)
+  // We pass ball with radius=R directly; weapons.js uses ball.radius in their math
+  ctx.save();
+  const scale = R / BALL_R;
+  // Translate to ball center, scale, translate back
+  ctx.translate(bx, by);
+  ctx.scale(scale, scale);
+  ctx.translate(-bx, -by);
+  // Adjust ball position in fake ball to match unscaled coords
+  ball.x = bx; ball.y = by;
+  ball.radius = BALL_R; // use original radius since we're scaling ctx
+  try { def.draw(ctx, ball); } catch(e) { /* skip draw errors */ }
+  ctx.restore();
+
+  // Weapon name label
+  ctx.save();
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(`${def.icon} ${def.name}`, 8, H - 8);
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────────────
+// DEMON RENDERER
+// ─────────────────────────────────────────────────────
+const DEMON_SHAPES = [
+  { type:'ellipse', label:'Aura',        x:0, y:0, rx:1.18, ry:1.18, rot:0, fill:null,      stroke:'rgba(180,0,0,0.35)', sw:6,   opacity:1, visible:true },
+  { type:'polygon', label:'Horn L',      points:[[0.10,-0.78],[0.28,-1.80],[0.52,-0.84]],    fill:'#cc1100', stroke:'#880000', sw:1.5, opacity:1, visible:true },
+  { type:'polygon', label:'Horn L Glow', points:[[0.15,-0.82],[0.22,-1.56],[0.33,-0.87]],    fill:'#ff3322', stroke:null,      sw:1,   opacity:1, visible:true },
+  { type:'polygon', label:'Horn R',      points:[[0.10, 0.78],[0.28, 1.80],[0.52, 0.84]],    fill:'#cc1100', stroke:'#880000', sw:1.5, opacity:1, visible:true },
+  { type:'polygon', label:'Horn R Glow', points:[[0.15, 0.82],[0.22, 1.56],[0.33, 0.87]],    fill:'#ff3322', stroke:null,      sw:1,   opacity:1, visible:true },
+  { type:'line',    label:'Tail',        points:[[-0.85,0],[-1.35,0.43],[-1.52,0.88]],       stroke:'#cc1100', sw:3, opacity:1, visible:true },
+  { type:'polygon', label:'Tail Tip',    points:[[-1.34,0.88],[-1.64,0.76],[-1.57,0.88],[-1.64,1.00]], fill:'#cc1100', stroke:null, sw:1, opacity:1, visible:true },
+];
+
+function aeDrawShape(ctx, s, Rr) {
+  ctx.save();
+  ctx.globalAlpha = s.opacity ?? 1;
+  ctx.lineWidth   = (s.sw ?? 1.5) * (Rr / 24);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  switch (s.type) {
+    case 'ellipse':
+      ctx.beginPath();
+      ctx.ellipse(s.x*Rr, s.y*Rr,
+        Math.max(Math.abs(s.rx*Rr),0.5), Math.max(Math.abs(s.ry*Rr),0.5),
+        (s.rot||0)*Math.PI/180, 0, Math.PI*2);
+      if (s.fill)   { ctx.fillStyle=s.fill; ctx.fill(); }
+      if (s.stroke) { ctx.strokeStyle=s.stroke; ctx.stroke(); }
+      break;
+    case 'polygon':
+      if (!s.points || s.points.length < 2) break;
+      ctx.beginPath();
+      ctx.moveTo(s.points[0][0]*Rr, s.points[0][1]*Rr);
+      for (let i=1;i<s.points.length;i++) ctx.lineTo(s.points[i][0]*Rr, s.points[i][1]*Rr);
+      ctx.closePath();
+      if (s.fill)   { ctx.fillStyle=s.fill; ctx.fill(); }
+      if (s.stroke) { ctx.strokeStyle=s.stroke; ctx.stroke(); }
+      break;
+    case 'line':
+      if (!s.points || s.points.length < 2) break;
+      ctx.beginPath();
+      ctx.moveTo(s.points[0][0]*Rr, s.points[0][1]*Rr);
+      for (let i=1;i<s.points.length;i++) ctx.lineTo(s.points[i][0]*Rr, s.points[i][1]*Rr);
+      if (s.stroke) { ctx.strokeStyle=s.stroke; ctx.stroke(); }
+      break;
+  }
+  ctx.restore();
+}
+
+function renderDemon(canvas) {
+  const ctx = canvas.getContext('2d');
+  const DR = 75;
+  drawBg(ctx, DW, DH);
+  const cx = DW/2 + 16, cy = DH/2 + 8;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // Ball body
+  ctx.beginPath(); ctx.arc(0, 0, DR, 0, Math.PI*2);
+  ctx.fillStyle = '#7a0000'; ctx.fill();
+  ctx.strokeStyle = '#440000'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Demon shapes
+  for (const s of DEMON_SHAPES) aeDrawShape(ctx, s, DR);
+
+  // Eyes
+  const ew = DR*0.21, eh = DR*0.085, ex = DR*0.46;
+  for (const eyY of [-DR*0.20, DR*0.20]) {
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(ex, eyY, ew, eh, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#dd2200'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,80,0,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('😈 Demon', 8, DH - 8);
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────────────
+// DOWNLOAD HELPERS
+// ─────────────────────────────────────────────────────
+function download(canvas, filename) {
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+async function downloadAll() {
+  // Dynamic import JSZip from CDN, fallback to sequential downloads
+  const canvases = document.querySelectorAll('canvas[data-filename]');
+  for (const c of canvases) {
+    await new Promise(r => setTimeout(r, 80)); // small delay between downloads
+    download(c, c.dataset.filename);
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// BUILD UI
+// ─────────────────────────────────────────────────────
+function makeCard(canvas, name, filename) {
+  canvas.dataset.filename = filename;
+  const card = document.createElement('div');
+  card.className = 'card';
+  const label = document.createElement('div');
+  label.className = 'card-name';
+  label.textContent = name;
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-dl';
+  btn.textContent = '⬇ Download';
+  btn.onclick = () => download(canvas, filename);
+  card.appendChild(label);
+  card.appendChild(canvas);
+  card.appendChild(btn);
+  return card;
+}
+
+function renderAll() {
+  // ── Demon ──
+  const dGrid = document.getElementById('grid-races');
+  const dCanvas = dGrid.querySelector('canvas') || (() => {
+    const c = document.createElement('canvas');
+    c.width = DW; c.height = DH;
+    dGrid.innerHTML = '';
+    dGrid.appendChild(makeCard(c, '😈 Demon', 'demon_reference.png'));
+    return c;
+  })();
+  renderDemon(dCanvas);
+
+  // ── Weapons ──
+  const wGrid = document.getElementById('grid-weapons');
+  // Build once, re-render on bg change
+  if (!wGrid.children.length) {
+    for (const def of WEAPON_DEFS) {
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      c.dataset.defId = def.id;
+      const card = makeCard(c, `${def.icon} ${def.name}${def.unique?' ⭐':''}`, `weapon_${def.id}.png`);
+      wGrid.appendChild(card);
+    }
+  }
+  for (const c of wGrid.querySelectorAll('canvas')) {
+    const def = WEAPON_DEFS.find(d => d.id === c.dataset.defId);
+    if (def) renderWeapon(c, def);
+  }
+
+  // ── Dragon Horns ──
+  buildDragonHorns();
+  for (const c of document.querySelectorAll('#grid-horns canvas')) {
+    const idx = parseInt(c.dataset.hornIdx);
+    renderDragonHorn(c, DRAGON_HORN_TYPES[idx]);
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// DRAGON HORN TYPES
+// ─────────────────────────────────────────────────────
+const HW = 300, HH = 260;   // horn canvas size
+const HR = 60;               // ball radius for horn preview
+const HCX = 165, HCY = 130; // ball center (shifted right to fit tail on left)
+
+// Tail + scale shapes (same for all types — for context)
+const DRAGON_BODY = [
+  { type:'line',    points:[[-0.85,0],[-1.40,0.16],[-1.92,0.28]],                                                                 stroke:'#cc3300', sw:3.5, opacity:1 },
+  { type:'polygon', points:[[-1.74,0.22],[-2.04,0.32],[-1.82,0.44]],                                                              fill:'#cc3300',   stroke:null, sw:1, opacity:1 },
+  { type:'line',    points:[[-0.083,-0.394],[-0.154,-0.308],[-0.250,-0.280],[-0.346,-0.308],[-0.417,-0.394]],                     stroke:'#cc3300aa', sw:1.3, opacity:1 },
+  { type:'line',    points:[[ 0.227,-0.564],[ 0.156,-0.478],[ 0.060,-0.450],[-0.036,-0.478],[-0.107,-0.564]],                     stroke:'#cc3300aa', sw:1.3, opacity:1 },
+  { type:'line',    points:[[-0.083, 0.394],[-0.154, 0.308],[-0.250, 0.280],[-0.346, 0.308],[-0.417, 0.394]],                     stroke:'#cc3300aa', sw:1.3, opacity:1 },
+  { type:'line',    points:[[ 0.227, 0.564],[ 0.156, 0.478],[ 0.060, 0.450],[-0.036, 0.478],[-0.107, 0.564]],                     stroke:'#cc3300aa', sw:1.3, opacity:1 },
+  { type:'line',    points:[[ 0.497, 0.066],[ 0.426, 0.152],[ 0.330, 0.180],[ 0.234, 0.152],[ 0.163, 0.066]],                     stroke:'#cc3300aa', sw:1.3, opacity:1 },
+];
+
+// Mirror L-horn points to R-horn (negate y)
+function mirrorY(pts) { return pts.map(([x,y]) => [x,-y]); }
+
+// Each entry: { name, desc, shapes[] } — shapes use same format as AE_RACE_DEFAULTS
+const DRAGON_HORN_TYPES = [
+  {
+    name: 'I字型', desc: 'Thẳng đứng',
+    shapes: [
+      { type:'polygon', label:'Horn L', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.15,-0.78],[0.33,-1.28],[0.25,-1.69],[0.00,-1.88],[-0.10,-1.62],[-0.04,-1.23],[0.10,-0.82]] },
+      { type:'polygon', label:'Horn R', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.15,0.78],[0.33,1.28],[0.25,1.69],[0.00,1.88],[-0.10,1.62],[-0.04,1.23],[0.10,0.82]] },
+    ]
+  },
+  {
+    name: 'V字型', desc: 'Xoè hình V, đầu mút xoè rộng',
+    shapes: [
+      { type:'polygon', label:'Horn L', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.12,-0.74],[0.20,-1.22],[0.08,-1.68],[-0.08,-1.98],[-0.18,-1.72],[-0.06,-1.18],[0.06,-0.80]] },
+      { type:'polygon', label:'Horn R', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.12,-0.74],[0.20,-1.22],[0.08,-1.68],[-0.08,-1.98],[-0.18,-1.72],[-0.06,-1.18],[0.06,-0.80]]) },
+    ]
+  },
+  {
+    name: 'M字型', desc: 'Đầu mút cong ra ngoài, hình M',
+    shapes: [
+      { type:'polygon', label:'Horn L', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.14,-0.74],[0.24,-1.14],[0.08,-1.52],[-0.24,-1.98],[-0.40,-2.14],[-0.34,-1.88],[-0.10,-1.48],[0.02,-1.08],[0.08,-0.80]] },
+      { type:'polygon', label:'Horn R', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.14,-0.74],[0.24,-1.14],[0.08,-1.52],[-0.24,-1.98],[-0.40,-2.14],[-0.34,-1.88],[-0.10,-1.48],[0.02,-1.08],[0.08,-0.80]]) },
+    ]
+  },
+  {
+    name: 'S字型', desc: 'Uốn cong hình S',
+    shapes: [
+      { type:'polygon', label:'Horn L', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.16,-0.72],[0.44,-1.08],[0.50,-1.44],[0.28,-1.70],[0.04,-1.82],[-0.12,-1.66],[-0.08,-1.36],[0.10,-1.06],[0.08,-0.78]] },
+      { type:'polygon', label:'Horn R', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.16,-0.72],[0.44,-1.08],[0.50,-1.44],[0.28,-1.70],[0.04,-1.82],[-0.12,-1.66],[-0.08,-1.36],[0.10,-1.06],[0.08,-0.78]]) },
+    ]
+  },
+  {
+    name: 'H字型', desc: 'Cánh dơi, xoè ngang',
+    shapes: [
+      { type:'polygon', label:'Horn L', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.10,-0.76],[0.04,-1.18],[-0.22,-1.52],[-0.52,-1.70],[-0.60,-1.44],[-0.28,-1.24],[0.00,-1.08],[0.10,-0.80]] },
+      { type:'polygon', label:'Horn R', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.10,-0.76],[0.04,-1.18],[-0.22,-1.52],[-0.52,-1.70],[-0.60,-1.44],[-0.28,-1.24],[0.00,-1.08],[0.10,-0.80]]) },
+    ]
+  },
+  {
+    name: '枝型', desc: 'Sừng nhánh như cặp gạc hươu',
+    shapes: [
+      // Main horns
+      { type:'polygon', label:'Horn L',    fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.14,-0.76],[0.22,-1.22],[0.12,-1.66],[0.02,-1.92],[-0.04,-1.88],[0.00,-1.62],[0.10,-1.18],[0.08,-0.82]] },
+      { type:'polygon', label:'Branch L1', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.2, opacity:1,
+        points:[[0.20,-1.12],[0.40,-1.28],[0.38,-1.46],[0.18,-1.36],[0.12,-1.18]] },
+      { type:'polygon', label:'Branch L2', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.2, opacity:1,
+        points:[[0.10,-1.46],[0.28,-1.62],[0.24,-1.78],[0.08,-1.68],[0.04,-1.48]] },
+      { type:'polygon', label:'Horn R',    fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.14,-0.76],[0.22,-1.22],[0.12,-1.66],[0.02,-1.92],[-0.04,-1.88],[0.00,-1.62],[0.10,-1.18],[0.08,-0.82]]) },
+      { type:'polygon', label:'Branch R1', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.2, opacity:1,
+        points:mirrorY([[0.20,-1.12],[0.40,-1.28],[0.38,-1.46],[0.18,-1.36],[0.12,-1.18]]) },
+      { type:'polygon', label:'Branch R2', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.2, opacity:1,
+        points:mirrorY([[0.10,-1.46],[0.28,-1.62],[0.24,-1.78],[0.08,-1.68],[0.04,-1.48]]) },
+    ]
+  },
+  {
+    name: '巻型', desc: 'Xoắn ốc kiểu sừng cừu',
+    shapes: [
+      // Outer coil L
+      { type:'polygon', label:'Coil L',  fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.18,-0.72],[0.50,-0.98],[0.62,-1.34],[0.54,-1.70],[0.28,-1.94],[0.00,-1.96],[-0.18,-1.80],[-0.24,-1.52],[-0.10,-1.24],[0.08,-1.12],[0.14,-0.84]] },
+      // Inner return L
+      { type:'polygon', label:'Coil L inner', fill:'#aa2200', stroke:null, sw:1, opacity:0.9,
+        points:[[0.08,-1.14],[0.22,-1.26],[0.26,-1.46],[0.16,-1.60],[0.02,-1.58],[-0.08,-1.46],[-0.04,-1.28],[0.08,-1.22]] },
+      // R mirrors
+      { type:'polygon', label:'Coil R',  fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.18,-0.72],[0.50,-0.98],[0.62,-1.34],[0.54,-1.70],[0.28,-1.94],[0.00,-1.96],[-0.18,-1.80],[-0.24,-1.52],[-0.10,-1.24],[0.08,-1.12],[0.14,-0.84]]) },
+      { type:'polygon', label:'Coil R inner', fill:'#aa2200', stroke:null, sw:1, opacity:0.9,
+        points:mirrorY([[0.08,-1.14],[0.22,-1.26],[0.26,-1.46],[0.16,-1.60],[0.02,-1.58],[-0.08,-1.46],[-0.04,-1.28],[0.08,-1.22]]) },
+    ]
+  },
+  {
+    name: '波型', desc: 'Lượn sóng uốn khúc',
+    shapes: [
+      { type:'polygon', label:'Horn L', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.14,-0.74],[0.38,-1.02],[0.46,-1.28],[0.30,-1.50],[0.10,-1.62],[0.08,-1.80],[0.24,-1.94],[0.08,-2.02],[-0.06,-1.94],[-0.08,-1.78],[0.08,-1.62],[0.26,-1.50],[-0.02,-1.28],[-0.18,-1.04],[-0.04,-0.80],[0.08,-0.76]] },
+      { type:'polygon', label:'Horn R', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.14,-0.74],[0.38,-1.02],[0.46,-1.28],[0.30,-1.50],[0.10,-1.62],[0.08,-1.80],[0.24,-1.94],[0.08,-2.02],[-0.06,-1.94],[-0.08,-1.78],[0.08,-1.62],[0.26,-1.50],[-0.02,-1.28],[-0.18,-1.04],[-0.04,-0.80],[0.08,-0.76]]) },
+    ]
+  },
+  {
+    name: '捻型', desc: 'Xoắn vặn, eo thắt xen kẽ',
+    shapes: [
+      { type:'polygon', label:'Horn L', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:[[0.16,-0.72],[0.34,-1.00],[0.16,-1.18],[0.32,-1.44],[0.12,-1.64],[0.24,-1.88],[0.08,-1.98],[-0.08,-1.92],[-0.20,-1.68],[-0.06,-1.50],[-0.16,-1.28],[0.00,-1.08],[-0.08,-0.82],[0.08,-0.76]] },
+      { type:'polygon', label:'Horn R', fill:'#cc3300', stroke:'rgba(0,0,0,0.45)', sw:1.5, opacity:1,
+        points:mirrorY([[0.16,-0.72],[0.34,-1.00],[0.16,-1.18],[0.32,-1.44],[0.12,-1.64],[0.24,-1.88],[0.08,-1.98],[-0.08,-1.92],[-0.20,-1.68],[-0.06,-1.50],[-0.16,-1.28],[0.00,-1.08],[-0.08,-0.82],[0.08,-0.76]]) },
+    ]
+  },
+];
+
+function renderDragonHorn(canvas, hornType) {
+  const ctx = canvas.getContext('2d');
+  drawBg(ctx, HW, HH);
+
+  ctx.save();
+  ctx.translate(HCX, HCY);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // Body + tail + scales
+  for (const s of DRAGON_BODY) aeDrawShape(ctx, s, HR);
+
+  // Ball body
+  ctx.beginPath(); ctx.arc(0, 0, HR, 0, Math.PI * 2);
+  ctx.fillStyle = '#6a0000'; ctx.fill();
+  ctx.strokeStyle = '#330000'; ctx.lineWidth = 2; ctx.stroke();
+
+  // Horn shapes for this type
+  for (const s of hornType.shapes) aeDrawShape(ctx, s, HR);
+
+  // Eyes
+  const ew = HR*0.21, eh = HR*0.085, ex = HR*0.46;
+  for (const eyY of [-HR*0.20, HR*0.20]) {
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(ex, eyY, ew, eh, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#dd2200'; ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  // Label
+  ctx.save();
+  ctx.font = 'bold 13px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillText(hornType.name, 10, HH - 18);
+  ctx.font = '11px sans-serif'; ctx.fillStyle = 'rgba(255,180,100,0.6)';
+  ctx.fillText(hornType.desc, 10, HH - 6);
+  ctx.restore();
+}
+
+function buildDragonHorns() {
+  const grid = document.getElementById('grid-horns');
+  if (grid.children.length) return; // build once
+
+  for (let i = 0; i < DRAGON_HORN_TYPES.length; i++) {
+    const ht = DRAGON_HORN_TYPES[i];
+    const c  = document.createElement('canvas');
+    c.width = HW; c.height = HH;
+    c.dataset.hornIdx = i;
+
+    // Copy JSON button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn btn-copy';
+    copyBtn.textContent = '📋 Copy JSON';
+    copyBtn.onclick = () => {
+      // Output only the horn shapes (not body/tail) — ready to paste into AE_RACE_DEFAULTS.dragon
+      const hornShapes = ht.shapes.map(s => JSON.stringify(s));
+      const json = '[\n  ' + hornShapes.join(',\n  ') + '\n]';
+      navigator.clipboard.writeText(json).then(() => {
+        copyBtn.textContent = '✓ Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => { copyBtn.textContent = '📋 Copy JSON'; copyBtn.classList.remove('copied'); }, 1800);
+      });
+    };
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    const label = document.createElement('div');
+    label.className = 'card-name';
+    label.textContent = `${ht.name} — ${ht.desc}`;
+
+    const btns = document.createElement('div');
+    btns.className = 'card-btns';
+
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'btn btn-dl';
+    dlBtn.textContent = '⬇ PNG';
+    dlBtn.onclick = () => download(c, `dragon_horn_${ht.name}.png`);
+
+    btns.appendChild(dlBtn);
+    btns.appendChild(copyBtn);
+
+    card.appendChild(label);
+    card.appendChild(c);
+    card.appendChild(btns);
+    grid.appendChild(card);
+  }
+}
+
+// Re-render when bg changes
+document.querySelectorAll('input[name="bg"]').forEach(r =>
+  r.addEventListener('change', renderAll)
+);
+
+// Wait for weapons.js to be parsed
+renderAll();
+</script>
+</body>
+</html>

@@ -41,6 +41,13 @@ function showResult() {
   });
   statsEl.innerHTML = lines.join('<br><br>') + `<br><br><em style="color:#555">${t('result_duration') || 'Duration'}: ${(state.matchTime / 60).toFixed(1)}s</em>`;
 
+  // Audience reaction based on match duration
+  if (typeof audienceReact === 'function') {
+    const secs = state.matchTime / 60;
+    if (secs < 15)      setTimeout(() => audienceReact('quick_kill'),  600);
+    else if (secs > 90) setTimeout(() => audienceReact('long_match'),  600);
+  }
+
   // ── BO3 handling ──
   rematch.style.display  = '';
   nextGame.style.display = 'none';

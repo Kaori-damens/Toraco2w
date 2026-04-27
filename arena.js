@@ -91,6 +91,34 @@ function checkArenaWall(x, y, r, arena, skipHoles = false) {
         }
       }
     }
+  } else if (arena.type === 'diamond') {
+    // Rhombus with half-diagonals hw (horizontal) and hh (vertical)
+    // 4 faces with outward normals; signed distance = (±hh*dx ± hw*dy − hw*hh) / hyp
+    const dx = x - arena.cx, dy = y - arena.cy;
+    const hw = arena.hw, hh = arena.hh, hyp = Math.sqrt(hw*hw + hh*hh);
+    const faces = [
+      { nx:  hh/hyp, ny: -hw/hyp, pen: ( hh*dx - hw*dy - hw*hh) / hyp + r }, // TR
+      { nx:  hh/hyp, ny:  hw/hyp, pen: ( hh*dx + hw*dy - hw*hh) / hyp + r }, // BR
+      { nx: -hh/hyp, ny:  hw/hyp, pen: (-hh*dx + hw*dy - hw*hh) / hyp + r }, // BL
+      { nx: -hh/hyp, ny: -hw/hyp, pen: (-hh*dx - hw*dy - hw*hh) / hyp + r }, // TL
+    ];
+    const worst = faces.reduce((a, b) => a.pen > b.pen ? a : b);
+    if (worst.pen > 0) return { nx: worst.nx, ny: worst.ny };
+  } else if (arena.type === 'octagon') {
+    // Regular octagon — r is the inradius (center-to-face distance)
+    const dx = x - arena.cx, dy = y - arena.cy;
+    const IS2 = 0.7071067811865476; // 1/√2
+    const normals = [[1,0],[IS2,IS2],[0,1],[-IS2,IS2],[-1,0],[-IS2,-IS2],[0,-1],[IS2,-IS2]];
+    for (const [nx, ny] of normals) {
+      if (nx*dx + ny*dy + r > arena.r) return { nx, ny };
+    }
+  }
+  // Dynamic holes (diamond_rift runtime holes) — skip for projectiles
+  if (!skipHoles && arena.dynamicHoles?.length) {
+    for (const h of arena.dynamicHoles) {
+      const hdx = x - h.cx, hdy = y - h.cy, hd = Math.sqrt(hdx*hdx + hdy*hdy);
+      if (hd < h.r + r && hd > 0) return { nx: hdx/hd, ny: hdy/hd };
+    }
   }
   return null;
 }
@@ -212,6 +240,55 @@ function clampToBall(ball, arena) {
       }
     }
   }
+  // ── Diamond ──
+  if (arena.type === 'diamond') {
+    const dx = ball.x - arena.cx, dy = ball.y - arena.cy;
+    const hw = arena.hw, hh = arena.hh, hyp = Math.sqrt(hw*hw + hh*hh);
+    const faces = [
+      { nx:  hh/hyp, ny: -hw/hyp, pen: ( hh*dx - hw*dy - hw*hh) / hyp + ball.radius },
+      { nx:  hh/hyp, ny:  hw/hyp, pen: ( hh*dx + hw*dy - hw*hh) / hyp + ball.radius },
+      { nx: -hh/hyp, ny:  hw/hyp, pen: (-hh*dx + hw*dy - hw*hh) / hyp + ball.radius },
+      { nx: -hh/hyp, ny: -hw/hyp, pen: (-hh*dx - hw*dy - hw*hh) / hyp + ball.radius },
+    ];
+    const w = faces.reduce((a, b) => a.pen > b.pen ? a : b);
+    if (w.pen > 0) {
+      ball.x -= w.nx * w.pen; ball.y -= w.ny * w.pen;
+      const dot = ball.vx * w.nx + ball.vy * w.ny;
+      if (dot > 0) { ball.vx -= dot * w.nx * (1 + WALL_BOUNCE); ball.vy -= dot * w.ny * (1 + WALL_BOUNCE); bounced = true; }
+    }
+  }
+
+  // ── Octagon ──
+  if (arena.type === 'octagon') {
+    const dx = ball.x - arena.cx, dy = ball.y - arena.cy;
+    const IS2 = 0.7071067811865476;
+    const normals = [[1,0],[IS2,IS2],[0,1],[-IS2,IS2],[-1,0],[-IS2,-IS2],[0,-1],[IS2,-IS2]];
+    let maxPen = 0, pnx = 0, pny = 0;
+    for (const [nx, ny] of normals) {
+      const pen = nx*dx + ny*dy + ball.radius - arena.r;
+      if (pen > maxPen) { maxPen = pen; pnx = nx; pny = ny; }
+    }
+    if (maxPen > 0) {
+      ball.x -= pnx * maxPen; ball.y -= pny * maxPen;
+      const dot = ball.vx * pnx + ball.vy * pny;
+      if (dot > 0) { ball.vx -= dot * pnx * (1 + WALL_BOUNCE); ball.vy -= dot * pny * (1 + WALL_BOUNCE); bounced = true; }
+    }
+  }
+
+  // ── Dynamic holes (diamond_rift runtime holes) — push ball away from hole edge ──
+  if (arena.dynamicHoles?.length) {
+    for (const h of arena.dynamicHoles) {
+      const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
+      const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + ball.radius;
+      if (hd < minD && hd > 0) {
+        const hn = 1/hd;
+        ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
+        const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
+        if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); bounced = true; }
+      }
+    }
+  }
+
   if (bounced) _jitterVelocity(ball);
 }
 
@@ -735,6 +812,47 @@ function drawArena(ctx, arena) {
     ctx.restore();
   } else if (arena.type === 'hole_sq' || arena.type === 'hole_re' || arena.type === 'hole_ci') {
     _drawHoleArena(ctx, arena);
+  } else if (arena.type === 'diamond') {
+    const { cx, cy, hw, hh } = arena;
+    ctx.beginPath();
+    ctx.moveTo(cx,      cy - hh);
+    ctx.lineTo(cx + hw, cy);
+    ctx.lineTo(cx,      cy + hh);
+    ctx.lineTo(cx - hw, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#2a2a4a'; ctx.lineWidth = 3; ctx.stroke();
+    // Diagonal grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+    const steps = 8;
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      // Horizontal-ish lines (left-to-right across diamond)
+      const ly = cy - hh + hh * 2 * t;
+      const lx1 = cx - hw * (1 - Math.abs(2*t - 1));
+      const lx2 = cx + hw * (1 - Math.abs(2*t - 1));
+      ctx.beginPath(); ctx.moveTo(lx1, ly); ctx.lineTo(lx2, ly); ctx.stroke();
+    }
+  } else if (arena.type === 'octagon') {
+    const { cx, cy, r } = arena;
+    // Circumradius from inradius r: R = r / cos(π/8)
+    const R  = r / Math.cos(Math.PI / 8);
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8;  // vertices at 22.5° offsets
+      const vx = cx + Math.cos(a) * R, vy = cy + Math.sin(a) * R;
+      i === 0 ? ctx.moveTo(vx, vy) : ctx.lineTo(vx, vy);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#2a2a4a'; ctx.lineWidth = 3; ctx.stroke();
+    // Grid dots (same style as circle)
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6;
+      for (let d = 50; d < r; d += 50) {
+        ctx.beginPath(); ctx.arc(cx + Math.cos(a)*d, cy + Math.sin(a)*d, 2, 0, Math.PI*2); ctx.fill();
+      }
+    }
   }
   ctx.restore();
 }

@@ -101,6 +101,30 @@ const ARENAS = {
   hole_ci_c_l:    { type:'hole_ci', cx:500,cy:500, r:370,         size:'large',  label:'L.Ci ●',   holes:[{shape:'circle',cx:500,cy:500,r:92}] },
   hole_re_2c_l:   { type:'hole_re', x:50,  y:175, w:900, h:650, size:'large',  label:'L.Re ●●',  holes:[{shape:'circle',cx:275,cy:500,r:75},{shape:'circle',cx:725,cy:500,r:75}] },
   hole_re_3sq_l:  { type:'hole_re', x:50,  y:175, w:900, h:650, size:'large',  label:'L.Re ■■■', holes:[{shape:'square',x:220,y:445,w:110,h:110},{shape:'square',x:445,y:445,w:110,h:110},{shape:'square',x:670,y:445,w:110,h:110}] },
+
+  // ── Dynamic Event Arenas ──────────────────────────────────
+  // dynamicHoles / _windGust / _shrinkCount / ventWarnings populated at runtime by arena-events.js
+  diamond_rift: {
+    type: 'diamond', cx: 500, cy: 500, hw: 320, hh: 320,
+    size: 'large', label: '💀 Diamond Rift',
+    events: [{ type: 'spawn_hole', interval: 1800, holeR: 55, maxHoles: 5 }],
+    dynamicHoles: [],
+  },
+  tempest_octagon: {
+    type: 'octagon', cx: 500, cy: 500, r: 275,
+    size: 'medium', label: '💨 Tempest Octagon',
+    events: [{ type: 'wind_gust', interval: 900, power: 9, duration: 90 }],
+  },
+  shrinking_ring: {
+    type: 'circle', cx: 500, cy: 500, r: 350,
+    size: 'large', label: '⚠️ Shrinking Ring',
+    events: [{ type: 'shrink', interval: 1320, shrinkAmt: 45, minR: 140, maxShrinks: 4 }],
+  },
+  volcanic_cross: {
+    type: 'cross', cx: 500, cy: 500, arm: 340, thick: 210,
+    size: 'medium', label: '🌋 Volcanic Cross',
+    events: [{ type: 'volcanic_vent', interval: 720, count: 2, warnFrames: 120, blastR: 75, damage: 8, power: 13 }],
+  },
 };
 
 const BALL_COLORS = ['#4488ff', '#ff4455', '#44cc88', '#ffaa22', '#cc44ff', '#ff88aa'];

@@ -138,6 +138,9 @@ function collidePair(b1, b2) {
         addBattleLog('parry_fists', { attacker: getBallLabel(fistsB), defender: getBallLabel(otherB), damage: otherB.getDamage(), aColor: fistsB.color, dColor: otherB.color, defHp: +Math.max(0, fistsB.hp).toFixed(1) });
       } else {
         addBattleLog('parry', { attacker: getBallLabel(b1), defender: getBallLabel(b2), aColor: b1.color, dColor: b2.color });
+        // ~40% chance audience reacts to the clash
+        if (Math.random() < 0.40 && typeof audienceReact === 'function')
+          audienceReact('double_parry');
       }
 
       // Fully separate bodies before freezing (prevent overlap during freeze causing visual jitter)
@@ -267,9 +270,12 @@ function resolveProjectiles(players, projectiles) {
           // log
           if (isCrit) {
             addBattleLog('proj_crit', { attacker: getBallLabel(proj.owner), defender: getBallLabel(target), damage: dmg, baseDmg: +baseProjDmg.toFixed(2), critMult: proj.owner.critMult, aColor: proj.owner.color, dColor: target.color, defHp: target.hp });
+            if (typeof audienceReact === 'function') audienceReact('crit');
           } else {
             addBattleLog('proj', { attacker: getBallLabel(proj.owner), defender: getBallLabel(target), damage: dmg, aColor: proj.owner.color, dColor: target.color, defHp: target.hp });
           }
+          if (typeof audienceReact === 'function' && dmg > target.maxHp * 0.30)
+            audienceReact('big_damage');
           proj.owner.stats.hits++;
           proj.owner.stats.damageDone += dmg;
           sfxHit(proj.owner?.weaponDef?.id);
@@ -390,9 +396,12 @@ function _checkWeaponHit(attacker, defender) {
           attacker.weapon.lungeHit = false;
         } else if (isCrit) {
           addBattleLog('crit', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), damage: dmg, baseDmg: +baseDmgNoCrit.toFixed(2), critMult: attacker.critMult, aColor: attacker.color, dColor: defender.color, defHp: +Math.max(0, defender.hp).toFixed(1) });
+          if (typeof audienceReact === 'function') audienceReact('crit');
         } else {
           addBattleLog('hit', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), damage: dmg, aColor: attacker.color, dColor: defender.color, defHp: +Math.max(0, defender.hp).toFixed(1) });
         }
+        if (typeof audienceReact === 'function' && dmg > defender.maxHp * 0.30)
+          audienceReact('big_damage');
         // Exploit: flash badge + text
         if (isExploit) {
           spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 20, '💡 EXPLOIT! ×2', '#ffdd00');

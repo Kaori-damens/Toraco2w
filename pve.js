@@ -83,11 +83,13 @@ function startPVE() {
     : [];
   state.healOrbs = [];
 
-  // Use a generic arena shape (terrain is handled by maps.js, not arena.js)
-  state.arenaId = 'square';
+  // Use large_square so applyArenaFit clips canvas to ~930×930 (covers full boss range)
+  // Terrain is handled by maps.js, not by arena collision
+  state.arenaId = 'large_square';
 
   // Create balls (don't use startGame — it would start the loop before boss is ready)
   initGame();
+  applyArenaFit(state.arena);   // ← fit canvas so HUD panels can center properly
 
   // No friendly fire: all players same team
   for (const b of state.players) b.teamId = 0;

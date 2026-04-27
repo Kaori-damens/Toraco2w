@@ -261,6 +261,25 @@ const recorder = new MediaRecorder(stream);
 
 ---
 
+## ⚔️ Skills liên quan đến Drop/Pickup mechanic
+
+*Ghi nhận ngày 25 Apr 2026. Chưa implement.*
+
+### Nhóm tương tác với Disarm
+- **Weapon Thief**: Khi kick vũ khí rơi của địch, 40% cơ hội nhặt luôn thay vì đá đi → tạm dùng vũ khí đó ~8s rồi tan biến. Kẻ bị Disarm không lấy lại được trong thời gian này.
+- **Opportunist**: Passive. Khi tấn công kẻ địch đang bị Disarmed → crit chance +30% và damage +25%.
+- **Iron Grip**: Passive. Miễn nhiễm hoàn toàn với Disarm.
+- **Weapon Breaker**: Khi kick vũ khí rơi, phá hủy luôn thay vì đá văng → enemy mất vũ khí vĩnh viễn đến cuối round.
+- **Desperation**: Passive. Khi đang bị Disarmed (dùng Fists) → +20% speed và Fists damage +40%.
+
+### Nhóm tương tác với sàn vật lý (tổng quát)
+- **Magnet**: Passive. Vật thể trên sàn trong radius ~80px tự kéo về phía mình. Combo: Skeleton (bone tự về), bị Disarm (weapon tự về).
+- **Scavenger**: Passive. Lăn qua item của địch (bone shard enemy, dropped weapon) → hấp thụ và hồi HP nhỏ thay vì để biến mất hoặc kick đi.
+- **Decoy Drop**: Active 20s CD. Thả vật giả trên sàn trông giống item. Địch lăn qua: stun 0.8s. Mình lăn qua: không bị gì.
+- **Hoarder**: Passive. Mỗi item nhặt được trong round (bất kỳ loại) tích stack +4% damage, tối đa 5 stacks, reset khi round mới.
+
+---
+
 ## 📋 Ghi chú
 
 - Cả 2 vũ khí đều dùng `reverseOnHit: true` (xem thảo luận ngày 2 Apr 2026)
