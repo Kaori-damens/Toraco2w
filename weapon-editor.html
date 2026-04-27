@@ -431,6 +431,60 @@ const newWeaponMeta = {
 };
 let newWeaponShapes = [];
 
+let clipboard = null;
+const undoStack = [];
+const MAX_UNDO = 30;
+
+function pushUndo() {
+  undoStack.push(JSON.parse(JSON.stringify(state.shapes)));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  state.shapes = undoStack.pop();
+  state.selected = null;
+  saveCurrentWeapon();
+  buildShapeList();
+  showProps(null);
+  renderCanvas();
+}
+
+function copyShape() {
+  if (!state.selected) return;
+  const s = state.shapes.find(x => x.id === state.selected);
+  if (s) clipboard = JSON.parse(JSON.stringify(s));
+}
+
+function pasteShape() {
+  if (!clipboard) return;
+  pushUndo();
+  const s = JSON.parse(JSON.stringify(clipboard));
+  s.id = 'shape_' + Date.now();
+  s.label = (s.label || s.type) + ' copy';
+  const off = 8;
+  if (s.type === 'line' || s.type === 'polygon') {
+    s.points = s.points.map(([x, y]) => [x + off, y + off]);
+  } else if (s.type === 'circle' || s.type === 'arc') {
+    s.cx += off; s.cy += off;
+  }
+  state.shapes.push(s);
+  state.selected = s.id;
+  saveCurrentWeapon();
+  buildShapeList();
+  showProps(s);
+  renderCanvas();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'c') { e.preventDefault(); copyShape(); }
+    if (e.key === 'v') { e.preventDefault(); pasteShape(); }
+    if (e.key === 'z') { e.preventDefault(); undo(); }
+  }
+});
+
 function loadWeapon(id) {
   state.weaponId = id;
   state.selected = null;
@@ -760,6 +814,7 @@ canvas.addEventListener('mousedown', e => {
     if (s) {
       const hi = hitHandle(mx, my, s);
       if (hi >= 0) {
+        pushUndo();
         state.drag = { shapeId: s.id, handleIdx: hi, prevMx: mx, prevMy: my };
         return;
       }
@@ -771,6 +826,7 @@ canvas.addEventListener('mousedown', e => {
     const s = state.shapes[i];
     if (!s.visible) continue;
     if (hitShape(mx, my, s)) {
+      pushUndo();
       state.selected = s.id;
       state.drag = { shapeId: s.id, handleIdx: -1, prevMx: mx, prevMy: my };
       buildShapeList();
@@ -896,11 +952,45 @@ function buildShapeList() {
 // ══════════════════════════════════════════════════════
 // PROPS PANEL
 // ══════════════════════════════════════════════════════
+function convertShapeType(s, newType) {
+  if (s.type === newType) return;
+  pushUndo();
+  const keep = { id: s.id, label: s.label, opacity: s.opacity, visible: s.visible,
+                  stroke: s.stroke, lineWidth: s.lineWidth };
+  let n;
+  if ((s.type === 'circle' || s.type === 'arc') && (newType === 'circle' || newType === 'arc')) {
+    n = { ...keep, type: newType, cx: s.cx, cy: s.cy, r: s.r, fill: s.fill };
+    if (newType === 'arc') { n.startAngle = s.startAngle ?? -PI*0.5; n.endAngle = s.endAngle ?? PI*0.5; n.lineCap = s.lineCap ?? 'round'; delete n.fill; }
+  } else if ((s.type === 'line' || s.type === 'polygon') && (newType === 'line' || newType === 'polygon')) {
+    n = { ...keep, type: newType, points: JSON.parse(JSON.stringify(s.points)) };
+    if (newType === 'polygon') { n.fill = s.fill ?? null; }
+    if (newType === 'line')    { n.lineCap = s.lineCap ?? 'round'; }
+  } else {
+    return; // cross-family conversions not supported
+  }
+  const idx = state.shapes.findIndex(x => x.id === s.id);
+  state.shapes[idx] = n;
+  state.selected = n.id;
+  saveCurrentWeapon();
+  buildShapeList();
+  showProps(n);
+  renderCanvas();
+}
+
 function showProps(s) {
   const body = document.getElementById('props-body');
   if (!s) { body.innerHTML = '<div id="no-selection">Select a shape to edit its properties.</div>'; return; }
 
+  const typeOptions = ['line','polygon','circle','arc'].map(t => {
+    const sameFamily = (s.type === 'circle' || s.type === 'arc') ? (t === 'circle' || t === 'arc')
+                     : (t === 'line' || t === 'polygon');
+    const disabled = sameFamily ? '' : 'disabled';
+    return `<option value="${t}" ${t===s.type?'selected':''} ${disabled}>${t}</option>`;
+  }).join('');
+
   body.innerHTML = `
+    <div class="prop-row"><label>Type</label>
+      <select id="p-type">${typeOptions}</select></div>
     <div class="prop-row"><label>Label</label>
       <input type="text" id="p-label" value="${esc(s.label||'')}"></div>
     <div class="prop-row"><label>Opacity</label>
@@ -973,6 +1063,8 @@ function showProps(s) {
   wire('p-sa', e => { s.startAngle=+e.target.value; renderCanvas(); });
   wire('p-ea', e => { s.endAngle=+e.target.value; renderCanvas(); });
 
+  wire('p-type', e => { convertShapeType(s, e.target.value); });
+
   // Color pickers sync
   const fillPick = document.getElementById('p-fill-picker');
   const strokePick = document.getElementById('p-stroke-picker');
@@ -1012,6 +1104,7 @@ function round2(n) { return Math.round(n*100)/100; }
 // ADD / DELETE SHAPES
 // ══════════════════════════════════════════════════════
 function addShape(type) {
+  pushUndo();
   let s;
   if (type==='line')    s = line('New Line', [[30,0],[60,0]], '#ffffff', 2);
   if (type==='polygon') s = poly('New Polygon', [[30,-10],[50,0],[30,10]], '#888888');
@@ -1027,6 +1120,7 @@ function addShape(type) {
 
 function deleteSelected() {
   if (!state.selected) return;
+  pushUndo();
   state.shapes = state.shapes.filter(s => s.id !== state.selected);
   state.selected = null;
   saveCurrentWeapon();
