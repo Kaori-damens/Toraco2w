@@ -1,0 +1,64 @@
+// shadowfang
+[
+  {
+    "type": "line",
+    "label": "Blade",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        54,
+        0
+      ]
+    ],
+    "stroke": "#9933dd",
+    "lineWidth": 4,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Spine",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        54,
+        0
+      ]
+    ],
+    "stroke": "#cc88ff",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "polygon",
+    "label": "Tip",
+    "points": [
+      [
+        59.1,
+        0
+      ],
+      [
+        54.1,
+        3
+      ],
+      [
+        54.1,
+        -3
+      ]
+    ],
+    "fill": "#220044",
+    "stroke": null,
+    "lineWidth": 0,
+    "opacity": 1,
+    "visible": true
+  }
+]

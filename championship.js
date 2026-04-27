@@ -5,16 +5,18 @@
 const CS_SAVE_KEY = 'cgChampionshipSave';
 
 // Weighted arena random for championship — size depends on player count
-// 4 players (FFA): 60% L / 35% M / 5% S
-// 2 players (1v1): 10% L / 70% M / 20% S
+// 4+ players (FFA/Battle Royale): 65% L / 35% M — never S
+// 2 players (1v1 BO1/BO3/DE): 75% M / 25% S — never L
 function randomArenaChampionship(playerCount) {
   // Step 1: pick size by player count
   const sizeRoll = Math.random() * 100;
   let targetSize;
   if (playerCount >= 4) {
-    targetSize = sizeRoll < 60 ? 'large' : sizeRoll < 95 ? 'medium' : 'small';
+    // Battle Royale / FFA: never small
+    targetSize = sizeRoll < 65 ? 'large' : 'medium';
   } else {
-    targetSize = sizeRoll < 5 ? 'large' : sizeRoll < 80 ? 'medium' : 'small';
+    // 1v1 (BO1/BO3/DE): never large
+    targetSize = sizeRoll < 75 ? 'medium' : 'small';
   }
 
   // Step 2: split arenas of that size into plain vs object (trap/hole)

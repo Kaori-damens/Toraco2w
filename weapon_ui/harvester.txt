@@ -1,0 +1,88 @@
+// harvester
+[
+  {
+    "type": "line",
+    "label": "Shaft",
+    "points": [
+      [
+        19,
+        0
+      ],
+      [
+        82.1,
+        0.6
+      ]
+    ],
+    "stroke": "#000000",
+    "lineWidth": 4,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "Blade",
+    "cx": 62,
+    "cy": 0,
+    "r": 22,
+    "startAngle": -2.51,
+    "endAngle": 0.94,
+    "stroke": "#0054db",
+    "lineWidth": 3,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "Edge",
+    "cx": 62,
+    "cy": -1,
+    "r": 21,
+    "startAngle": -2.36,
+    "endAngle": 0.63,
+    "stroke": "#22b9b7",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "circle",
+    "label": "Soul Orb 2",
+    "cx": 69.8,
+    "cy": 0.4,
+    "r": 4.32,
+    "fill": "#0054db",
+    "stroke": null,
+    "lineWidth": 2,
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "New Arc",
+    "cx": 69.5,
+    "cy": 0.6,
+    "r": 9.14,
+    "startAngle": -1.87,
+    "endAngle": -2.8,
+    "stroke": "#0054db",
+    "lineWidth": 2,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "circle",
+    "label": "New Circle",
+    "cx": 69.8,
+    "cy": 0.3,
+    "r": 2.63,
+    "fill": null,
+    "stroke": "#22b9b7",
+    "lineWidth": 0.5,
+    "opacity": 1,
+    "visible": true
+  }
+]

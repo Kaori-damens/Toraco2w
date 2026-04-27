@@ -1,0 +1,102 @@
+// excalibur
+[
+  {
+    "type": "line",
+    "label": "Glow",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        87.1,
+        0
+      ]
+    ],
+    "stroke": "rgba(255,255,170,0.25)",
+    "lineWidth": 10,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Blade",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        79,
+        0
+      ]
+    ],
+    "stroke": "#e8e0a0",
+    "lineWidth": 5,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Edge",
+    "points": [
+      [
+        24,
+        -1.5
+      ],
+      [
+        79,
+        -1.5
+      ]
+    ],
+    "stroke": "#ffffff",
+    "lineWidth": 1.5,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Guard",
+    "points": [
+      [
+        30,
+        -10
+      ],
+      [
+        30,
+        10
+      ]
+    ],
+    "stroke": "#aa8833",
+    "lineWidth": 4,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "polygon",
+    "label": "New Polygon",
+    "points": [
+      [
+        79.5,
+        -2.5
+      ],
+      [
+        89.3,
+        0
+      ],
+      [
+        79.5,
+        2.5
+      ]
+    ],
+    "fill": "#e8e0a0",
+    "stroke": null,
+    "lineWidth": 1.5,
+    "opacity": 1,
+    "visible": true
+  }
+]

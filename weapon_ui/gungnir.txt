@@ -1,0 +1,123 @@
+// gungnir
+[
+  {
+    "type": "line",
+    "label": "Shaft",
+    "points": [
+      [
+        -34,
+        0
+      ],
+      [
+        19,
+        0
+      ]
+    ],
+    "stroke": "#cc9930",
+    "lineWidth": 4,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Blade",
+    "points": [
+      [
+        19,
+        0
+      ],
+      [
+        92,
+        0
+      ]
+    ],
+    "stroke": "#ffe070",
+    "lineWidth": 2,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "polygon",
+    "label": "Tip",
+    "points": [
+      [
+        94.4,
+        0
+      ],
+      [
+        84.4,
+        7
+      ],
+      [
+        84.4,
+        -7
+      ]
+    ],
+    "fill": "#fffacc",
+    "stroke": null,
+    "lineWidth": 0,
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "circle",
+    "label": "Rune 1",
+    "cx": 41,
+    "cy": 0,
+    "r": 2.5,
+    "fill": "rgba(255,230,80,0.7)",
+    "stroke": null,
+    "lineWidth": 2,
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "circle",
+    "label": "Rune 2",
+    "cx": 58,
+    "cy": 0,
+    "r": 2.5,
+    "fill": "rgba(255,230,80,0.7)",
+    "stroke": null,
+    "lineWidth": 2,
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "circle",
+    "label": "Rune 3",
+    "cx": 75,
+    "cy": 0,
+    "r": 2.5,
+    "fill": "rgba(255,230,80,0.7)",
+    "stroke": null,
+    "lineWidth": 2,
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "polygon",
+    "label": "Tip copy",
+    "points": [
+      [
+        80.6,
+        -0.3
+      ],
+      [
+        84.7,
+        7
+      ],
+      [
+        84.7,
+        -7
+      ]
+    ],
+    "fill": "#fffacc",
+    "stroke": null,
+    "lineWidth": 0,
+    "opacity": 1,
+    "visible": true
+  }
+]

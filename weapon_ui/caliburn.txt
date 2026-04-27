@@ -1,0 +1,88 @@
+// caliburn
+[
+  {
+    "type": "line",
+    "label": "Blade",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        66,
+        0
+      ]
+    ],
+    "stroke": "#aae0ff",
+    "lineWidth": 2,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Spine",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        66,
+        0
+      ]
+    ],
+    "stroke": "rgba(255,255,255,0.55)",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "New Arc copy",
+    "cx": 30.8,
+    "cy": 0.3,
+    "r": 8.37,
+    "startAngle": -1.57,
+    "endAngle": 2.39,
+    "stroke": "#dabe07",
+    "lineWidth": 2,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "New Arc",
+    "cx": 36.2,
+    "cy": 1.2,
+    "r": 6.07,
+    "startAngle": 1.84,
+    "endAngle": -2.73,
+    "stroke": "#dabe07",
+    "lineWidth": 2,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Blade copy copy copy",
+    "points": [
+      [
+        22.5,
+        0
+      ],
+      [
+        29.3,
+        0
+      ]
+    ],
+    "stroke": "#272021",
+    "lineWidth": 2.5,
+    "lineCap": "butt",
+    "opacity": 1,
+    "visible": true
+  }
+]

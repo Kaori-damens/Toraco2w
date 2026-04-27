@@ -1,0 +1,50 @@
+// scythe
+[
+  {
+    "type": "line",
+    "label": "Shaft",
+    "points": [
+      [
+        19,
+        0
+      ],
+      [
+        81.6,
+        0
+      ]
+    ],
+    "stroke": "#553366",
+    "lineWidth": 4,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "Blade",
+    "cx": 62,
+    "cy": 0,
+    "r": 22,
+    "startAngle": -2.51,
+    "endAngle": 0.94,
+    "stroke": "#dd77ff",
+    "lineWidth": 3,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "Edge",
+    "cx": 62,
+    "cy": -1,
+    "r": 21,
+    "startAngle": -2.36,
+    "endAngle": 0.63,
+    "stroke": "#ffffff",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  }
+]

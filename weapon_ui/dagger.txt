@@ -1,0 +1,64 @@
+// dagger
+[
+  {
+    "type": "line",
+    "label": "Blade",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        52,
+        0
+      ]
+    ],
+    "stroke": "#ffe077",
+    "lineWidth": 4,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Spine",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        52,
+        0
+      ]
+    ],
+    "stroke": "#ffffff",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "polygon",
+    "label": "Tip",
+    "points": [
+      [
+        56.2,
+        0
+      ],
+      [
+        51.2,
+        3
+      ],
+      [
+        51.2,
+        -3
+      ]
+    ],
+    "fill": "#ffee99",
+    "stroke": null,
+    "lineWidth": 0,
+    "opacity": 1,
+    "visible": true
+  }
+]

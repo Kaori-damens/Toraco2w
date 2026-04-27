@@ -1,0 +1,98 @@
+// muramasa
+[
+  {
+    "type": "line",
+    "label": "Aura",
+    "points": [
+      [
+        32.1,
+        0.3
+      ],
+      [
+        88,
+        0
+      ]
+    ],
+    "stroke": "rgba(255,30,60,0.2)",
+    "lineWidth": 10,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Blade",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        88,
+        0
+      ]
+    ],
+    "stroke": "#ff4466",
+    "lineWidth": 3,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Spine",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        88,
+        0
+      ]
+    ],
+    "stroke": "rgba(255,100,120,0.5)",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Guard copy copy",
+    "points": [
+      [
+        30.4,
+        5
+      ],
+      [
+        30.4,
+        -5
+      ]
+    ],
+    "stroke": "#aa8833",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Blade copy",
+    "points": [
+      [
+        22,
+        0
+      ],
+      [
+        30,
+        0
+      ]
+    ],
+    "stroke": "#272021",
+    "lineWidth": 3,
+    "lineCap": "butt",
+    "opacity": 1,
+    "visible": true
+  }
+]

@@ -22,6 +22,12 @@ function initGame() {
   } else if (arenaConfig.type === 'cross') {
     cx = arenaConfig.cx; cy = arenaConfig.cy;
     spreadR = arenaConfig.thick * 0.38;
+  } else if (arenaConfig.type === 'diamond') {
+    cx = arenaConfig.cx; cy = arenaConfig.cy;
+    spreadR = Math.min(arenaConfig.hw, arenaConfig.hh) * 0.38;
+  } else if (arenaConfig.type === 'octagon') {
+    cx = arenaConfig.cx; cy = arenaConfig.cy;
+    spreadR = arenaConfig.r * 0.42;
   } else if (arenaConfig.type === 'hole') {
     cx = arenaConfig.x + arenaConfig.w / 2;
     cy = arenaConfig.y + arenaConfig.h / 2;
@@ -60,8 +66,9 @@ function initGame() {
     const entryAngle = Math.atan2(pos.y - cy, pos.x - cx);
     // Arena edge distance from center — varies by type
     let _arenaEdge;
-    if (arenaConfig.r)   _arenaEdge = arenaConfig.r;
+    if (arenaConfig.r)        _arenaEdge = arenaConfig.r;
     else if (arenaConfig.arm) _arenaEdge = arenaConfig.arm;
+    else if (arenaConfig.hw)  _arenaEdge = Math.min(arenaConfig.hw, arenaConfig.hh ?? arenaConfig.hw);
     else _arenaEdge = Math.min(arenaConfig.w ?? 400, arenaConfig.h ?? 400) / 2;
     const CANNON_CLEARANCE = 60; // px outside arena wall
     const entrySpawnX = cx + Math.cos(entryAngle) * (_arenaEdge + CANNON_CLEARANCE);

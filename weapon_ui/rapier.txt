@@ -1,0 +1,93 @@
+// rapier
+[
+  {
+    "type": "line",
+    "label": "Blade",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        64,
+        0
+      ]
+    ],
+    "stroke": "#d9e5ec",
+    "lineWidth": 2,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Spine",
+    "points": [
+      [
+        24,
+        0
+      ],
+      [
+        64,
+        0
+      ]
+    ],
+    "stroke": "rgba(255,255,255,0.55)",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Guard",
+    "points": [
+      [
+        30.9,
+        -7.1
+      ],
+      [
+        30.9,
+        8
+      ]
+    ],
+    "stroke": "#88bbdd",
+    "lineWidth": 1,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "arc",
+    "label": "New Arc",
+    "cx": 30.8,
+    "cy": 0.3,
+    "r": 8.37,
+    "startAngle": -1.57,
+    "endAngle": 2.39,
+    "stroke": "#88bbdd",
+    "lineWidth": 2,
+    "lineCap": "round",
+    "opacity": 1,
+    "visible": true
+  },
+  {
+    "type": "line",
+    "label": "Blade copy copy",
+    "points": [
+      [
+        22.5,
+        0
+      ],
+      [
+        30.5,
+        0
+      ]
+    ],
+    "stroke": "#272021",
+    "lineWidth": 2.5,
+    "lineCap": "butt",
+    "opacity": 1,
+    "visible": true
+  }
+]

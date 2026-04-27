@@ -19,13 +19,6 @@ const WEAPON_DEFS = [
         const px = ball.x + Math.cos(a) * r;
         const py = ball.y + Math.sin(a) * r;
         const rad = s === 0 ? 11 : 9;
-        // glow on scale
-        if (w.hits > 0) {
-          ctx.save();
-          ctx.shadowColor = '#ff9944';
-          ctx.shadowBlur = 6 + w.hits;
-          ctx.restore();
-        }
         ctx.beginPath(); ctx.arc(px, py, rad, 0, Math.PI*2);
         ctx.fillStyle = '#ff9944'; ctx.fill();
         ctx.strokeStyle = '#330'; ctx.lineWidth = 2; ctx.stroke();
@@ -75,17 +68,6 @@ const WEAPON_DEFS = [
       const ey = ball.y + Math.sin(w.angle) * len;
       const bx = ball.x + Math.cos(w.angle) * ball.radius;
       const by = ball.y + Math.sin(w.angle) * ball.radius;
-      // glow on scale
-      if (w.hits > 0) {
-        ctx.save();
-        ctx.strokeStyle = `rgba(170,220,255,${Math.min(0.6, w.hits*0.1)})`;
-        ctx.lineWidth = 10 + w.hits;
-        ctx.lineCap = 'round';
-        ctx.shadowColor = '#aaddff';
-        ctx.shadowBlur = 8 + w.hits * 2;
-        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
-        ctx.restore();
-      }
       // blade
       ctx.save();
       ctx.strokeStyle = '#ddeeff';
@@ -139,12 +121,6 @@ const WEAPON_DEFS = [
       const ey = ball.y + Math.sin(w.angle) * len;
       const bx = ball.x + Math.cos(w.angle) * ball.radius;
       const by = ball.y + Math.sin(w.angle) * ball.radius;
-      if (w.hits > 0) {
-        ctx.save();
-        ctx.shadowColor = '#ffcc44';
-        ctx.shadowBlur = 5 + w.hits * 2;
-        ctx.restore();
-      }
       ctx.save();
       // blade
       ctx.strokeStyle = '#ffe077';
@@ -155,12 +131,14 @@ const WEAPON_DEFS = [
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
       // tip triangle
-      const tipA = w.angle;
+      const a = w.angle, cos = Math.cos(a), sin = Math.sin(a);
+      const wx = (x,y) => ball.x + cos*x - sin*y;
+      const wy = (x,y) => ball.y + sin*x + cos*y;
       ctx.fillStyle = '#ffee99';
       ctx.beginPath();
-      ctx.moveTo(ex, ey);
-      ctx.lineTo(ex + Math.cos(tipA + Math.PI*0.85)*6, ey + Math.sin(tipA + Math.PI*0.85)*6);
-      ctx.lineTo(ex + Math.cos(tipA - Math.PI*0.85)*6, ey + Math.sin(tipA - Math.PI*0.85)*6);
+      ctx.moveTo(wx(56.2,0), wy(56.2,0));
+      ctx.lineTo(wx(51.2,3), wy(51.2,3));
+      ctx.lineTo(wx(51.2,-3), wy(51.2,-3));
       ctx.closePath(); ctx.fill();
       ctx.restore();
     },
@@ -199,12 +177,6 @@ const WEAPON_DEFS = [
       const by = ball.y + Math.sin(w.angle) * (ball.radius - 5);
       const tailx = ball.x - Math.cos(w.angle) * (ball.radius + 10);
       const taily = ball.y - Math.sin(w.angle) * (ball.radius + 10);
-      if (bonusLen > 0) {
-        ctx.save();
-        ctx.shadowColor = '#88ccff';
-        ctx.shadowBlur = 4 + bonusLen * 0.3;
-        ctx.restore();
-      }
       ctx.save();
       // shaft
       ctx.strokeStyle = '#cc9944';
@@ -330,17 +302,13 @@ const WEAPON_DEFS = [
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angle);
-      if (glow) {
-        ctx.shadowColor = '#cc44ff';
-        ctx.shadowBlur = 15;
-      }
       // shaft
       ctx.strokeStyle = '#553366';
       ctx.lineWidth = 4;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(-15, 0);
-      ctx.lineTo(len - ball.radius - 10, 0);
+      ctx.lineTo(len - ball.radius, 0);
       ctx.stroke();
       // curved blade arc
       ctx.strokeStyle = '#dd77ff';
@@ -411,12 +379,6 @@ const WEAPON_DEFS = [
       const bx = ball.x + Math.cos(w.angle) * (ball.radius + 4);
       const by = ball.y + Math.sin(w.angle) * (ball.radius + 4);
       const kb = (w.bonusKnockback||0);
-      if (kb > 0) {
-        ctx.save();
-        ctx.shadowColor = '#ff6633';
-        ctx.shadowBlur = 6 + kb * 1.5;
-        ctx.restore();
-      }
       ctx.save();
       // handle
       ctx.strokeStyle = '#886633';
@@ -516,13 +478,9 @@ const WEAPON_DEFS = [
       const riposteActive = w.riposteWindow > 0;
       ctx.save();
       // Blade: thin silver-blue
-      ctx.strokeStyle = riposteActive ? '#ffe066' : '#aae0ff';
+      ctx.strokeStyle = riposteActive ? '#ffe066' : '#d9e5ec';
       ctx.lineWidth = riposteActive ? 3 : 2;
       ctx.lineCap = 'round';
-      if (riposteActive) {
-        ctx.shadowColor = '#ffe066';
-        ctx.shadowBlur = 10;
-      }
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
       // Spine highlight
       ctx.strokeStyle = 'rgba(255,255,255,0.55)';
@@ -530,28 +488,18 @@ const WEAPON_DEFS = [
       ctx.shadowBlur = 0;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
       // Tip glow when riposte window open
-      if (riposteActive) {
-        ctx.shadowColor = '#ffe066';
-        ctx.shadowBlur = 16;
-        ctx.fillStyle = '#ffe066';
-        ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2); ctx.fill();
-      } else {
-        ctx.fillStyle = '#ddeeff';
-        ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fill();
-      }
-      // Guard — small crossbar
-      const guardDist = ball.radius + 6;
-      const gx = ball.x + Math.cos(w.angle) * guardDist;
-      const gy = ball.y + Math.sin(w.angle) * guardDist;
-      const perp = w.angle + Math.PI / 2;
-      ctx.strokeStyle = '#88bbdd';
-      ctx.lineWidth = 5;
-      ctx.lineCap = 'round';
-      ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.moveTo(gx + Math.cos(perp)*8, gy + Math.sin(perp)*8);
-      ctx.lineTo(gx - Math.cos(perp)*8, gy - Math.sin(perp)*8);
-      ctx.stroke();
+      ctx.fillStyle = riposteActive ? '#ffe066' : '#ddeeff';
+      ctx.beginPath(); ctx.arc(ex, ey, riposteActive ? 4 : 3, 0, Math.PI * 2); ctx.fill();
+      // Guard — arc + line + handle
+      const ra = w.angle, rcos = Math.cos(ra), rsin = Math.sin(ra);
+      const rwx = (x,y) => ball.x + rcos*x - rsin*y;
+      const rwy = (x,y) => ball.y + rsin*x + rcos*y;
+      ctx.strokeStyle = '#88bbdd'; ctx.lineWidth = 1; ctx.lineCap = 'round'; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(rwx(30.9,-7.1), rwy(30.9,-7.1)); ctx.lineTo(rwx(30.9,8), rwy(30.9,8)); ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(rwx(30.8,0.3), rwy(30.8,0.3), 8.37, -1.57 + ra, 2.39 + ra); ctx.stroke();
+      ctx.strokeStyle = '#272021'; ctx.lineWidth = 2.5; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.moveTo(rwx(22.5,0), rwy(22.5,0)); ctx.lineTo(rwx(30.5,0), rwy(30.5,0)); ctx.stroke();
       ctx.restore();
     },
     getHitPoints(ball) {
@@ -590,17 +538,13 @@ const WEAPON_DEFS = [
         const ringR = ball.radius + 4 + i * 5;
         ctx.strokeStyle = iai ? `rgba(255,255,200,${0.5 - i * 0.05})` : `rgba(200,200,255,${0.35 - i * 0.04})`;
         ctx.lineWidth = iai ? 2.5 : 1.5;
-        ctx.shadowColor = iai ? '#ffffaa' : '#aaaaff';
-        ctx.shadowBlur = iai ? 8 : 4;
         ctx.beginPath(); ctx.arc(ball.x, ball.y, ringR, 0, Math.PI * 2); ctx.stroke();
       }
-      ctx.shadowBlur = 0;
       // Blade: long, white-bright
       const bladeColor = iai ? '#ffffee' : '#e8e8ff';
       ctx.strokeStyle = bladeColor;
       ctx.lineWidth = iai ? 4 : 3;
       ctx.lineCap = 'round';
-      if (iai) { ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 14; }
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
       ctx.strokeStyle = 'rgba(255,255,255,0.6)';
       ctx.lineWidth = 1;
@@ -610,6 +554,14 @@ const WEAPON_DEFS = [
       ctx.strokeStyle = 'rgba(160,160,220,0.4)';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      // Guard (tsuba) + handle (tsuka)
+      const ka = w.angle, kcos = Math.cos(ka), ksin = Math.sin(ka);
+      const kwx = (x,y) => ball.x + kcos*x - ksin*y;
+      const kwy = (x,y) => ball.y + ksin*x + kcos*y;
+      ctx.strokeStyle = '#aa8833'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.moveTo(kwx(30.5,-6), kwy(30.5,-6)); ctx.lineTo(kwx(30.5,6), kwy(30.5,6)); ctx.stroke();
+      ctx.strokeStyle = '#272021'; ctx.lineWidth = 3; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.moveTo(kwx(-5,0), kwy(-5,0)); ctx.lineTo(kwx(30,0), kwy(30,0)); ctx.stroke();
       ctx.restore();
     },
     getHitPoints(ball) {
@@ -807,11 +759,23 @@ const WEAPON_DEFS = [
       const gx = ball.x + Math.cos(w.angle) * (ball.radius + 6);
       const gy = ball.y + Math.sin(w.angle) * (ball.radius + 6);
       ctx.strokeStyle = '#d4aa00';
-      ctx.lineWidth = transformed ? 14 : 8; ctx.lineCap = 'round'; ctx.shadowBlur = 0;
+      ctx.lineWidth = transformed ? 14 : 4; ctx.lineCap = 'round'; ctx.shadowBlur = 0;
       ctx.beginPath();
-      ctx.moveTo(gx + Math.cos(perp)*(transformed?22:14), gy + Math.sin(perp)*(transformed?22:14));
-      ctx.lineTo(gx - Math.cos(perp)*(transformed?22:14), gy - Math.sin(perp)*(transformed?22:14));
+      ctx.moveTo(gx + Math.cos(perp)*(transformed?22:10), gy + Math.sin(perp)*(transformed?22:10));
+      ctx.lineTo(gx - Math.cos(perp)*(transformed?22:10), gy - Math.sin(perp)*(transformed?22:10));
       ctx.stroke();
+      // Tip polygon (normal mode only)
+      if (!transformed) {
+        const ea = w.angle, ecos = Math.cos(ea), esin = Math.sin(ea);
+        const ewx = (x,y) => ball.x + ecos*x - esin*y;
+        const ewy = (x,y) => ball.y + esin*x + ecos*y;
+        ctx.fillStyle = '#e8e0a0'; ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(ewx(89.3,0), ewy(89.3,0));
+        ctx.lineTo(ewx(79.5,-2.5), ewy(79.5,-2.5));
+        ctx.lineTo(ewx(79.5,2.5), ewy(79.5,2.5));
+        ctx.closePath(); ctx.fill();
+      }
       // Transform timer arc (20s countdown ring)
       if ((w.excaliburTransformTimer || 0) > 0) {
         const frac = w.excaliburTransformTimer / (20 * 60);
@@ -983,13 +947,15 @@ const WEAPON_DEFS = [
       ctx.strokeStyle = '#cc88ff'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
       // Dark tip
-      const tipA = w.angle;
+      const a = w.angle, cos = Math.cos(a), sin = Math.sin(a);
+      const wx = (x,y) => ball.x + cos*x - sin*y;
+      const wy = (x,y) => ball.y + sin*x + cos*y;
       ctx.fillStyle = '#220044';
       ctx.shadowColor = '#aa00ff'; ctx.shadowBlur = 12;
       ctx.beginPath();
-      ctx.moveTo(ex, ey);
-      ctx.lineTo(ex + Math.cos(tipA + Math.PI*0.85)*7, ey + Math.sin(tipA + Math.PI*0.85)*7);
-      ctx.lineTo(ex + Math.cos(tipA - Math.PI*0.85)*7, ey + Math.sin(tipA - Math.PI*0.85)*7);
+      ctx.moveTo(wx(59.1,0), wy(59.1,0));
+      ctx.lineTo(wx(54.1,3), wy(54.1,3));
+      ctx.lineTo(wx(54.1,-3), wy(54.1,-3));
       ctx.closePath(); ctx.fill();
       // Shadow wisp particles
       const t = Date.now() * 0.003;
@@ -1049,12 +1015,20 @@ const WEAPON_DEFS = [
       ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
       // Tip
+      const ga = w.angle, gcos = Math.cos(ga), gsin = Math.sin(ga);
+      const gwx = (x,y) => ball.x + gcos*x - gsin*y;
+      const gwy = (x,y) => ball.y + gsin*x + gcos*y;
       ctx.fillStyle = '#fffacc';
       ctx.shadowColor = '#ffe84c'; ctx.shadowBlur = 16;
       ctx.beginPath();
-      ctx.moveTo(ex, ey);
-      ctx.lineTo(ex + Math.cos(w.angle + Math.PI*0.8)*12, ey + Math.sin(w.angle + Math.PI*0.8)*12);
-      ctx.lineTo(ex + Math.cos(w.angle - Math.PI*0.8)*12, ey + Math.sin(w.angle - Math.PI*0.8)*12);
+      ctx.moveTo(gwx(94.4,0), gwy(94.4,0));
+      ctx.lineTo(gwx(84.4,7), gwy(84.4,7));
+      ctx.lineTo(gwx(84.4,-7), gwy(84.4,-7));
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(gwx(80.6,-0.3), gwy(80.6,-0.3));
+      ctx.lineTo(gwx(84.7,7), gwy(84.7,7));
+      ctx.lineTo(gwx(84.7,-7), gwy(84.7,-7));
       ctx.closePath(); ctx.fill();
       // Rune symbols floating along shaft
       const t = Date.now() * 0.002;
@@ -1133,12 +1107,20 @@ const WEAPON_DEFS = [
         ctx.shadowColor = shards >= 5 ? '#ff88ff' : '#cc44ff';
         ctx.shadowBlur = shards >= 5 ? 20 : 10;
       }
-      ctx.strokeStyle = '#553366'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(len - ball.radius - 10, 0); ctx.stroke();
-      ctx.strokeStyle = shards >= 3 ? '#ff88ff' : '#dd77ff'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.strokeStyle = '#000000'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(len - ball.radius, 0); ctx.stroke();
+      ctx.strokeStyle = shards >= 3 ? '#88ccff' : '#0054db'; ctx.lineWidth = 3; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.arc(28, 0, 22, -Math.PI*0.8, Math.PI*0.3); ctx.stroke();
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#22b9b7'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(28, -1, 21, -Math.PI*0.75, Math.PI*0.2); ctx.stroke();
+      // Soul orb on blade
+      const orbX = 69.8 - 34;
+      ctx.fillStyle = '#0054db'; ctx.shadowColor = '#0088ff'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(orbX, 0, 4.32, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#0054db'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(orbX, 0, 9.14, -1.87, -2.8); ctx.stroke();
+      ctx.strokeStyle = '#22b9b7'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.arc(orbX, 0, 2.63, 0, Math.PI*2); ctx.stroke();
       ctx.restore();
     },
     getHitPoints(ball) {
@@ -1200,16 +1182,20 @@ const WEAPON_DEFS = [
       ctx.fillStyle = boosted ? '#ffe066' : '#ddeeff';
       ctx.shadowColor = boosted ? '#ffe066' : '#ccf0ff'; ctx.shadowBlur = boosted ? 16 : 6;
       ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fill();
+      // Guard — two gold arcs + handle
+      const ca = w.angle, ccos = Math.cos(ca), csin = Math.sin(ca);
+      const cwx = (x,y) => ball.x + ccos*x - csin*y;
+      const cwy = (x,y) => ball.y + csin*x + ccos*y;
+      ctx.strokeStyle = boosted ? '#ffe066' : '#dabe07'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(cwx(30.8,0.3), cwy(30.8,0.3), 8.37, -1.57 + ca, 2.39 + ca); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cwx(36.2,1.2), cwy(36.2,1.2), 6.07, 1.84 + ca, -2.73 + ca); ctx.stroke();
+      ctx.strokeStyle = '#272021'; ctx.lineWidth = 2.5; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.moveTo(cwx(22.5,0), cwy(22.5,0)); ctx.lineTo(cwx(29.3,0), cwy(29.3,0)); ctx.stroke();
       // Stack pips near guard
       const guardDist = ball.radius + 6;
       const gx = ball.x + Math.cos(w.angle) * guardDist;
       const gy = ball.y + Math.sin(w.angle) * guardDist;
       const perp = w.angle + Math.PI / 2;
-      ctx.strokeStyle = '#88bbdd'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.moveTo(gx + Math.cos(perp)*9, gy + Math.sin(perp)*9);
-      ctx.lineTo(gx - Math.cos(perp)*9, gy - Math.sin(perp)*9);
-      ctx.stroke();
       for (let i = 0; i < stacks; i++) {
         const sx = gx + Math.cos(perp) * (i * 6 - 6);
         const sy = gy + Math.sin(perp) * (i * 6 - 6);
@@ -1378,6 +1364,14 @@ const WEAPON_DEFS = [
       const t = Date.now() * 0.002;
       ctx.strokeStyle = `rgba(200,0,30,${0.5 + Math.sin(t)*0.3})`; ctx.lineWidth = 1; ctx.shadowBlur = 0;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      // Guard (tsuba) + handle (tsuka)
+      const ma = w.angle, mcos = Math.cos(ma), msin = Math.sin(ma);
+      const mwx = (x,y) => ball.x + mcos*x - msin*y;
+      const mwy = (x,y) => ball.y + msin*x + mcos*y;
+      ctx.strokeStyle = '#aa8833'; ctx.lineWidth = 1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(mwx(30.4,5), mwy(30.4,5)); ctx.lineTo(mwx(30.4,-5), mwy(30.4,-5)); ctx.stroke();
+      ctx.strokeStyle = '#272021'; ctx.lineWidth = 3; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.moveTo(mwx(22,0), mwy(22,0)); ctx.lineTo(mwx(30,0), mwy(30,0)); ctx.stroke();
       ctx.restore();
     },
     getHitPoints(ball) {
