@@ -1,6 +1,16 @@
 // ============================================================
 // COLLISION DETECTION
 // ============================================================
+// ─── Module xử lý va chạm giữa các ball và projectile ────────────────────
+// Được gọi từ game-loop.js mỗi frame trong hàm step().
+// Có 3 loại va chạm chính:
+//   1. collidePair(b1, b2)       — 2 ball gặp nhau: bounce thân + parry + weapon hit
+//   2. resolveProjectiles(...)   — đạn bay gặp ball: deflect bằng weapon hoặc gây dame
+//   3. _checkWeaponHit(a, d)     — kiểm tra vũ khí a có đánh trúng thân d không
+
+// ─── Hàm tiện ích: khoảng cách bình phương ───────────────────────────────
+// Dùng dist2 thay vì Math.hypot để tránh sqrt (nhanh hơn khi chỉ cần so sánh)
+// Tham số: tọa độ 2 điểm — Trả về: bình phương khoảng cách
 function dist2(ax, ay, bx, by) { return (ax-bx)*(ax-bx) + (ay-by)*(ay-by); }
 
 // Snapshot weapon scalable fields before onHit, then log what changed
@@ -13,6 +23,9 @@ function _snapWeapon(w) {
     bonusKnockback: w.bonusKnockback ?? 0,
     spinBonus:      w.spinBonus      ?? 0,
     attackCooldown: w.attackCooldown ?? 999,
+    fireInterval:   w.fireInterval   ?? Infinity,
+    lanceImpulse:   w.lanceImpulse   ?? 6,
+    bonusHeadRadius: w.bonusHeadRadius ?? 0, // Flail: đầu mace lớn dần theo số hit
   };
 }
 function _logWeaponScaleIfChanged(ball, before) {
@@ -36,8 +49,16 @@ function _logWeaponScaleIfChanged(ball, before) {
   if (sb > 0.0001)                                 parts.push(`+spin`);
   const cdDiff = before.attackCooldown - (w.attackCooldown ?? 999);
   if (cdDiff > 0.5)                                parts.push(`−${cdDiff.toFixed(0)} CD`);
-  if (parts.length > 0)
+  const fiDiff = before.fireInterval - (w.fireInterval ?? Infinity);
+  if (fiDiff > 0.5)                                parts.push(`−${fiDiff.toFixed(0)} throw CD`);
+  const li = (w.lanceImpulse ?? 6) - (before.lanceImpulse ?? 6);
+  if (li > 0.05)                                   parts.push(`+${li.toFixed(1)} dash`);
+  if ((def.id === 'scythe' || def.baseWeapon === 'scythe') && w.hits === 15) parts.push('DUAL BLADE!');
+  if (parts.length > 0) {
     addBattleLog('weapon_scale', { attacker: name, aColor: col, weapon: wname, text: parts.join(', ') });
+    if (typeof spawnDamageNumber === 'function')
+      spawnDamageNumber(ball.x, ball.y - ball.radius - 22, `${def.icon} ${parts.join(' ')}`, def.color || '#ffffff');
+  }
 }
 
 // Parry Technique III: generate dense hit points along the full weapon length
@@ -59,10 +80,18 @@ function getFullWeaponHitPoints(ball) {
   return pts;
 }
 
+// ─── Xử lý va chạm giữa 2 ball cụ thể ───────────────────────────────────
+// Được gọi từ game-loop.js cho mọi cặp (b1, b2) còn sống mỗi frame.
+// 3 bước theo thứ tự:
+//   1. Body bounce (va chạm đàn hồi)  — luôn xảy ra nếu 2 thân chồng nhau
+//   2. Parry check (kiểm tra chặn)    — skip nếu cùng team
+//   3. Weapon hit (đánh trúng)         — skip nếu parry xảy ra
+// Nếu parry → cả 2 bị stun, hàm kết thúc (return sớm), không damage.
 // collidePair: body bounce + parry + weapon hits for two specific balls
 function collidePair(b1, b2) {
   if (!b1.alive || !b2.alive) return;
 
+  // ── Bước 1: Va chạm thân đàn hồi ───────────────────────────
   // 1. Body-body bounce — proper elastic collision
   const dx = b2.x - b1.x, dy = b2.y - b1.y;
   const d = Math.sqrt(dx*dx + dy*dy);
@@ -90,7 +119,10 @@ function collidePair(b1, b2) {
     }
   }
 
+  // ── Bước 2: Kiểm tra parry (chặn) ──────────────────────────
   // 2. Parry check and weapon hits — skip for teammates (no friendly fire)
+  // Parry = 2 đầu weapon chồng nhau VÀ cả 2 weapon đều hướng về phía nhau (dot product > 0)
+  // Nếu parry: cả 2 bị stun 15f, return luôn — không có weapon damage bước 3
   if (b1.teamId >= 0 && b1.teamId === b2.teamId) return; // body bounce still happened above
   const b1Stuck = (b1.rs_weaponStuck > 0);
   const b2Stuck = (b2.rs_weaponStuck > 0);
@@ -173,12 +205,23 @@ function collidePair(b1, b2) {
     }
   }
 
+  // ── Bước 3: Weapon đánh trúng thân ─────────────────────────
   // 3. Weapon-to-body damage
   // Check b1→b2 first; only check b2→b1 if b2 survived b1's hit (prevents simultaneous mutual kills)
+  // Kiểm tra b1 đánh b2 trước; chỉ check chiều ngược lại nếu b2 vẫn còn sống
+  // (tránh 2 cái chết đồng thời gây bug kết quả)
   _checkWeaponHit(b1, b2);
   if (b1.alive && b2.alive) _checkWeaponHit(b2, b1);
 }
 
+// ─── Xử lý đạn bay va chạm với ball ─────────────────────────────────────
+// Gọi mỗi frame sau collidePair. Duyệt qua tất cả projectile × tất cả player.
+// Với mỗi cặp (proj, target) thứ tự check:
+//   1. Bỏ qua owner của đạn (không tự bắn mình)
+//   2. Bỏ qua đồng đội (friendly fire off)
+//   3. Kiểm tra weapon deflect — đầu weapon target chạm vào đạn → đổi owner, văng ra
+//   4. Kiểm tra body hit — đạn chạm vào thân target → dame + knockback + onHit
+// Piercing arrow: không tắt sau hit, tiếp tục check target tiếp theo
 // resolveProjectiles: projectiles vs all alive balls (any non-owner is a valid target)
 function resolveProjectiles(players, projectiles) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -201,7 +244,8 @@ function resolveProjectiles(players, projectiles) {
         }
       }
 
-      // Check weapon deflect — skip if target's weapon is stuck (Void Grip)
+      // ── Weapon deflect: đầu vũ khí target chạm vào đạn → deflect ──────
+      // Void Grip: vũ khí bị kẹt → không thể deflect (attacker đã bị ghim)
       if (target.rs_weaponStuck <= 0) {
         const tpts = target.weaponDef.getHitPoints(target);
         let deflected = false;
@@ -211,14 +255,18 @@ function resolveProjectiles(players, projectiles) {
           }
         }
         if (deflected) {
+          // Đạn bật ra theo hướng từ tâm target ra ngoài (ngược chiều đi vào)
+          // ×1.05 speed: deflect nhẹ tăng tốc để đạn bật đi nhanh hơn
           const da = Math.atan2(proj.y - target.y, proj.x - target.x);
           const spd = Math.sqrt(proj.vx*proj.vx + proj.vy*proj.vy);
           proj.vx = Math.cos(da) * spd * 1.05;
           proj.vy = Math.sin(da) * spd * 1.05;
-          proj.owner = target;
+          proj.owner = target; // đổi owner → đạn giờ thuộc target, có thể tự bắn người cũ
+          // Fists: immuneFrames 20f (dài hơn) vì fists parry ranged tốn đến 50% HP
+          // Weapon khác: 8f để tránh double-hit cùng frame
           proj.immuneFrames = target.weaponDef.id === 'fists' ? 20 : 8;
           if (target.weaponDef.id === 'fists') {
-            // Fists parry ranged: take 50% damage — unless Blessed by Shiva (Martial God: no damage on parry)
+            // Fists parry ranged: nhận 50% dame đạn (trừ Blessed by Shiva — Martial God miễn)
             const isGodMA = target.charRace === 'god' && target.charSubrace?.label === 'Blessed by Shiva' && target.rs_maTransformed;
             if (!isGodMA) {
               target.takeDamage(proj.damage * 0.5, proj.x, proj.y, false, proj.owner, false, true);
@@ -232,32 +280,36 @@ function resolveProjectiles(players, projectiles) {
         }
       }
 
-      // Check body hit
+      // ── Body hit: đạn chạm vào thân target ─────────────────────────
       if (dist2(proj.x, proj.y, target.x, target.y) < (proj.r + target.radius) * (proj.r + target.radius)) {
         const isCrit = Math.random() < proj.owner.critChance;
-        const baseProjDmg = proj.damage; // rageMult already baked in via getDamage() at throw time
-        // Skill: Predator — bonus if target has less HP
+        // rageMult đã được bake vào proj.damage lúc bắn (trong _fireSingle → getDamage())
+        // không nhân rageMult thêm lần nữa ở đây
+        const baseProjDmg = proj.damage;
+        // Predator: proj cũng được hưởng bonus nếu target HP < attacker HP
         const predMult = proj.owner.skillState?.predatorActive ? window.SKILL_FORMULAS.predator.mult : 1;
-        // Weapon skills: projectile damage multipliers
+        // wSkillProjMult: nhân dồn tất cả weapon skill bonus cho đạn này
         let wSkillProjMult = 1;
         if (proj.sniperBoost) {
+          // Sniper: đạn bắn từ khoảng cách > 300px → ×(1.4 + IQ×0.03)
           const sniperMult = window.SKILL_FORMULAS.sniper.baseMult + (proj.owner?.charIQ || 5) * window.SKILL_FORMULAS.sniper.iqScaling;
           wSkillProjMult *= sniperMult;
           spawnDamageNumber(target.x, target.y - target.radius - 18, `🎯 SNIPE! ×${sniperMult.toFixed(2)}`, '#ffdd44');
           if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['sniper']);
         }
         if (proj.volleyBoost) {
+          // Volley: 3 mũi đầu tiên mỗi round → ×(1.5 + IQ×0.05)
           const volleyMult = window.SKILL_FORMULAS.volley.baseMult + (proj.owner?.charIQ || 5) * window.SKILL_FORMULAS.volley.iqScaling;
           wSkillProjMult *= volleyMult;
           spawnDamageNumber(target.x, target.y - target.radius - 18, `🏹 VOLLEY! ×${volleyMult.toFixed(2)}`, '#ffaa33');
           if (typeof flashSkillHUD === 'function') flashSkillHUD(proj.owner, SKILL_MAP['volley']);
         }
         if (proj.type === 'shuriken' && (proj.bounces || 0) > 0) {
-          // Bounce Damage: +15% per bounce
+          // Bounce Damage: mỗi lần nảy tường +15% dame (tối đa 3 lần = +45%)
           if (proj.owner?.skills?.includes('bounce_damage')) {
             wSkillProjMult *= (1 + proj.bounces * window.SKILL_FORMULAS.bounce_damage.perBounce);
           }
-          // Ricochet Kill: bonus after min bounces
+          // Ricochet Kill: nảy ≥2 lần → ×2 dame (phải HIT SAU khi đã đủ bounce)
           if (proj.owner?.skills?.includes('ricochet_kill') && proj.bounces >= window.SKILL_FORMULAS.ricochet_kill.minBounces) {
             wSkillProjMult *= window.SKILL_FORMULAS.ricochet_kill.mult;
             spawnDamageNumber(target.x, target.y - target.radius - 18, '⭐ RICOCHET! ×2', '#ffdd44');
@@ -292,17 +344,18 @@ function resolveProjectiles(players, projectiles) {
           target.bounceCooldown = 14;
           { const _wpre = _snapWeapon(proj.owner.weapon); proj.owner.weaponDef.onHit(proj.owner.weapon); _logWeaponScaleIfChanged(proj.owner, _wpre); }
           skillOnHit(proj.owner, target, dmg);
-          // Medusa Bow: slow stack + petrify
+          // Medusa Bow: mỗi mũi tên slow -1 maxSpd, tích đủ 5 stack → petrify 2s
+          // medusaPetrify: được xử lý trong ball.update() — freeze weapon rotation
           if (proj.medusaArrow) {
             target.medusaSlowStacks = (target.medusaSlowStacks || 0) + 1;
-            target.maxSpd  = Math.max(2, target.maxSpd  - 1.0);
+            target.maxSpd  = Math.max(2, target.maxSpd  - 1.0); // min speed = 2
             target.baseMaxSpd = Math.max(2, target.baseMaxSpd - 1.0);
             spawnDamageNumber(target.x, target.y - target.radius - 14,
               `🐍 SLOW ×${target.medusaSlowStacks}`, '#44cc88');
             if (target.medusaSlowStacks >= 5 && !target.medusaPetrify) {
-              target.medusaPetrify = 120; // 2s petrify
+              target.medusaPetrify = 120; // 2s = 120f → weapon bị freeze
               spawnDamageNumber(target.x, target.y - target.radius - 24, '🐍 PETRIFIED!', '#44cc88');
-              spawnBigAnnouncement?.('🐍 PETRIFIED!', proj.owner.color);
+              if (typeof target.shout === 'function') target.shout('🐍 PETRIFIED!', 200, '#44cc88');
             }
           }
         } else {
@@ -320,13 +373,23 @@ function resolveProjectiles(players, projectiles) {
   }
 }
 
+// ─── Kiểm tra weapon của attacker có đánh trúng thân defender không ─────
+// Đây là nơi xảy ra damage thực sự trong melee combat.
+// Luồng xử lý khi hit:
+//   1. Tính dame: getDamage() × crit × exploit × reaperMult
+//   2. Gọi defender.takeDamage() — nếu trả về true thì dame thực sự áp dụng
+//   3. Set weapon cooldown cho attacker
+//   4. Apply knockback cho defender
+//   5. Gọi def.onHit() để scale weapon + _logWeaponScaleIfChanged
+//   6. Gọi skillOnHit() cho attacker
+// Tham số: attacker, defender (cả 2 là Ball objects)
 function _checkWeaponHit(attacker, defender) {
   // Skip if either ball is already dead
   if (!attacker.alive || !defender.alive) return;
   // No friendly fire in team matches
   if (attacker.teamId >= 0 && attacker.teamId === defender.teamId) return;
-  if (attacker.weapon.cooldown > 0) return;
-  if (defender.immunityFrames > 0) return;
+  if (attacker.weapon.cooldown > 0) return; // weapon đang trong cooldown → chưa thể tấn công
+  if (defender.immunityFrames > 0) return;  // defender đang bất khả xâm phạm
   // No hits while either party is parry-frozen (both are frozen → attacker can't swing, defender is invulnerable)
   if (attacker.stunTimer > 0 && attacker.parryStunReverse) return;
   if (defender.stunTimer > 0 && defender.parryStunReverse) return;
@@ -359,7 +422,7 @@ function _checkWeaponHit(attacker, defender) {
       const kbBonus = isHammer
         ? (def.baseKnockback + (attacker.weapon.bonusKnockback||0)) / 2
         : 0;
-      const baseDmgNoCrit = attacker.getDamage() + kbBonus;
+      const baseDmgNoCrit = (attacker.getDamage() + kbBonus) * (p.damageMult ?? 1); // damageMult < 1 cho dây xích flail
       // Skill: Predator — bonus damage when target has less HP
       const predMult = attacker.skillState?.predatorActive ? window.SKILL_FORMULAS.predator.mult : 1;
       // Skill: Exploit — (IQ+BIQ) × chancePerCombinedStat
@@ -433,8 +496,16 @@ function _checkWeaponHit(attacker, defender) {
             spawnDamageNumber(defender.x, defender.y - defender.radius - 14, '🌑 VENOM!', '#9933ff');
           }
         }
-        // Scaling
+        // ── Scale weapon on-hit ──────────────────────────────────
+        // Pattern: snap before → gọi onHit (có thể thay đổi weapon state) → log nếu có thay đổi
+        // _snapWeapon chụp lại các field scalable trước khi onHit chạy
+        // _logWeaponScaleIfChanged so sánh trước/sau → hiển thị floating number + battle log
         { const _wpre = _snapWeapon(attacker.weapon); def.onHit(attacker.weapon); _logWeaponScaleIfChanged(attacker, _wpre); }
+        // Lance: stun defender on hit
+        if (def.id === 'lance') {
+          defender.stunTimer = Math.max(defender.stunTimer || 0, 80);
+          spawnDamageNumber(defender.x, defender.y - defender.radius - 16, '🏇 JOUSTED!', '#cc9966');
+        }
         skillOnHit(attacker, defender, dmg);
         // Blessed by Athena: Combo Chain — BIQ×5% chance to instantly reset attack cooldown
         if (attacker.charRace === 'god' && attacker.charSubrace?.label === 'Blessed by Athena') {

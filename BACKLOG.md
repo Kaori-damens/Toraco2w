@@ -103,23 +103,6 @@ WB players có lợi thế "chất lượng" — undefeated → build/stats gố
 - Scale: STR → bleed damage, DUR → bleed duration
 - Dễ implement, dễ balance → **ưu tiên cao**
 
-### 🏇 Lance — Charge & Stun
-- Khi hit: **bắn attacker thẳng về phía trước** (jousting impulse), **stun defender 80f**
-- Cảm giác hoàn toàn khác melee thông thường — rất visual trong auto-battle
-- Scale: STR → damage, SPD → charge speed, BIQ → stun duration
-- **Ưu tiên cao**
-
-### 🪃 Boomerang — Returning Projectile
-- Phóng ra rồi **tự quay về owner** sau 40f bay, homing khi về
-- Có thể hit enemy lúc bay ra VÀ lúc bay về → 2 hit opportunities per throw
-- Scale: BIQ → tầm bay / tốc độ homing, STR → damage
-- Niche độc, khác hoàn toàn Bow/Shuriken
-
-### ⛓️ Flail — Chain Physics
-- Quả cầu gai trên dây xích dài ~90px, hit radius 14px
-- Feel khác melee hiện tại — không phải lưỡi thẳng
-- Scale: STR → damage, MA → chain length
-
 ### 🔥 Flamethrower — Cone AoE
 - Phun lửa hình nón liên tục mỗi 6f, spread 0.6 rad
 - Damage thấp nhưng continuous, không phải điểm hit

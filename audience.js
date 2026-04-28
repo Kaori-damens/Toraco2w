@@ -1,7 +1,20 @@
 // ============================================================
 // AUDIENCE STAND — Radosers from the current season cheer
 // ============================================================
-// ✏️  Edit AUDIENCE_LINES to change what spectators say:
+// ─── Tổng quan hệ thống khán đài ────────────────────────────
+// Khán đài hiển thị 1–16 Radoser từ season hiện tại ngồi xem trận.
+// Mỗi khán giả là 1 mini ball (canvas 48×50px) + tên bên dưới.
+// Hai loại chat:
+//   • Chatter tự động — ngẫu nhiên từ AUDIENCE_LINES, mỗi 2.2–4.8s
+//   • Triggered reaction — từ _AUD_REACT, kích hoạt khi có event chiến đấu
+//     (crit, parry, evade, phoenix, comeback, rage mode, v.v.)
+// API công khai:
+//   initAudience()             — gọi mỗi round, xây khán đài + chọn spectators
+//   startAudienceChatter()     — bật auto-chat (gọi khi countdown bắt đầu)
+//   stopAudienceChatter()      — tắt auto-chat (gọi khi round kết thúc)
+//   audienceReact(trigger, data) — trigger 1 reaction cụ thể từ sự kiện chiến đấu
+
+// ✏️  Sửa AUDIENCE_LINES để thay đổi câu khán giả tự động nói:
 const AUDIENCE_LINES = [
   "Look at the move! 👀",
   "Faker, what was that?! 😤",
@@ -26,11 +39,14 @@ const AUDIENCE_LINES = [
 ];
 // ============================================================
 
-const _AUD_BUBBLE_MS = 3200; // ms a speech bubble stays visible
-const _AUD_DELAY_MIN = 2200; // min ms between bubble waves
-const _AUD_DELAY_MAX = 4800; // max ms between bubble waves
+const _AUD_BUBBLE_MS = 3200; // ms bubble hiện trên màn hình trước khi ẩn
+const _AUD_DELAY_MIN = 2200; // khoảng cách tối thiểu giữa hai lần tự chat (ms)
+const _AUD_DELAY_MAX = 4800; // khoảng cách tối đa (random trong [min, max])
 
 // ── Triggered reaction lines ─────────────────────────────────
+// Mỗi key là 1 trigger event, value là mảng câu nói (hoặc function trả mảng).
+// audienceReact(trigger) chọn ngẫu nhiên 1 câu từ pool tương ứng.
+// ✏️  Thêm câu vào bất kỳ array nào để khán giả có thêm phản ứng:
 const _AUD_REACT = {
   double_parry: [
     'Damn 😤', 'CLASH!!', 'both parried??', 'bro they both blocked 💀',
@@ -112,20 +128,26 @@ const _AUD_REACT = {
   ],
 };
 
-// Per-trigger cooldown timestamps (ms)
+// Lưu timestamp lần cuối mỗi trigger được dùng → kiểm tra cooldown
 const _audReactCD = {};
 
-// Ball drawing constants for the mini preview
-const _AUD_BALL_R  = 13;    // radius in canvas px
-const _AUD_BALL_CX = 24;    // center-x in canvas
-const _AUD_BALL_CY = 32;    // center-y (shifted down to leave room for hat/halo)
+// Hằng số vẽ ball mini trong canvas 48×50px
+const _AUD_BALL_R  = 13;    // bán kính ball mini (px)
+const _AUD_BALL_CX = 24;    // tâm X trong canvas
+const _AUD_BALL_CY = 32;    // tâm Y dịch xuống để nhường chỗ cho hat/halo phía trên
 
-let _audTimer      = null;
-let _audSpectators = [];     // { charName, color, race, subrace }[]
+let _audTimer      = null;          // setTimeout handle của auto-chatter tick
+let _audSpectators = [];            // mảng khán giả hiện tại: { charName, color, race, subrace }[]
 
-// ── Season pool ─────────────────────────────────────────────
-// Returns normalised spectator objects for every fighter in the
-// current season: championship → tournament → full cgRoster.
+// ─── _getSeasonPool ──────────────────────────────────────────
+// Trả về danh sách tất cả fighter trong season hiện tại, theo thứ tự ưu tiên:
+//   ① Championship draftRoster (nếu đang chạy championship)
+//   ② Tournament bracket (1v1 hoặc 2v2, flatten tất cả round)
+//   ③ cgRoster đầy đủ (fallback cho quick match)
+// Kết quả được normalize về format { charName, color, race, subrace }.
+// _getSeasonPool() được gọi từ initAudience() và lọc ra những người đang đấu.
+// Tham số: không có (đọc state)
+// Trả về: object[] — danh sách spectator đã normalize
 function _getSeasonPool() {
   // ① Championship: draftRoster entries use { name, raceEmoji, race, color, subrace }
   if (state?.championship?.draftRoster?.length) {
@@ -170,12 +192,20 @@ function _getSeasonPool() {
   }));
 }
 
-// ── Init ────────────────────────────────────────────────────
+// ─── initAudience ────────────────────────────────────────────
+// Khởi tạo khán đài cho mỗi round:
+//   1. Chọn ngẫu nhiên 1–16 spectators từ season pool (loại trừ fighters đang đấu)
+//   2. Render HTML (2 hàng: back row + front row)
+//   3. Vẽ mini ball mỗi spectator lên canvas
+//   4. Schedule same_weapon / same_race / unique_weapon reaction sau 2–5s
+// Gọi từ initGame() trong setup.js trước khi bắt đầu countdown.
+// Tham số: không có
+// Trả về: không có
 function initAudience() {
-  // Random crowd size 1–16 per match
+  // Chọn ngẫu nhiên số chỗ ngồi 1–16
   const slots = 1 + Math.floor(Math.random() * 16);
 
-  // Exclude fighters currently in the arena (losers from prev rounds stay in pool)
+  // Loại fighters đang đấu ra khỏi khán đài (losers vòng trước vẫn được ngồi xem)
   const inArena = new Set(
     (state.fighters || []).map(f => f?.charName).filter(Boolean)
   );
@@ -184,7 +214,7 @@ function initAudience() {
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   _audSpectators = shuffled.slice(0, slots);
 
-  // Pad with anonymous crowd if the pool is too small
+  // Nếu pool quá nhỏ (mới tạo ít nhân vật), bổ sung khán giả ẩn danh để đủ tối thiểu 3
   while (_audSpectators.length < Math.min(3, slots)) {
     _audSpectators.push({
       charName: '???', color: '#888899', race: 'human', subrace: null,
@@ -221,7 +251,11 @@ function initAudience() {
   }
 }
 
-// ── Render HTML ──────────────────────────────────────────────
+// ─── _renderStand ────────────────────────────────────────────
+// Tạo HTML cho khán đài: chia spectators thành 2 hàng (back + front).
+// Mỗi spectator là 1 <div.aud-spec> gồm: bubble (chat), canvas (ball), tên.
+// Tham số: không có (đọc _audSpectators)
+// Trả về: không có — inject innerHTML vào #audience-stand
 function _renderStand() {
   const stand = document.getElementById('audience-stand');
   if (!stand) return;
@@ -242,9 +276,14 @@ function _renderStand() {
     </div>`;
 }
 
+// ─── _specHTML ───────────────────────────────────────────────
+// Tạo HTML string cho 1 spectator slot.
+// delay: phase lệch nhau giữa các ball để chúng bob không đồng bộ (hiệu ứng nhún nhảy).
+// Tham số: f (spectator object), idx (số thứ tự slot)
+// Trả về: string HTML
 function _specHTML(f, idx) {
-  const name  = (f.charName || '???').slice(0, 10);
-  const delay = ((idx * 0.37) % 2).toFixed(2); // staggered bob phase
+  const name  = (f.charName || '???').slice(0, 10); // cắt tên dài > 10 ký tự
+  const delay = ((idx * 0.37) % 2).toFixed(2);      // phase lệch cho CSS bob animation
   return `
     <div class="aud-spec" id="aud-spec-${idx}">
       <div class="aud-bubble" id="aud-bubble-${idx}"></div>
@@ -255,7 +294,13 @@ function _specHTML(f, idx) {
     </div>`;
 }
 
-// ── Ball drawing ─────────────────────────────────────────────
+// ─── _drawAllBalls / _drawOneBall ────────────────────────────
+// Vẽ mini ball preview cho tất cả / từng spectator lên canvas 48×50px.
+// _drawOneBall vẽ: drop shadow + body (glow + fill) + shine + race decoration.
+// Race decoration dùng drawRaceDecoration() từ ball.js bằng cách truyền
+// "fakeBall" object giả lập đủ fields mà function đó cần (cx, cy, radius, race...).
+// Tham số: (f: spectator, idx: số thứ tự)
+// Trả về: không có — vẽ thẳng lên canvas element
 function _drawAllBalls() {
   _audSpectators.forEach((f, idx) => _drawOneBall(f, idx));
 }
@@ -303,7 +348,8 @@ function _drawOneBall(f, idx) {
   ctx.restore();
 
   // ── Race decoration ──────────────────────────────────────
-  // Build minimal fake ball object matching what drawRaceDecoration expects
+  // Tạo "fakeBall" tối thiểu để gọi drawRaceDecoration() — chỉ cần đủ fields
+  // mà function đó đọc (x, y, radius, charRace, charSubrace, vx, vy, color…)
   if (typeof drawRaceDecoration === 'function' && f.race) {
     const fakeBall = {
       x: cx, y: cy,
@@ -323,7 +369,8 @@ function _drawOneBall(f, idx) {
 }
 
 // ── Triggered reactions ──────────────────────────────────────
-// Cooldowns in ms (0 = one-off event, no cooldown needed)
+// Cooldown mỗi trigger (ms). 0 = event one-shot, không cần cooldown.
+// Nếu > 0: chỉ trigger lại sau khi qua đủ thời gian → tránh spam chat.
 const _AUD_REACT_CDS = {
   double_parry:  8000,
   crit:          6000,
@@ -342,7 +389,15 @@ const _AUD_REACT_CDS = {
   unique_weapon: 0,
 };
 
-// trigger: any key from _AUD_REACT | data: { weaponName } for unique_weapon
+// ─── audienceReact ───────────────────────────────────────────
+// Kích hoạt phản ứng của khán giả với một sự kiện chiến đấu cụ thể.
+// Flow: kiểm tra cooldown → lấy pool câu → chọn 1–3 spectators ngẫu nhiên
+//       → hiển thị bubble với stagger (mỗi người nói cách nhau 450ms).
+// Hype events (comeback, phoenix, unique_weapon…) cho 2–3 người nói cùng lúc.
+// Combat events thường chỉ 1 người bình luận.
+// Tham số: trigger (string) — key từ _AUD_REACT
+//          data (object) — dữ liệu thêm, vd: { weaponName } cho unique_weapon
+// Trả về: không có
 function audienceReact(trigger, data = {}) {
   if (!_audSpectators.length) return;
 
@@ -379,7 +434,14 @@ function audienceReact(trigger, data = {}) {
   });
 }
 
-// ── Chatter ──────────────────────────────────────────────────
+// ─── startAudienceChatter / stopAudienceChatter ──────────────
+// Bật/tắt vòng lặp auto-chat.
+// startAudienceChatter(): dùng setTimeout đệ quy — mỗi tick gọi _popBubble()
+//   rồi lên lịch tick tiếp sau [2.2s, 4.8s] ngẫu nhiên.
+//   Bubble đầu tiên xuất hiện sau 1.8–3.3s (delay nhẹ để không spam ngay khi round bắt đầu).
+// stopAudienceChatter(): xóa timer + ẩn tất cả bubble đang hiện.
+// Tham số: không có
+// Trả về: không có
 function startAudienceChatter() {
   stopAudienceChatter();
   function _tick() {
@@ -387,7 +449,7 @@ function startAudienceChatter() {
     const next = _AUD_DELAY_MIN + Math.random() * (_AUD_DELAY_MAX - _AUD_DELAY_MIN);
     _audTimer = setTimeout(_tick, next);
   }
-  // First bubble appears a moment after the fight starts
+  // Bubble đầu tiên xuất hiện sau 1.8–3.3s để tránh spam ngay khi bắt đầu
   _audTimer = setTimeout(_tick, 1800 + Math.random() * 1500);
 }
 
@@ -396,9 +458,14 @@ function stopAudienceChatter() {
   document.querySelectorAll('.aud-bubble.show').forEach(b => b.classList.remove('show'));
 }
 
+// ─── _popBubble ──────────────────────────────────────────────
+// Hiện bubble chat ngẫu nhiên cho 1 spectator (28% chance thêm 1 người thứ 2).
+// Câu nói lấy ngẫu nhiên từ AUDIENCE_LINES (general chatter).
+// Tham số: không có
+// Trả về: không có
 function _popBubble() {
   if (!_audSpectators.length) return;
-  // 28% chance a second spectator chimes in simultaneously
+  // 28% chance thêm 1 người thứ 2 bình luận cùng lúc
   const count   = Math.random() < 0.28 ? 2 : 1;
   const indices = [...Array(_audSpectators.length).keys()]
     .sort(() => Math.random() - 0.5)

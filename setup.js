@@ -1,7 +1,26 @@
 // ============================================================
 // GAME SETUP
 // ============================================================
+// ─── Tổng quan ───────────────────────────────────────────────
+// setup.js chứa 3 function chính:
+//   initGame()    — khởi tạo hoàn toàn 1 round: tạo Ball, đặt vị trí, gán skills
+//   startGame()   — gọi initGame() rồi bật RAF game loop
+//   stopGame()    — dừng RAF, reset arena fit, tắt audience
+// Arena fit (applyArenaFit / resetArenaFit): zoom canvas cho vừa arena,
+// cắt phần thừa để arena luôn full màn hình không bị lãng phí chỗ trống.
+
+// ─── initGame ────────────────────────────────────────────────
+// Khởi tạo hoàn toàn một round:
+//   1. Load arena config từ ARENAS[state.arenaId]
+//   2. Tính tâm + spread radius để đặt ball (theo loại arena)
+//   3. Tạo từng Ball với "cannon entry" — spawn bên ngoài tường, bắn vào trong
+//   4. Gán skills, gọi applySkillPassives + initRoundSkillState + initRaceSkillState
+//   5. Reset tất cả state arrays (projectiles, traps, particles…)
+//   6. Đặt phase = 'countdown', frame = 0
+// Tham số: không có (đọc state.fighters, state.arenaId)
+// Trả về: không có
 function initGame() {
+  // Deep clone arena config để không bị mutate khi dynamic events thay đổi nó mid-game
   const arenaConfig = JSON.parse(JSON.stringify(
     (state.arenaId === 'custom' && state.customArena)
       ? state.customArena
@@ -10,7 +29,8 @@ function initGame() {
   state.arena = arenaConfig;
   const N = state.fighters.length;
 
-  // Determine arena center + spread radius
+  // ── Tính tâm arena (cx, cy) + spreadR: bán kính đặt ball quanh tâm ──
+  // spreadR ~ 33–45% bán kính arena → balls không spawn quá gần tâm hay tường
   let cx, cy, spreadR;
   if (arenaConfig.type === 'circle' || arenaConfig.type === 'hole_ci') {
     cx = arenaConfig.cx; cy = arenaConfig.cy;
@@ -38,10 +58,11 @@ function initGame() {
     spreadR = Math.min(arenaConfig.w, arenaConfig.h) * 0.34;
   }
 
-  // Spread N balls evenly in a circle around center
+  // ── Tính vị trí spawn cho từng ball ──────────────────────────
+  // 1v1: trái/phải đối xứng | 2v2: team0 trái, team1 phải | FFA: vòng tròn đều
   const positions = [];
   if (state.matchMode === '2v2' && N === 4) {
-    // Team 0 on left, Team 1 on right, staggered vertically
+    // 2v2: team0 bên trái, team1 bên phải, lệch dọc để không chồng lên nhau
     const gap = Math.min(70, spreadR * 0.4);
     positions.push({ x: cx - spreadR, y: cy - gap }); // team0 ball0
     positions.push({ x: cx - spreadR, y: cy + gap }); // team0 ball1
@@ -62,9 +83,12 @@ function initGame() {
     const side = i === 0 ? 'left' : 'right';
     const tId  = (state.matchMode === '2v2' && state.teamIds) ? (state.teamIds[i] ?? -1) : -1;
 
-    // Cannon entry: place cannon just outside arena wall (visible on canvas)
+    // ── Cannon Entry: spawn ball bên ngoài tường, bắn vào trong ──
+    // Góc spawn = góc từ tâm arena ra vị trí target của ball
+    // Ball spawn NGOÀI tường (_arenaEdge + 60px), khi FIGHT! thì bắn vào trong với speed 10
+    // _entryFlightFrames grace period 25f: ball xuyên tường để vào trong không bị clamp sớm
     const entryAngle = Math.atan2(pos.y - cy, pos.x - cx);
-    // Arena edge distance from center — varies by type
+    // Tính edge distance theo loại arena (circle dùng .r, cross dùng .arm, rect dùng w/h)
     let _arenaEdge;
     if (arenaConfig.r)        _arenaEdge = arenaConfig.r;
     else if (arenaConfig.arm) _arenaEdge = arenaConfig.arm;
@@ -86,7 +110,9 @@ function initGame() {
     initRoundSkillState(ball);
     initRaceSkillState(ball);
 
-    // launchSpeed: nếu có chargen SPD → SPD + random(1~3), không thì 3 + random(0~3)
+    // ── Launch velocity: áp dụng sau khi countdown kết thúc (frame 240) ──
+    // launchSpd phụ thuộc charSPD: tốt/xấu so với threshold → hiện speech bubble
+    // _launchVx/_launchVy được set ở đây, apply ở gameLoop khi phase = 'playing'
     const launchAngle = Math.atan2(pos.y - cy, pos.x - cx) + (Math.random() - 0.5) * 0.8;
     let launchSpd;
     if (fighter.charStats?.speed != null) {
@@ -149,8 +175,14 @@ function initGame() {
   updateTimerDisplay();
 }
 
+// ─── startGame ───────────────────────────────────────────────
+// Gọi initGame() rồi bật RAF game loop.
+// Arena đã được set bởi caller (ui.js, championship.js) trước khi gọi hàm này.
+// Reset _lastRafTime + _accumulator để tránh spike frame sau khi từ menu vào game.
+// Tham số: không có
+// Trả về: không có
 function startGame() {
-  // Arena randomization is handled by callers (nextMatchBtn / nextGameBtn / launchNextChampionshipMatch)
+  // Arena đã được chọn bởi caller (nextMatchBtn / nextGameBtn / launchNextChampionshipMatch)
   state.matchMode = state.matchMode ?? '1v1';
   state.teamIds   = state.teamIds ?? [];
   initGame();
@@ -167,6 +199,9 @@ function startGame() {
   if (typeof startAudienceChatter === 'function') startAudienceChatter();
 }
 
+// ─── stopGame ────────────────────────────────────────────────
+// Dừng RAF, reset canvas về kích thước gốc, tắt audience chatter.
+// Gọi từ showResult() và các nơi cần dừng game sạch.
 function stopGame() {
   state.running = false;
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -174,9 +209,17 @@ function stopGame() {
   if (typeof stopAudienceChatter === 'function') stopAudienceChatter();
 }
 
-// ── Auto-fit canvas viewport to arena bounding box ─────────────────
-const _ARENA_FIT_PAD = 55; // canvas-unit padding around arena
-let   _arenaZoom     = 1;  // controlled by zoom slider (0.5–1.0)
+// ─── applyArenaFit ───────────────────────────────────────────
+// Zoom canvas CSS để arena vừa khít khung nhìn, không có dead space.
+// Cách hoạt động:
+//   1. Tính bounding box của arena (ax, ay, aw, ah) theo từng loại
+//   2. Add padding _ARENA_FIT_PAD = 55px xung quanh
+//   3. Canvas 1000×1000 game units được thu nhỏ/dịch chuyển qua CSS
+//   4. clip-wrapper shrinks để không tốn layout space
+// _arenaZoom: 0.5–1.0, điều chỉnh bởi zoom slider trong UI.
+// Gọi từ startGame() sau initGame().
+const _ARENA_FIT_PAD = 55; // padding canvas-unit quanh arena
+let   _arenaZoom     = 1;  // hệ số zoom, điều chỉnh bởi zoom slider
 
 function applyArenaFit(arena) {
   const clip   = document.getElementById('canvas-clip-wrapper');

@@ -1,6 +1,20 @@
 // ============================================================
 // SKILL SYSTEM
 // ============================================================
+// ─── Tổng quan hệ thống skill ────────────────────────────────
+// Mỗi skill được định nghĩa là 1 object trong mảng SKILL_DEFS.
+// Các field quan trọng:
+//   id       (string)  — key duy nhất, dùng để check ball.skills.includes(id)
+//   name     (string)  — tên hiển thị trên UI
+//   icon     (string)  — emoji hiện trên HUD
+//   type     (string)  — phân loại khi nào skill kích hoạt:
+//                        'passive'     → luôn luôn hiệu lực, áp dụng qua applySkillPassives()
+//                        'pre_combat'  → kích hoạt 1 lần khi bắt đầu round, qua skillOnPreCombat()
+//                        'in_combat'   → hook sự kiện trong trận (hit/parry/evade/kill)
+//                        'post_combat' → kích hoạt sau khi round kết thúc, qua skillOnPostCombat()
+//   desc     (string)  — mô tả hiển thị cho người dùng
+//   unique   (bool)    — chỉ có ở Championship pool, bị lấy ra sau khi ai đó roll được
+//   weapon   (string)  — nếu có, skill chỉ hoạt động khi ball đang dùng vũ khí tương ứng
 const SKILL_DEFS = [
   // ── PASSIVE (always active) ──────────────────────────────
   { id: 'iron_body',          name: 'Iron Body',          icon: '', type: 'passive',    desc: '+20 max HP' },
@@ -137,10 +151,18 @@ const SKILL_DEFS = [
     desc: 'Hits apply plague: 2 damage every 2 seconds for 10 seconds. Stacks up to 3 times.' },
 ];
 
+// ─── SKILL_MAP — tra cứu nhanh theo id ───────────────────────
+// Ví dụ: SKILL_MAP['vampiric'] trả về object skill vampiric.
+// Dùng để truyền vào flashSkillHUD() và addBattleLog().
 const SKILL_MAP = Object.fromEntries(SKILL_DEFS.map(s => [s.id, s]));
 
-// ── Apply permanent stat mods from passive skills ──────────
-// Call once per game right after Ball is constructed.
+// ─── applySkillPassives ───────────────────────────────────────
+// Áp dụng các skill passive và bonus cross-round vào ball ngay
+// sau khi Ball được tạo (gọi từ setup.js, sau constructor).
+// Passive skill không có hook sự kiện — effect baked thẳng vào stats.
+// Tham số: ball (Ball) — nhân vật cần áp dụng
+//          fighter (object) — fighter record lưu trữ cross-round data
+// Trả về: không có
 function applySkillPassives(ball, fighter) {
   const sk = ball.skills;
   if (!sk || sk.length === 0) return;
@@ -155,11 +177,13 @@ function applySkillPassives(ball, fighter) {
     ball.weapon.bonusLength = (ball.weapon.bonusLength || 0) + 20;
   }
 
-  // Cross-round bonuses from previous rounds (Learning + Perfectionist stacked)
+  // Cross-round bonuses từ các round trước (Learning + Perfectionist tích lũy)
+  // skillLearningMult nhân vào getDamage() — tăng mỗi lần thua (Learning +5%)
+  // perfMult từ Perfectionist: thắng >80% HP→×1.15, thắng <80% HP→×0.90; reset sau khi dùng
   ball.skillLearningMult  = 1 + (fighter.learningBonus || 0);
   ball.skillLearningMult *= (fighter.perfMult || 1);
   fighter.perfMult        = 1;  // consumed — reset for next round
-  ball.adaptResist        = fighter.adaptResist || null;
+  ball.adaptResist        = fighter.adaptResist || null; // id vũ khí bị kháng (Adaptation)
 
   // Survivor: permanent max HP bonus accumulated over rounds
   if (fighter.survivorHPBonus) {
@@ -205,45 +229,58 @@ function applySkillPassives(ball, fighter) {
   }
 }
 
-// ── Init per-round reactive skill state ────────────────────
-// Called once per game (balls are recreated each round).
+// ─── initRoundSkillState ──────────────────────────────────────
+// Khởi tạo object ball.skillState chứa toàn bộ trạng thái reactive
+// cho một round: "ready flags", bộ đếm combo, cooldown, v.v.
+// Gọi 1 lần mỗi round từ setup.js (sau applySkillPassives).
+// Ball được tạo mới mỗi round nên state này luôn được reset.
+// Tham số: ball (Ball)
+// Trả về: không có — gắn trực tiếp ball.skillState
 function initRoundSkillState(ball) {
   ball.skillState = {
-    warCryReady:     ball.skills.includes('war_cry'),
-    fortifyShield:   ball.skills.includes('fortify'),
-    firstBloodReady: ball.skills.includes('first_blood'),
+    warCryReady:     ball.skills.includes('war_cry'),     // true = chưa dùng lần đầu round này
+    fortifyShield:   ball.skills.includes('fortify'),     // true = shield HP còn hoạt động
+    firstBloodReady: ball.skills.includes('first_blood'), // true = đòn đầu tiên chưa hạ
     cloneHits:       ball.skills.includes('shadow_clone') ? 2 : 0, // absorbs first 2 hits
-    phoenixUsed:     false,
-    counterActive:   false,
-    momentumStacks:  0,
-    flowStateStacks: 0,
-    predatorActive:  false,  // set at round start in skillOnPreCombat
+    phoenixUsed:     false,     // Phoenix chỉ dùng được 1 lần/round
+    counterActive:   false,     // true sau parry → đòn tiếp theo ×(1.5+BIQ×0.05)
+    momentumStacks:  0,         // Momentum: kill trong FFA +10% speed/stack, max 5
+    flowStateStacks: 0,         // Flow State: mỗi hit +stack, bị đánh trúng reset về 0
+    predatorActive:  false,  // Predator: true khi enemy có HP < ball.hp (check đầu round)
     // ── Weapon skill states ──────────────────────────────
-    brawlerChain:      0,
-    brawlerReady:      false,
-    flurryChain:       0,
-    flurryReady:       false,
-    sk_dagHitCount:    0,
-    sk_shadowTimer:    0,
-    shadowStrikeCrit:  false,
-    pt1Stacks:         0,
-    parryPunishActive: false,
-    parryPunishTimer:  0,
-    hammerStacks:      0,
-    hammerTarget:      null,
-    sk_fanCount:       0,
-    sk_bowShotCount:   0,
-    sk_volleyCount:    ball.skills.includes('volley') ? 3 : 0,
-    sk_zoneTimer:      0,
-    disarmLastUsed:    -9999,
+    brawlerChain:      0,       // Brawler's Rhythm: đếm hit liên tiếp (mục tiêu 5)
+    brawlerReady:      false,   // true sau hit thứ 5 → đòn kế ×2.5
+    flurryChain:       0,       // Flurry Finisher: đếm hit liên tiếp dagger
+    flurryReady:       false,   // true sau hit thứ 5 → đòn kế ×2.5
+    sk_dagHitCount:    0,       // Poison Blade: đếm tổng hit dagger (mod 5 → poison)
+    sk_shadowTimer:    0,       // Shadow Strike: đếm frames đến guaranteed crit (600f = 10s)
+    shadowStrikeCrit:  false,   // true = đòn tiếp theo là guaranteed crit
+    pt1Stacks:         0,       // Parry Technique I: spin boost stacks (max 3, +5%/stack)
+    parryPunishActive: false,   // Parry Punish: true trong window sau parry
+    parryPunishTimer:  0,       // frame countdown cho Parry Punish window
+    hammerStacks:      0,       // Heavy Momentum: stacks khi đánh cùng mục tiêu (max 3)
+    hammerTarget:      null,    // mục tiêu hiện tại của Heavy Momentum
+    sk_fanCount:       0,       // Fan Throw: đếm lần ném shuriken (mod 5 → bắn 3 cái)
+    sk_bowShotCount:   0,       // đếm số mũi tên đã bắn
+    sk_volleyCount:    ball.skills.includes('volley') ? 3 : 0, // 3 mũi đầu × Volley mult
+    sk_zoneTimer:      0,       // Zone Control (Spear): tick damage nearby
+    disarmLastUsed:    -9999,   // frame matchTime cuối lần dùng Disarm (cooldown 1800f = 30s)
     // Spawn skill states
-    warBannerActive:   false,
-    warBannerTimer:    0,
-    hordeTimer:        0,
+    warBannerActive:   false,   // War Banner: true trong 10s đầu round
+    warBannerTimer:    0,       // frame countdown (600f = 10s)
+    hordeTimer:        0,       // Horde Call: đếm frame, 900f → spawn 3 skeleton
   };
 }
 
-// ── Demon subrace pre-combat helper ───────────────────────
+// ─── _demonPreCombat ─────────────────────────────────────────
+// Xử lý hiệu ứng debuff đặc biệt của 2 subrace Demon:
+//   Leviathan (Envy)  — đầu round: trừ 6 điểm 1 stat ngẫu nhiên của mỗi đối thủ
+//   Asmodeus  (Lust)  — BO3+: seal N skill active của đối thủ (N = số active skill của mình)
+//                       nếu mình có nhiều skill hơn đối thủ → đối thủ còn bị -1 tất cả stats
+// Gọi nội bộ từ skillOnPreCombat().
+// Virtues (Angel) miễn nhiễm với tất cả debuff ở đây.
+// Tham số: ball (Ball) — con Demon đang xử lý
+// Trả về: không có
 function _demonPreCombat(ball) {
   const srlabel = ball.charSubrace?.label;
   if (!srlabel) return;
@@ -289,8 +326,9 @@ function _demonPreCombat(ball) {
           break;
       }
       spawnDamageNumber(opp.x, opp.y - opp.radius - 18, `😈 −6 ${SH[stat]}!`, '#9933ff');
+      if (typeof opp.shout === 'function') opp.shout('😈 CORRUPTED!', 180, '#9933ff');
     }
-    spawnBigAnnouncement?.('😈 ENVY — stat corrupted!', '#9933ff');
+    if (typeof ball.shout === 'function') ball.shout('😈 ENVY!!', 200, '#9933ff');
   }
 
   // Asmodeus (Lust): disable N opponent skills + optional −1 all stats (BO3+ only, not BR)
@@ -349,7 +387,7 @@ function _demonPreCombat(ball) {
         spawnDamageNumber(opp.x, opp.y - opp.radius - 28, `😈 −1 all stats!`, '#ff44aa');
       }
     }
-    spawnBigAnnouncement?.('😈 LUST — skills sealed!', '#ff44aa');
+    if (typeof ball.shout === 'function') ball.shout('😈 LUST!!', 200, '#ff44aa');
   }
 }
 
@@ -366,9 +404,15 @@ function applyAsmodeusBo3Bonus() {
   });
 }
 
-// ── PRE-COMBAT hook ────────────────────────────────────────
-// Called for each ball when the countdown ends → playing begins.
-// Virtues (Angel rank 5): immune to all debuffs
+// ─── skillOnPreCombat ────────────────────────────────────────
+// Hook chạy 1 lần khi countdown kết thúc → trận bắt đầu (từ game-loop).
+// Xử lý: Demon subraces, arm pre_combat skills, Usurp, Shadow Clone,
+//        Adrenaline, Troll Ice/Lich, War Banner, Necromancer, Mirror Clone,
+//        Predator, Mind Break.
+// Tham số: ball (Ball)
+// Trả về: không có
+
+// Helper: Virtues (Angel rank 5) miễn nhiễm tất cả debuff đầu round
 function _isVirtues(ball) {
   return ball?.charRace === 'angel' && ball?.charSubrace?.label === 'Virtues';
 }
@@ -404,7 +448,8 @@ function skillOnPreCombat(ball) {
       target.weapon      = target._initWeapon('fists');
       spawnDamageNumber(target.x, target.y - target.radius - 18, `🫴 STOLEN!`, '#ff4444');
       spawnDamageNumber(ball.x,   ball.y   - ball.radius   - 18, `🫴 ${stolenName}`, '#ffd700');
-      spawnBigAnnouncement?.('🫴 CƯỚP ĐOẠT!', ball.color);
+      if (typeof ball.shout === 'function') ball.shout('🫴 USURP!', 200);
+      if (typeof target.shout === 'function') target.shout('⚠️ STOLEN!', 180, '#ff4444');
       if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['usurp']);
     }
   }
@@ -415,7 +460,7 @@ function skillOnPreCombat(ball) {
   }
 
   if (ball.skills.includes('adrenaline')) {
-    ball.adrenalineUntil = (state.matchTime || 0) + 300; // 5 s × 60 fps
+    ball.adrenalineUntil = (state.matchTime || 0) + 300; // 5s × 60fps = 300 frames
     spawnDamageNumber(ball.x, ball.y - ball.radius - 12, '⚡ ADRENA!', '#ffee44');
   }
 
@@ -458,7 +503,7 @@ function skillOnPreCombat(ball) {
       spawnDamageNumber(opp.x, opp.y - opp.radius - 18, '🧟 1 skill drained!', '#aa44ff');
       anyDrained = true;
     }
-    if (anyDrained) spawnBigAnnouncement?.('🧟 LICH TROLL — soul drain!', '#aa44ff');
+    if (anyDrained && typeof ball.shout === 'function') ball.shout('🧟 SOUL DRAIN!', 210, '#aa44ff');
   }
 
   // War Banner: +30% damage for 10s
@@ -557,15 +602,23 @@ function _doDisarm(attacker, defender) {
   defender.disarmedDebuff = true;
 
   spawnDamageNumber(defender.x, defender.y - defender.radius - 26, '⚔️ DISARMED!', '#ffaa00');
-  spawnBigAnnouncement?.('⚔️ DISARMED!', '#ffaa00');
+  if (typeof defender.shout === 'function') defender.shout('⚔️ DISARMED!!', 220, '#ffaa00');
   addBattleLog('skill_trigger', { attacker: getBallLabel(attacker), aColor: attacker.color,
     text: `⚔️ Disarm → ${getBallLabel(defender)} dropped ${defender._disarmedOrigDef?.name}!` });
   flashSkillHUD(attacker, SKILL_MAP['disarm']);
   if (typeof audienceReact === 'function') audienceReact('disarm_react');
 }
 
-// ── ON-HIT hook ────────────────────────────────────────────
-// Called from _checkWeaponHit and resolveProjectiles when a hit lands.
+// ─── skillOnHit ──────────────────────────────────────────────
+// Hook chạy mỗi khi một đòn tấn công chạm đích (melee hoặc projectile).
+// Gọi từ _checkWeaponHit() (collision.js) và resolveProjectiles().
+// Xử lý tất cả in_combat skills phía attacker:
+//   War Cry (tiêu thụ sau hit đầu), First Blood (stun), Counter (tiêu thụ),
+//   Flow State (stack tốc độ), Vampiric (hồi máu), Human Limit Break,
+//   Orc Blood Price burst, Spirit Echo, Plague Bearer.
+// Sau đó gọi weaponSkillOnHit() cho weapon-specific skills.
+// Tham số: attacker (Ball), defender (Ball), dmg (number) — dame thực tế đã áp dụng
+// Trả về: không có
 function skillOnHit(attacker, defender, dmg) {
   const sk = attacker.skillState;
   if (!sk) return;
@@ -608,9 +661,11 @@ function skillOnHit(attacker, defender, dmg) {
     flashSkillHUD(attacker, SKILL_MAP['flow_state']);
   }
 
-  // Vampiric: heal 5% of damage dealt, minimum 1 HP per hit
+  // Vampiric: hồi 5% dame đã gây, tối thiểu 1 HP/hit (nhân hệ số Overtime)
+  // getOvertimeHealMult() → 1.0 trước 80s, fade về 0.0 lúc 2:00
   if (attacker.skills.includes('vampiric')) {
-    const heal = Math.max(1, dmg * window.SKILL_FORMULAS.vampiric.healPct);
+    const healMult = typeof getOvertimeHealMult === 'function' ? getOvertimeHealMult() : 1;
+    const heal = Math.max(healMult > 0 ? 1 : 0, dmg * window.SKILL_FORMULAS.vampiric.healPct * healMult);
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
     spawnDamageNumber(attacker.x, attacker.y - attacker.radius, '+' + heal.toFixed(1), '#88ff88');
     addBattleLog('heal', { attacker: getBallLabel(attacker), aColor: attacker.color, heal, hpAfter: +attacker.hp.toFixed(1), source: 'Vampiric' });
@@ -681,11 +736,18 @@ function skillOnHit(attacker, defender, dmg) {
   weaponSkillOnHit(attacker, defender, dmg);
 }
 
-// ── WEAPON SKILL ON-HIT ────────────────────────────────────────
+// ─── weaponSkillOnHit ────────────────────────────────────────
+// Xử lý các skill gắn với loại vũ khí cụ thể (weapon: 'fists', 'dagger'…).
+// Gọi từ skillOnHit() ngay trước khi kết thúc.
+// wid dùng baseWeapon (vũ khí gốc) thay vì id thực — vì unique weapon (shadowfang,
+// rapier, caliburn…) kế thừa logic skill từ vũ khí cơ bản tương ứng.
+// Tham số: attacker (Ball), defender (Ball), dmg (number)
+// Trả về: không có
 function weaponSkillOnHit(attacker, defender, dmg) {
   const sk = attacker.skillState;
   if (!sk) return;
-  // For unique weapons, use their baseWeapon for skill matching
+  // Dùng baseWeapon để unique weapon vẫn trigger skill của vũ khí gốc
+  // Ví dụ: shadowfang.baseWeapon = 'dagger' → shadow_strike vẫn hoạt động
   const wid = attacker.weaponDef?.baseWeapon || attacker.weaponDef?.id;
 
   // Shadow Strike (Dagger): consume guaranteed crit flag
@@ -786,9 +848,14 @@ function weaponSkillOnHit(attacker, defender, dmg) {
   }
 }
 
-// ── ON-PARRY hook ──────────────────────────────────────────
-// Called after a parry is resolved (collidePair).
-// Both balls are passed; each may have Counter or Parry Master.
+// ─── skillOnParry ────────────────────────────────────────────
+// Hook chạy khi hai vũ khí đụng nhau theo góc hợp lệ (parry detection trong collidePair).
+// Gọi sau khi stun + knockback đã được áp dụng.
+// Cả hai ball được truyền vào — vòng lặp xử lý mỗi ball một lần làm "người parry".
+// Xử lý: Counter arm, Parry Tech I/II, Rapier/Caliburn riposte stack,
+//        Raijin bounce reset, Caliburn burst, Parry Punish, Disarm on-parry.
+// Tham số: b1 (Ball), b2 (Ball) — hai ball vừa parry nhau
+// Trả về: không có
 function skillOnParry(b1, b2) {
   for (const [ball, opp] of [[b1, b2], [b2, b1]]) {
     // Counter: arm the next attack for 2× damage
@@ -846,7 +913,7 @@ function skillOnParry(b1, b2) {
         ball.weapon.caliburnCrit = true;
         ball.weapon.caliburnStacks = 0;
         spawnDamageNumber(ball.x, ball.y - ball.radius - 28, '⚡ BURST!', '#ffee44');
-        spawnBigAnnouncement?.('⚡ CALIBURN BURST!', ball.color);
+        if (typeof ball.shout === 'function') ball.shout('⚡ CALIBURN BURST!', 200, '#ffee44');
       }
     }
     // Parry Punish (Sword): window scales IQ — (2 + IQ×0.2)s (IQ=5→3s, IQ=10→4s)
@@ -863,8 +930,11 @@ function skillOnParry(b1, b2) {
   }
 }
 
-// ── ON-EVADE hook ──────────────────────────────────────────
-// Called from takeDamage when evade roll succeeds.
+// ─── skillOnEvade ────────────────────────────────────────────
+// Hook chạy khi ball tránh được đòn (evade roll thành công trong takeDamage).
+// Hiện tại chỉ xử lý Shadow Step: teleport đến vị trí ngẫu nhiên trong arena.
+// Tham số: ball (Ball) — ball vừa evade
+// Trả về: không có
 function skillOnEvade(ball) {
   if (!ball.skills?.includes('shadow_step')) return;
   const a = state.arena;
@@ -887,8 +957,12 @@ function skillOnEvade(ball) {
   flashSkillHUD(ball, SKILL_MAP['shadow_step']);
 }
 
-// ── ON-KILL hook ───────────────────────────────────────────
-// Called from takeDamage when a ball's HP drops to 0.
+// ─── skillOnKill ─────────────────────────────────────────────
+// Hook chạy khi một ball hạ gục đối thủ (HP ≤ 0, gọi từ takeDamage hoặc flame tick).
+// Xử lý: Soul Puppet (bắn 3 soul orb homing), Blood Frenzy (+25 HP),
+//        Soul Harvest (scythe +10 HP), Momentum (+10% speed/kill, FFA only).
+// Tham số: killer (Ball), victim (Ball)
+// Trả về: không có
 function skillOnKill(killer, victim) {
   if (!killer || !killer.skillState) return;
 
@@ -946,9 +1020,15 @@ function skillOnKill(killer, victim) {
   }
 }
 
-// ── POST-COMBAT hook ───────────────────────────────────────
-// Called from showResult() for each player.
-// fighter = state.fighters[i] — persists across BO3 rounds.
+// ─── skillOnPostCombat ───────────────────────────────────────
+// Hook chạy sau khi round kết thúc, cho mỗi player (gọi từ showResult()).
+// fighter = state.fighters[i] — object tồn tại xuyên suốt các round BO3/tournament,
+// dùng để lưu cross-round bonus (learningBonus, veteranStats, adaptResist...).
+// Xử lý loser skills: Learning, Adaptation, Blood Mark.
+// Xử lý winner skills: Survivor, Veteran, Mastery, Perfectionist, Copycat.
+// Tham số: ball (Ball), won (bool) — true nếu ball thắng round này
+//          fighter (object) — dữ liệu fighter xuyên round
+// Trả về: không có
 function skillOnPostCombat(ball, won, fighter) {
   if (!ball.skills || ball.skills.length === 0) return;
 
@@ -1030,8 +1110,8 @@ function skillOnPostCombat(ball, won, fighter) {
       flashSkillHUD(ball, SKILL_MAP['perfectionist']);
     }
 
-    // Copycat: BIQ×3.5% chance to learn 1 random skill from an opponent
-    // Belphegor (Sloth): too lazy to learn — block entirely
+    // Copycat: BIQ×3.5% chance to học 1 skill ngẫu nhiên từ đối thủ
+    // Belphegor (Sloth): quá lười — không bao giờ học được gì cả
     const _belphegorBlock = ball.charRace === 'demon' && ball.charSubrace?.label === 'Belphegor';
     if (ball.skills.includes('copycat') && !_belphegorBlock) {
       const chance = (ball.charBIQ ?? 5) * 0.035;
@@ -1063,9 +1143,16 @@ function skillOnPostCombat(ball, won, fighter) {
   }
 }
 
-// ── ON-TAKE-DAMAGE hook (bone_wall) ───────────────────────────────
+// ─── skillOnTakeDamage ───────────────────────────────────────
+// Hook chạy khi ball nhận đòn (gọi từ ball.takeDamage(), trước khi HP giảm).
+// Hiện tại chỉ xử lý Bone Wall: tán 5 mảnh xương ra xung quanh khi bị đánh.
+// Tham số: ball (Ball) — người nhận đòn
+//          attacker (Ball) — người tấn công
+//          dmg (number) — dame sắp nhận
+// Trả về: không có
 function skillOnTakeDamage(ball, attacker, dmg) {
-  // Bone Wall: scatter 5 bone shard projectiles outward when hit
+  // Bone Wall: tán 5 bone shard ra 5 hướng đều nhau khi bị đánh
+  // Damage mỗi mảnh = STR × 1.2, tồn tại 1.5s (90f)
   if (ball.skills?.includes('bone_wall') && typeof state !== 'undefined') {
     const str = ball.charSTR ?? 5;
     const shardDmg = str * 1.2;
@@ -1082,7 +1169,12 @@ function skillOnTakeDamage(ball, attacker, dmg) {
   }
 }
 
-// ── PER-FRAME skill update (timers, plague ticks) ─────────────────
+// ─── skillPerFrameUpdate ─────────────────────────────────────
+// Chạy mỗi frame cho mỗi ball sống (gọi từ game-loop step()).
+// Xử lý các timer giảm dần: War Banner countdown, Horde Call timer,
+// Plague tick damage.
+// Tham số: ball (Ball)
+// Trả về: không có
 function skillPerFrameUpdate(ball) {
   const sk = ball.skillState;
   if (!sk) return;
@@ -1107,11 +1199,12 @@ function skillPerFrameUpdate(ball) {
     }
   }
 
-  // Plague: tick damage on this ball if plagued
+  // Plague Bearer: nhận tick damage nếu ball đang bị Plague
+  // Mỗi 120f (2s) = 1 tick → dame = 2 × số stack (max 3 stack)
   if (ball._plagueTimer > 0) {
     ball._plagueTimer--;
     ball._plagueTick = (ball._plagueTick || 0) + 1;
-    if (ball._plagueTick >= 120) { // tick every 2s
+    if (ball._plagueTick >= 120) { // tick mỗi 2s
       ball._plagueTick = 0;
       const dmgTick = 2 * (ball._plagueStacks || 1);
       ball.hp = Math.max(0, ball.hp - dmgTick);
@@ -1128,7 +1221,12 @@ function skillPerFrameUpdate(ball) {
   }
 }
 
-// ── SKILL MINION HELPERS ──────────────────────────────────────────
+// ─── _spawnSkillMinions ──────────────────────────────────────
+// Spawn một số lượng minion cho skill như Necromancer's Pact hoặc Horde Call.
+// Minion là object đơn giản (không phải Ball class) — di chuyển về phía enemy gần nhất,
+// tấn công melee, nhận dame từ projectile, tự chết sau lifetime hết.
+// Tham số: owner (Ball), type ('skeleton'|'soul'), count (number)
+// Trả về: không có — push vào state.skillMinions[]
 function _spawnSkillMinions(owner, type, count) {
   if (typeof state === 'undefined') return;
   state.skillMinions = state.skillMinions || [];
@@ -1158,9 +1256,15 @@ function _spawnSkillMinions(owner, type, count) {
   }
 }
 
+// ─── _spawnMirrorClone ───────────────────────────────────────
+// Spawn một Ball "bản sao" với 50% stats của owner (Mirror Clone skill).
+// Clone là Ball thật, chiến đấu độc lập nhưng KHÔNG tính vào điều kiện thắng.
+// Skills = [] (không có skill), có isMirrorClone = true để loại khỏi win check.
+// Tham số: owner (Ball)
+// Trả về: không có — push clone vào state.players[]
 function _spawnMirrorClone(owner) {
   if (typeof state === 'undefined' || typeof Ball === 'undefined') return;
-  // Build a simplified fighter config from owner's stats
+  // Tạo charStats với 50% mỗi stat của owner (làm tròn xuống)
   const cs = {
     strength: Math.round((owner.charSTR ?? 5) * 0.5),
     speed:    Math.round((owner.charSPD ?? 5) * 0.5),
@@ -1187,7 +1291,12 @@ function _spawnMirrorClone(owner) {
   state.players.push(clone);
 }
 
-// ── UPDATE SKILL MINIONS (called from game-loop step) ─────────────
+// ─── updateSkillMinions ──────────────────────────────────────
+// Cập nhật mỗi frame cho tất cả minion trong state.skillMinions[].
+// Logic: tìm enemy gần nhất → di chuyển về phía đó → tấn công khi đủ gần.
+// Minion bị xóa khi: hp ≤ 0, lifetime hết, hoặc bị projectile trúng.
+// Tham số: không có (đọc state.skillMinions)
+// Trả về: không có
 function updateSkillMinions() {
   if (!state.skillMinions?.length) return;
   for (let i = state.skillMinions.length - 1; i >= 0; i--) {
@@ -1252,7 +1361,11 @@ function updateSkillMinions() {
   }
 }
 
-// ── DRAW SKILL MINIONS (called from game-loop render) ─────────────
+// ─── drawSkillMinions ────────────────────────────────────────
+// Render tất cả minion lên canvas: hình tròn màu + HP bar.
+// Opacity nhấp nháy khi HP < 35% (báo hiệu sắp chết).
+// Tham số: ctx (CanvasRenderingContext2D)
+// Trả về: không có
 function drawSkillMinions(ctx) {
   if (!state.skillMinions?.length) return;
   for (const m of state.skillMinions) {
@@ -1285,6 +1398,12 @@ function drawSkillMinions(ctx) {
 // ═══════════════════════════════════════════════════════════════════
 // RACE SKILLS — unique active abilities, auto-assigned by race
 // ═══════════════════════════════════════════════════════════════════
+// Mỗi race có 1 race skill đặc trưng, được gán tự động qua initRaceSkillState().
+// Race skill KHÔNG nằm trong SKILL_DEFS — chúng hoạt động qua hệ thống riêng:
+//   ball.raceSkillDef → object định nghĩa (id, name, icon, desc)
+//   ball.rs_*         → tất cả state: cooldown, timer, stacks, flags…
+// updateRaceSkills() xử lý logic frame-by-frame cho từng race.
+// drawRaceSkillEffects() render hiệu ứng visual trên canvas.
 
 const RACE_SKILL_DEFS = {
   dragon:     { id:'race_flame_breath', name:'Flame Breath', icon:'🔥',
@@ -1313,7 +1432,17 @@ const RACE_SKILL_DEFS = {
 
 function getRaceSkillDef(race) { return RACE_SKILL_DEFS[race] ?? null; }
 
-// Called from setup.js after Ball is constructed
+// ─── initRaceSkillState ──────────────────────────────────────
+// Khởi tạo tất cả biến rs_* trên ball dựa theo race.
+// Gọi từ setup.js sau Ball constructor, trước khi round bắt đầu.
+// Mỗi race tính các thông số từ stats (STR, SPD, MA, BIQ, DUR):
+//   rs_maxCooldown → số frame giữa hai lần dùng skill
+//   rs_cooldown    → đếm ngược hiện tại (bắt đầu = maxCooldown = đã full cooldown)
+//   rs_active      → true khi skill đang trong phase hoạt động
+//   rs_timer       → frame countdown cho phase active
+//   rs_duration    → tổng frame active mỗi lần kích hoạt
+// Tham số: ball (Ball)
+// Trả về: không có
 function initRaceSkillState(ball) {
   const race = ball.charRace;
   ball.raceSkillDef = RACE_SKILL_DEFS[race] ?? null;
@@ -1420,11 +1549,13 @@ function initRaceSkillState(ball) {
     // Blessed by Thoth + Blessed by Athena: no runtime state needed in battle
   }
   if (race === 'skeleton') {
-    ball.rs_maxCooldown     = 0;  // fully passive — no cooldown bar
+    ball.rs_maxCooldown     = 0;   // hoàn toàn passive — không có cooldown bar
+    // rs_shardHeal: HP hồi khi nhặt được mảnh xương (mỗi lần nhặt = 1 mảnh)
     ball.rs_shardHeal       = (ball.charDUR ?? 5) * 1.5;       // DUR=5→7.5 HP, DUR=10→15 HP
+    // rs_shardCount: số mảnh xương rơi ra mỗi lần bị đánh trúng
     ball.rs_shardCount      = Math.max(1, Math.floor((ball.charBIQ ?? 5) / 4)); // BIQ=4→1, BIQ=8→2
-    ball.rs_shardSpeedMult  = 1.30;  // +30% speed cap boost
-    ball.rs_shardSpeedDur   = 180;   // 3s per shard pickup
+    ball.rs_shardSpeedMult  = 1.30;  // nhặt xương → speed cap tăng 30% trong 3s
+    ball.rs_shardSpeedDur   = 180;   // 3s = 180f, cộng dồn khi nhặt nhiều xương liên tiếp
     ball.rs_shardSpeedTimer = 0;
   }
   if (race === 'demon') {
@@ -1441,9 +1572,17 @@ function initRaceSkillState(ball) {
   }
 }
 
-// Called every frame for ALL alive balls (regardless of race skill).
-// Must run outside updateRaceSkills so non-race-skill balls (goblin, human…)
-// are also processed — updateRaceSkills early-returns for them.
+// ─── updateVoidGripPhysics ───────────────────────────────────
+// Xử lý vật lý "weapon bị kẹt" của Void Grip (Primordial race skill).
+// Chạy mỗi frame cho TẤT CẢ ball sống (không chỉ Primordial) vì bất kỳ
+// ball nào cũng có thể bị Void Grip bắt vũ khí kẹt.
+// Khi bị kẹt (rs_weaponStuck > 0):
+//   - Ball bị ghim vào vị trí cố định, vx/vy = 0
+//   - Vũ khí luôn chỉ về phía điểm kẹt
+//   - Không thể gây dame (weapon cooldown bị force full)
+// Khi hết timer hoặc Primordial chết → release + impulse ngẫu nhiên.
+// Tham số: ball (Ball)
+// Trả về: không có
 function updateVoidGripPhysics(ball) {
   if (!ball.alive || !(ball.rs_weaponStuck > 0)) return;
 
@@ -1487,7 +1626,14 @@ function updateVoidGripPhysics(ball) {
   }
 }
 
-// ── Dwarf: apply one random forge upgrade ─────────────────────
+// ─── _dwarfForge ─────────────────────────────────────────────
+// Áp dụng 1 nâng cấp ngẫu nhiên cho vũ khí Dwarf (kích hoạt khi cooldown = 0).
+// Melee: Bigger Blade (hit radius +4), Sharpness (+5% dmg), Tempered Edge (parry radius +6).
+// Ranged: Heavy Ammo (proj radius +2), Sharp Tip (+5% dmg), Swift Flight (proj speed +0.8),
+//         Keen Eye (critChance +3%).
+// Nâng cấp tích lũy xuyên round qua fighter.masteryDmgBonus / fighter.masteryProjBonus.
+// Tham số: ball (Ball) — Dwarf cần được forge
+// Trả về: không có
 function _dwarfForge(ball) {
   const isRanged = ball.weaponDef?.aiType === 'ranged';
   let upgradeName, upgradeIcon;
@@ -1529,10 +1675,20 @@ function _dwarfForge(ball) {
     text: `⚒️ Forge Lv.${ball.rs_forgeLevel}: ${upgradeIcon} ${upgradeName}` });
 }
 
-// Called every frame from game-loop step() for each ball
+// ─── updateRaceSkills ────────────────────────────────────────
+// Logic frame-by-frame cho race skill của từng ball (gọi từ game-loop).
+// Xử lý theo thứ tự:
+//   1. Hiệu ứng tác động từ bên ngoài: netTrapped (Troll net), stunTimer
+//   2. Early return nếu ball không có raceSkillDef
+//   3. Cooldown tick chung: rs_cooldown--
+//   4. Logic riêng mỗi race: Dragon flame, Troll net, Angel smite,
+//      Orc bloodlust, Giant quake, Dwarf forge, Human LB movement,
+//      God Surtr/Raijin/Shiva/Atlas, Skeleton shard speed, Demon Blood Contract
+// Tham số: ball (Ball), players (Ball[]), rstate (state object)
+// Trả về: không có
 function updateRaceSkills(ball, players, rstate) {
   if (!ball.alive) return;
-  const speedMul = (typeof state !== 'undefined' && state.speed > 0) ? state.speed : 1;
+  const speedMul = (typeof state !== 'undefined' && state.speed > 0) ? state.speed : 1; // game speed multiplier
 
   // These effects can be applied to ANY ball by other races' skills — must run regardless of own raceSkillDef
   if (ball.netTrapped > 0) {
@@ -1592,18 +1748,21 @@ function updateRaceSkills(ball, players, rstate) {
     Math.hypot(ball.x-a.x,ball.y-a.y) < Math.hypot(ball.x-b.x,ball.y-b.y) ? a : b);
 
   // ── DRAGON: Flame Breath ─────────────────────────────────────
+  // Cooldown đủ → kích hoạt → rs_active = true → sweep flame mỗi frame
+  // Flame Breath quét oscillate quanh hướng nhìn lúc kích hoạt (rs_sweepBase)
   if (race === 'dragon') {
     if (ball.rs_active) {
       ball.rs_timer--;
       ball.rs_flameTick = (ball.rs_flameTick || 0) + 1;
-      // Sweep free: oscillate around locked mouth direction
+      // Góc quét: dao động sin quanh rs_sweepBase (hướng vũ khí lúc kích hoạt)
+      // rs_sweepAmp = biên độ (±35°–50°), rs_sweepFreq = tần số (phụ thuộc IQ)
       const coneAng = ball.rs_sweepBase
         + Math.sin(ball.rs_flameTick * ball.rs_sweepFreq) * ball.rs_sweepAmp;
-      const coneLen = 80 + ball.rs_duration * 0.25;
+      const coneLen = 80 + ball.rs_duration * 0.25; // chiều dài ngọn lửa
 
-      // Deal damage every 20 frames (≈0.33s per tick), using separate flameImmunity
+      // Gây dame mỗi 20f (~0.33s/tick), dùng flameImmunity riêng (không block weapon hit)
       if (ball.rs_flameTick % 20 === 0) {
-        const flameDmg = (ball.charSTR ?? 5) * 3;   // STR5 → 15 per tick, STR10 → 30
+        const flameDmg = (ball.charSTR ?? 5) * 3;   // STR5 → 15/tick, STR10 → 30/tick
         for (const en of enemies) {
           if (!en.alive) continue;
           if ((en.flameImmunity || 0) > 0) continue; // separate from weapon immunityFrames
@@ -1648,10 +1807,13 @@ function updateRaceSkills(ball, players, rstate) {
   }
 
   // ── HUMAN: Limit Break duration drain + expiry ──────────────
+  // Limit Break kích hoạt 1 lần duy nhất khi HP < 20% (trong takeDamage)
+  // Trong 8s (480f): mỗi hit thêm stack → tăng dame; mất -1 HP mỗi 2s
+  // Sau 8s: trạng thái "Exhausted" → weapon spinSpeed bị giảm 30%
   if (race === 'human' && ball.rs_active) {
     if (ball.rs_lbTimer > 0) {
       ball.rs_lbTimer--;
-      // HP drain: -1 HP every 2s (min 1 HP — cannot self-kill)
+      // Drain -1 HP mỗi 2s (min 1 HP — không thể tự chết vì LB)
       ball.rs_lbDrainTimer--;
       if (ball.rs_lbDrainTimer <= 0) {
         ball.hp = Math.max(1, ball.hp - 1);
@@ -1665,8 +1827,8 @@ function updateRaceSkills(ball, players, rstate) {
         ball.rs_lbExhausted = true;
         if (typeof spawnDamageNumber === 'function')
           spawnDamageNumber(ball.x, ball.y - ball.radius - 26, '💀 EXHAUSTED', '#888888');
-        if (typeof spawnBigAnnouncement === 'function')
-          spawnBigAnnouncement(`💀 ${ball.charName || 'Human'} — Exhausted!`, '#888888');
+        if (typeof ball.shout === 'function')
+          ball.shout('💀 EXHAUSTED...', 280, '#888888');
         if (typeof addBattleLog === 'function')
           addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '💀 Limit Break ended — exhausted!' });
       }
@@ -1879,7 +2041,7 @@ function updateRaceSkills(ball, players, rstate) {
         ball.rs_active = true;
         ball.rs_timer  = ball.rs_duration;
         spawnDamageNumber(ball.x, ball.y - ball.radius - 24, `📜 BLOOD CONTRACT! (−${sacrifice.toFixed(1)})`, '#cc0044');
-        spawnBigAnnouncement?.('📜 BLOOD CONTRACT!', '#cc0044');
+        if (typeof ball.shout === 'function') ball.shout('📜 BLOOD CONTRACT!', 220, '#cc0044');
         addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
           text: `📜 Blood Contract! (−${sacrifice.toFixed(1)} HP sacrifice)` });
       } else {
@@ -1988,11 +2150,18 @@ function updateRaceSkillProjectiles(rstate) {
   }
 
   // ── Skeleton Bone Shards — pickup / enemy-destroy ─────────────
+  // Bone Scatter (race skill Skeleton): mỗi khi bị đánh trúng →
+  //   50% chance rơi rs_shardCount mảnh xương ra xung quanh (rstate.boneShards[]).
+  // Logic nhặt / hủy mảnh xương mỗi frame:
+  //   - Skeleton đụng mảnh → nhặt được: hồi HP (rawHeal × overtimeHealMult) + speed boost
+  //   - Non-skeleton đụng mảnh → mảnh bị hủy (không nhặt được, chỉ block)
+  //   - Skeleton đấu skeleton: cả hai đều có thể nhặt xương của nhau (shared loot)
+  //   - overtimeHealMult: về 0 ở 2:00 → giải quyết bug hồi máu vô hạn ở late game
   rstate.boneShards = rstate.boneShards || [];
   for (let i = rstate.boneShards.length - 1; i >= 0; i--) {
     const sh = rstate.boneShards[i];
     sh.life--;
-    sh.angle += 0.04; // slow visual rotation
+    sh.angle += 0.04; // xoay chậm mảnh xương để dễ nhìn
     if (sh.life <= 0) { rstate.boneShards.splice(i, 1); continue; }
 
     let hit = false;
@@ -2001,8 +2170,10 @@ function updateRaceSkillProjectiles(rstate) {
       if (Math.hypot(ball.x - sh.x, ball.y - sh.y) > ball.radius + sh.r) continue;
 
       if (ball.charRace === 'skeleton') {
-        // Any skeleton can pick up any bone shard (skeleton vs skeleton: shared loot)
-        const heal = sh.owner.rs_shardHeal ?? 7.5;
+        // Mọi skeleton đều nhặt được xương của nhau (skeleton vs skeleton = shared loot)
+        const rawHeal = sh.owner.rs_shardHeal ?? 7.5; // DUR×1.5 HP của chủ sở hữu mảnh
+        // Nhân với overtimeHealMult để giảm dần về 0 từ 80s–2:00 (ngăn hồi vô hạn)
+        const heal = rawHeal * (typeof getOvertimeHealMult === 'function' ? getOvertimeHealMult() : 1);
         ball.hp = Math.min(ball.maxHp, ball.hp + heal);
         ball.rs_shardSpeedTimer = (ball.rs_shardSpeedTimer || 0) + (ball.rs_shardSpeedDur || 180);
         spawnDamageNumber(ball.x, ball.y - ball.radius - 14, `🦴 +${heal.toFixed(1)} HP`, '#eedd88');
@@ -2010,7 +2181,7 @@ function updateRaceSkillProjectiles(rstate) {
           addBattleLog('heal', { attacker: getBallLabel(ball), aColor: ball.color,
             heal: +heal.toFixed(1), hpAfter: +ball.hp.toFixed(1), source: 'Bone Scatter' });
       }
-      // Skeleton pickup AND non-skeleton step-on both destroy the shard
+      // Cả skeleton nhặt AND non-skeleton đạp lên đều hủy mảnh xương
       rstate.boneShards.splice(i, 1);
       hit = true;
       break;

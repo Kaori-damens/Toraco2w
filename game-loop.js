@@ -1,11 +1,29 @@
 // ============================================================
 // GAME LOOP
 // ============================================================
+// ─── Tổng quan ───────────────────────────────────────────────
+// game-loop.js chứa vòng lặp chính của game (60fps cố định):
+//   gameLoop(now) — RAF callback, tích lũy time rồi drain theo bước 16.667ms
+//   step()        — 1 logic tick: update balls, collisions, traps, win check
+//   render()      — vẽ toàn bộ frame: arena → weapons → balls → particles → overlays
+//   getOvertimeHealMult() — helper cho heal suppression Overtime
+//
+// Fixed Timestep pattern:
+//   • RAF chạy theo Hz màn hình (60/120/144Hz)
+//   • _accumulator += elapsed ms → drain mỗi 16.667ms = 1 game step
+//   • MAX_CATCHUP = 5 steps/frame → tránh spiral-of-death khi tab focus regain
+//
+// Timeline sự kiện đặc biệt trong step():
+//   60s  → Speed Floor: maxSpd tăng 5% mỗi 10s
+//   80s  → Rage Mode: heal fade bắt đầu, red overlay
+//   2:00 → Sudden Death: heal = 0, -1 HP/s, magenta overlay
+//   1:46 → God Time Loss: God tự thua nếu đối thủ không phải demon/god
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let rafId = null;
 
-// Fixed timestep: game logic runs at exactly 60 steps/sec regardless of display Hz.
+// Fixed timestep: game logic chạy đúng 60 steps/giây bất kể refresh rate màn hình.
 // rAF fires at monitor refresh rate (60/120/144Hz) — accumulate real time,
 // drain in 16.667ms chunks so 120Hz screen doesn't run the game 2× faster.
 const GAME_STEP_MS  = 1000 / 60;   // 16.667 ms per logic step
@@ -25,20 +43,25 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// ─── gameLoop ────────────────────────────────────────────────
+// RAF callback chính. Tích lũy elapsed time rồi drain từng 16.667ms = 1 step.
+// Phase 'countdown': xử lý cannon animation (frame 0–239).
+// Phase 'playing': gọi step() × state.speed lần/frame (1x, 2x, 3x...).
+// Sau khi drain xong: render() + updateHUD() + updateTimerDisplay().
 function gameLoop(now) {
   if (!state.running) return;
   rafId = requestAnimationFrame(gameLoop);
 
-  // Bootstrap on first frame or after tab-resume
+  // Bootstrap frame đầu tiên hoặc sau tab-resume
   if (_lastRafTime === null) { _lastRafTime = now; }
   let elapsed = now - _lastRafTime;
   _lastRafTime = now;
 
-  // Cap elapsed to avoid huge jumps after tab-switch / focus loss
+  // Cap elapsed: tránh jump lớn sau tab-switch (vd: tab mất 500ms → chỉ xử lý 200ms)
   if (elapsed > 200) elapsed = 200;
   _accumulator += elapsed;
 
-  // Drain accumulator in fixed 16.667ms steps
+  // Drain accumulator: mỗi 16.667ms = 1 game tick logic
   let stepsThisFrame = 0;
   while (_accumulator >= GAME_STEP_MS && stepsThisFrame < MAX_CATCHUP * state.speed) {
     _accumulator -= GAME_STEP_MS;
@@ -48,7 +71,8 @@ function gameLoop(now) {
       // 4 phases × 60f: "3" (0–59), "2" (60–119), "1" (120–179), "FIGHT!" (180–239)
       const cf = state.countdownFrame;
 
-      // FIGHT! (frame 180): fire cannons
+      // Countdown 4 phase × 60f: "3"(0–59), "2"(60–119), "1"(120–179), "FIGHT!"(180–239)
+      // FIGHT! (frame 180): bắn cannon — mỗi ball vxt vào arena với speed 10
       if (cf === 180) {
         const ENTRY_SPEED = 10;
         for (const b of state.players) {
@@ -127,11 +151,27 @@ function gameLoop(now) {
   updateTimerDisplay();
 }
 
+// ─── step ────────────────────────────────────────────────────
+// 1 logic tick (1/60s). Thứ tự xử lý QUAN TRỌNG — không đổi thứ tự:
+//   1. Ball.update() — vật lý, vũ khí, AI firing (PVE dùng bossProxy)
+//   2. Race skill updates — VoidGrip, updateRaceSkills, race projectiles
+//   3. Projectile.update() — di chuyển, bounce, homing, lifetime
+//   4. collidePair() — body bounce + parry + weapon hit (O(N²))
+//   5. Boss/terrain collision (PVE only)
+//   6. resolveProjectiles() — đạn vs tất cả ball
+//   7. Traps update (PvP) / terrain (PVE)
+//   8. Particles + skill minions + per-frame skill timers
+//   9. Per-second stats snapshot
+//  10. Milestone announcements (Speed Floor 60s, Rage Mode 80s, Sudden Death 2:00)
+//  11. God Time Loss check (1:46)
+//  12. Win condition check
+// Tham số: không có (đọc/ghi state trực tiếp)
+// Trả về: không có
 function step() {
   state.frame++;
   const players = state.players;
 
-  // Update each ball — pass nearest alive enemy for targeting/firing
+  // 1. Update mỗi ball — truyền nearest enemy để ball AI biết đích nhắm/bắn
   if (state.pveMode && state.boss) {
     // PVE: all balls target the boss as their nearest enemy
     const bossProxy = state.boss.alive
@@ -268,14 +308,16 @@ function step() {
     state.statsLog.push(snap);
   }
 
-  // ── Speed Floor: after 60s → +5% maxSpd every 10s ──
+  // ── Speed Floor: sau 60s → +5% maxSpd mỗi 10s (cộng dồn không giới hạn) ──
+  // steps = số lần 10s đã trôi qua từ 60s → mult tăng dần theo thời gian
   if (state.matchTime >= 60 * 60) {
     const steps = Math.floor((state.matchTime - 60 * 60) / (10 * 60));
-    const mult  = 1 + steps * 0.05;
+    const mult  = 1 + steps * 0.05; // 60s: ×1.0, 70s: ×1.05, 80s: ×1.10...
     for (const b of players) b.maxSpd = b.baseMaxSpd * mult;
   }
 
-  // ── Milestone announcements (one-shot) ──
+  // ── One-shot milestone announcements ──────────────────────────
+  // Dùng flag state.xxxActive để chỉ trigger 1 lần, không spam mỗi frame
   if (!state.speedFloorActive && state.matchTime >= 60 * 60) {
     state.speedFloorActive = true;
     spawnBigAnnouncement('SPEED UP!', '#ffcc00');
@@ -286,7 +328,23 @@ function step() {
     if (typeof audienceReact === 'function') audienceReact('rage_mode');
   }
 
-  // ── God Time Loss: after 1m46s (6360 frames), god auto-loses vs non-demon/non-god ──
+  if (!state.suddenDeathActive && state.matchTime >= 120 * 60 && !state.pveMode) {
+    state.suddenDeathActive = true;
+    spawnBigAnnouncement('SUDDEN DEATH!', '#ff0066');
+  }
+  // HP drain: 1 HP/s per player after Sudden Death
+  if (state.suddenDeathActive && !state.pveMode && state.matchTime % 60 === 0) {
+    for (const b of players) {
+      if (!b.alive || b.isMirrorClone) continue;
+      b.hp -= 1;
+      spawnDamageNumber(b.x, b.y - b.radius - 16, '−1 ☠', '#ff0066');
+      if (b.hp <= 0) { b.hp = 0; b.alive = false; spawnDeathExplosion(b.x, b.y, b.color); }
+    }
+  }
+
+  // ── God Time Loss: sau 1:46 (106s) — God tự thua nếu đối thủ không phải demon/god ──
+  // Lý do: God quá mạnh late game, rule này ép kết thúc sớm
+  // Miễn trừ: demon và god (chỉ thuần human/orc/... mới trigger được rule này)
   if (!state.godTimeLoss && state.matchTime >= 106 * 60 && !state.pveMode) {
     state.godTimeLoss = true;
     let godFell = false;
@@ -306,7 +364,8 @@ function step() {
   }
 
 
-  // Check game end (exclude mirror clones — they're minion fighters, not real contestants)
+  // ── Win condition check ──────────────────────────────────────
+  // Mirror clone KHÔNG tính là contestant — loại khỏi alive list trước khi check
   const alive = players.filter(b => b.alive && !b.isMirrorClone);
 
   if (state.pveMode) {
@@ -344,9 +403,24 @@ function step() {
   }
 }
 
+// ─── render ──────────────────────────────────────────────────
+// Vẽ toàn bộ 1 frame lên canvas. Thứ tự layering từ dưới lên trên:
+//   1. Background + Arena shape
+//   2. Arena events (holes, wind arrows, vent warnings)
+//   3. Entry cannons (chỉ trong countdown)
+//   4. PvP traps / PVE terrain (below balls)
+//   5. Weapons (behind balls — drawWeapon)
+//   6. Projectiles
+//   7. Balls (draw)
+//   8. Boss (PVE) / Heal orbs (PVE)
+//   9. PVE terrain above (hazard/slow overlays)
+//  10. Particles + skill minions + race skill effects
+//  11. Overlays: game ended darkening, countdown text, Speed/Rage/SuddenDeath pulse, announcements
+// Tham số: không có (đọc state và ctx global)
+// Trả về: không có
 function render() {
   ctx.clearRect(0, 0, CW, CH);
-  // Background — use map bg color in PVE
+  // Background: PVE dùng màu từ mapDef, PvP luôn là dark navy
   ctx.fillStyle = (state.pveMode && state.mapDef?.bgColor) ? state.mapDef.bgColor : '#080818';
   ctx.fillRect(0, 0, CW, CH);
 
@@ -415,12 +489,34 @@ function render() {
     ctx.save(); ctx.fillStyle = `rgba(255,210,0,${a})`; ctx.fillRect(0,0,CW,CH); ctx.restore();
   }
   // Rage Mode overlay — red pulse after 80s (overrides yellow)
-  if (state.matchTime >= 80 * 60 && !state.ended) {
+  if (state.matchTime >= 80 * 60 && state.matchTime < 120 * 60 && !state.ended) {
     const a = 0.04 + 0.03 * Math.sin(state.matchTime * 0.15);
     ctx.save(); ctx.fillStyle = `rgba(255,50,0,${a})`; ctx.fillRect(0,0,CW,CH); ctx.restore();
   }
+  // Sudden Death overlay — deep magenta pulse after 2:00
+  if (state.matchTime >= 120 * 60 && !state.ended) {
+    const a = 0.06 + 0.04 * Math.sin(state.matchTime * 0.20);
+    ctx.save(); ctx.fillStyle = `rgba(220,0,100,${a})`; ctx.fillRect(0,0,CW,CH); ctx.restore();
+  }
   // Big announcements
   updateDrawBigAnnouncements(ctx);
+}
+
+// ─── getOvertimeHealMult ─────────────────────────────────────
+// Trả về hệ số nhân cho mọi nguồn heal (Vampiric, Bone Scatter, Demon absorb…).
+// Mục đích: ngăn trận kéo dài vô hạn do heal vượt DPS (vd: 2 skeleton + shuriken STR=1).
+//   t < 80s  → 1.0 (heal bình thường)
+//   80s–2:00 → fade tuyến tính từ 1.0 → 0.0
+//   t ≥ 2:00 → 0.0 (không hồi máu nữa, Sudden Death kích hoạt cùng lúc)
+// Không áp dụng cho PVE (boss fight không cần rule này).
+// Tham số: không có (đọc state.matchTime)
+// Trả về: number (0.0 – 1.0)
+function getOvertimeHealMult() {
+  if (!state || state.pveMode) return 1;
+  const t = state.matchTime ?? 0;
+  if (t < 80 * 60)  return 1;
+  if (t >= 120 * 60) return 0;
+  return 1 - (t - 80 * 60) / (40 * 60);
 }
 
 // ── Entry Cannon Visual ──────────────────────────────────────────────────────

@@ -1,7 +1,30 @@
 // ============================================================
 // WEAPON DEFINITIONS
 // ============================================================
+// ─── Mảng định nghĩa tất cả vũ khí trong game ────────────────────────────
+// Mỗi weapon là 1 object với các field bắt buộc:
+//
+//   id            — key định danh (dùng trong WEAPON_MAP, chargen, ball._initWeapon)
+//   name / icon   — tên và emoji hiển thị trên UI
+//   color         — màu hex (dùng cho glow và battle log)
+//   aiType        — 'melee' | 'ranged' (quyết định cách bắn/tấn công)
+//   baseLength    — chiều dài blade (px từ tâm ball ra)
+//   baseSpeed     — tốc độ quay (rad/frame) trước khi nhân MA bonus
+//   baseDamage    — dame gốc trước khi nhân STR
+//   baseKnockback — lực đẩy gốc
+//   attackCooldown— số frame chờ sau khi đánh trúng (per-ball, override trong ball._initWeapon)
+//   scaling       — object mô tả scaling on-hit: { type, amount, min/max }
+//
+//   draw(ctx, ball)     — vẽ weapon lên canvas (ctx đã translate về gốc canvas, KHÔNG về tâm ball)
+//   getHitPoints(ball)  — trả về [{x, y, r}, ...] — các điểm va chạm của weapon
+//                         collision.js kiểm tra từng điểm với ball đối thủ
+//   onHit(w, ball)      — gọi khi weapon đánh trúng ai đó; cập nhật weapon state (scale)
+//
+//   unique: true        — đánh dấu là Unique Weapon (chỉ 1 người/team được dùng trong championship)
+//   baseWeapon          — id vũ khí gốc (unique weapon kế thừa cooldown từ base)
+//   forbidden: true     — Forbidden Weapon (không xuất hiện trong chargen thường)
 const WEAPON_DEFS = [
+  // ── BASIC WEAPONS ────────────────────────────────────────────
   {
     id: 'fists', name: 'Fists', icon: '🥊', color: '#ff9944',
     desc: 'Super fast',
@@ -31,12 +54,17 @@ const WEAPON_DEFS = [
         }
       }
     },
+    // ── getHitPoints: trả về các điểm va chạm của weapon ──────────
+    // collision.js gọi hàm này mỗi frame để kiểm tra va chạm với enemy.
+    // Mỗi điểm là { x, y, r } — tọa độ trên canvas và bán kính hitbox.
+    // Nếu bất kỳ điểm nào chồng lên ball đối thủ → tính là hit.
+    // Fists dùng 5 điểm dọc theo blade để hitbox không bị "skip" khi quay nhanh.
     getHitPoints(ball) {
       // Full blade: from base (ball.radius) to tip (ball.radius + baseLength)
       const w = ball.weapon;
       const bladeStart = ball.radius;
       const bladeEnd   = ball.radius + this.baseLength;
-      const N = 5; // points along blade
+      const N = 5; // points along blade — nhiều điểm hơn → hitbox chính xác hơn
       const pts = [];
       for (let i = 0; i <= N; i++) {
         const d = bladeStart + (i / N) * (bladeEnd - bladeStart);
@@ -44,6 +72,9 @@ const WEAPON_DEFS = [
       }
       return pts;
     },
+    // ── onHit: gọi khi weapon đánh trúng enemy → scale up weapon ──
+    // w = ball.weapon (object state của vũ khí đang đánh)
+    // Fists: giảm attackCooldown mỗi hit → bắt đầu đánh nhanh hơn theo thời gian
     onHit(w) {
       w.hits++;
       // Only reduce if current cooldown is above the floor (avoids jumping UP for high-SPD balls)
@@ -459,7 +490,10 @@ const WEAPON_DEFS = [
     }
   },
 
-  // ─── FORBIDDEN WEAPONS ──────────────────────────────────────────────────────
+  // ── FORBIDDEN WEAPONS ────────────────────────────────────────────────────
+  // Các vũ khí Forbidden KHÔNG xuất hiện trong chargen thông thường.
+  // Chỉ dùng được trong Debug mode hoặc một số game mode đặc biệt.
+  // Cơ chế thường phức tạp hơn basic (parry counter, dash immunity, chain physics...).
   {
     id: 'rapier', name: 'Rapier', icon: '🤺', color: '#aae0ff',
     desc: 'Riposte',
@@ -587,10 +621,194 @@ const WEAPON_DEFS = [
       }
     }
   },
+  {
+    id: 'lance', name: 'Lance', icon: '🏇', color: '#cc9966',
+    desc: 'Jousting lance. On hit: dash forward and stun enemy 80f. Dash impulse 6px base, +0.3/hit. Immune to all damage during dash.',
+    aiType: 'melee',
+    baseLength: 75, baseSpeed: 0.026, baseDamage: 1.5, baseKnockback: 6,
+    hitRadius: 10, attackCooldown: 44,
+    scaling: { type: 'dash', baseImpulse: 6, amount: 0.3 },
+    scalingLabel: 'Dash',
+    draw(ctx, ball) {
+      const w = ball.weapon;
+      const totalLen = ball.radius + this.baseLength;
+      const ex = ball.x + Math.cos(w.angle) * totalLen;
+      const ey = ball.y + Math.sin(w.angle) * totalLen;
+      const bx = ball.x + Math.cos(w.angle) * (ball.radius - 12);
+      const by = ball.y + Math.sin(w.angle) * (ball.radius - 12);
+      const dashing = (w.lanceDashTimer || 0) > 0;
+      ctx.save();
+      if (dashing) { ctx.shadowColor = '#ffe066'; ctx.shadowBlur = 20; }
+      // Shaft
+      ctx.strokeStyle = '#8B5E3C'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      // Grip wrap
+      const ta = w.angle, tcos = Math.cos(ta), tsin = Math.sin(ta);
+      const twx = (x,y) => ball.x + tcos*x - tsin*y;
+      const twy = (x,y) => ball.y + tsin*x + tcos*y;
+      ctx.strokeStyle = '#3a1a00'; ctx.lineWidth = 7; ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.moveTo(twx(ball.radius,0), twy(ball.radius,0)); ctx.lineTo(twx(ball.radius+18,0), twy(ball.radius+18,0)); ctx.stroke();
+      // Metal tip
+      ctx.fillStyle = dashing ? '#fffacc' : '#cccccc';
+      if (dashing) { ctx.shadowColor = '#ffe066'; ctx.shadowBlur = 16; }
+      ctx.beginPath();
+      ctx.moveTo(twx(totalLen+15,0), twy(totalLen+15,0));
+      ctx.lineTo(twx(totalLen-2,-5), twy(totalLen-2,-5));
+      ctx.lineTo(twx(totalLen-2, 5), twy(totalLen-2, 5));
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.shadowBlur = 0; ctx.stroke();
+      // Dash impulse pips (one dot per +0.2 above base 2)
+      const pips = Math.min(12, Math.floor(((w.lanceImpulse||2) - 2) / 0.2));
+      for (let p = 0; p < pips; p++) {
+        const pd = ball.radius + 22 + p * 6;
+        ctx.beginPath(); ctx.arc(twx(pd,0), twy(pd,0), 2.5, 0, Math.PI*2);
+        ctx.fillStyle = '#ffcc44'; ctx.fill();
+      }
+      ctx.restore();
+    },
+    getHitPoints(ball) {
+      const w = ball.weapon;
+      const tipEnd = ball.radius + this.baseLength + 15;
+      const pts = [];
+      for (let i = 2; i <= 5; i++) {
+        const d = ball.radius + (i / 5) * (tipEnd - ball.radius);
+        pts.push({ x: ball.x + Math.cos(w.angle)*d, y: ball.y + Math.sin(w.angle)*d, r: 10 });
+      }
+      return pts;
+    },
+    onHit(w) {
+      w.hits++;
+      w.lanceImpulse = (w.lanceImpulse || 6) + 0.3;
+      w.lanceDashPending = true;
+      w.lanceDashAngle   = w.angle;
+      sfxScale();
+    }
+  },
+  {
+    id: 'chakram', name: 'Chakram', icon: '🥏', color: '#cc8844',
+    desc: 'Thrown weapon that returns to owner. Hits on way out and way back. Gets faster each hit (both passes count).',
+    aiType: 'ranged',
+    baseLength: 28, baseSpeed: 0.04, baseDamage: 0, baseKnockback: 1,
+    hitRadius: 8, attackCooldown: 10,
+    boomDamage: 1.2, boomSpeed: 6, fireInterval: 90,
+    scaling: { type: 'cooldown', amount: -0.8, min: 28 },
+    scalingLabel: 'Throw Rate',
+    draw(ctx, ball) {
+      const w = ball.weapon;
+      const cx = ball.x + Math.cos(w.angle) * (ball.radius + 4);
+      const cy = ball.y + Math.sin(w.angle) * (ball.radius + 4);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(w.angle + Date.now() * 0.009);
+      ctx.shadowColor = '#cc8844'; ctx.shadowBlur = 6;
+      ctx.strokeStyle = '#cc8844'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-18, 0); ctx.quadraticCurveTo(-4, -13, 18, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(18, 0); ctx.quadraticCurveTo(4, 13, -18, 0); ctx.stroke();
+      ctx.restore();
+    },
+    getHitPoints(ball) {
+      const w = ball.weapon;
+      const cx = ball.x + Math.cos(w.angle) * (ball.radius + 4);
+      const cy = ball.y + Math.sin(w.angle) * (ball.radius + 4);
+      return [{ x: cx, y: cy, r: 14 }];
+    },
+    onHit(w) {
+      w.hits++;
+      if ((w.fireInterval || 90) > this.scaling.min) {
+        w.fireInterval = Math.max(this.scaling.min, (w.fireInterval || 90) + this.scaling.amount);
+      }
+      sfxScale();
+    }
+  },
+  {
+    id: 'flail', name: 'Flail', icon: '⛓️', color: '#aa8866',
+    desc: 'Spiked ball on a chain. Long reach, large hit radius. Chain grows and hits harder each hit.',
+    aiType: 'melee',
+    baseLength: 120, baseSpeed: 0.026, baseDamage: 1.3, baseKnockback: 8,
+    hitRadius: 14, attackCooldown: 40,
+    scaling: { type: 'length_damage', lengthAmt: 3, damageAmt: 0.4 },
+    scalingLabel: 'Length+Dmg',
+    draw(ctx, ball) {
+      const nodes = ball.weapon.flailNodes;
+      // Chưa init (frame đầu tiên) → fallback vẽ đường thẳng ngắn
+      if (!nodes) return;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+
+      // Vẽ từng đốt xích — màu xen kẽ sáng/tối tạo hiệu ứng xích kim loại
+      for (let i = 1; i < nodes.length; i++) {
+        ctx.strokeStyle = i % 2 === 0 ? '#888' : '#555';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(nodes[i - 1].x, nodes[i - 1].y);
+        ctx.lineTo(nodes[i].x,     nodes[i].y);
+        ctx.stroke();
+      }
+
+      // Đầu mace tại node cuối
+      const tip  = nodes[nodes.length - 1];
+      const prev = nodes[nodes.length - 2];
+      // Góc của đầu mace = hướng đoạn cuối cùng (xoay theo vật lý thật)
+      const tipAngle = Math.atan2(tip.y - prev.y, tip.x - prev.x);
+
+      // Đầu mace to dần theo số hit
+      const headR = 10 + (ball.weapon.bonusHeadRadius || 0);
+
+      // Thân mace (hình tròn)
+      ctx.beginPath();
+      ctx.arc(tip.x, tip.y, headR, 0, Math.PI * 2);
+      ctx.fillStyle = '#444';
+      ctx.shadowColor = '#888'; ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 2; ctx.stroke();
+
+      // 6 gai xung quanh, xoay theo tipAngle — dài theo tỷ lệ headR
+      ctx.strokeStyle = '#aaa'; ctx.lineWidth = 2.5;
+      for (let s = 0; s < 6; s++) {
+        const sa = s * Math.PI / 3 + tipAngle;
+        ctx.beginPath();
+        ctx.moveTo(tip.x + Math.cos(sa) * (headR - 2), tip.y + Math.sin(sa) * (headR - 2));
+        ctx.lineTo(tip.x + Math.cos(sa) * (headR + 7), tip.y + Math.sin(sa) * (headR + 7));
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    },
+    getHitPoints(ball) {
+      const nodes = ball.weapon.flailNodes;
+      const headR = 10 + (ball.weapon.bonusHeadRadius || 0); // đầu mace lớn dần theo số hit
+      if (!nodes) {
+        // Fallback trước khi nodes init
+        const totalLen = ball.radius + this.baseLength + (ball.weapon.bonusLength || 0);
+        return [{ x: ball.x + Math.cos(ball.weapon.angle) * totalLen, y: ball.y + Math.sin(ball.weapon.angle) * totalLen, r: headR, damageMult: 1.0 }];
+      }
+      // Trả về: 3 đốt xích giữa (gây 30% dame) + đầu mace tip (gây 100% dame)
+      const pts = [];
+      for (let i = 1; i <= 3; i++) {
+        pts.push({ x: nodes[i].x, y: nodes[i].y, r: 5, damageMult: 0.3 });
+      }
+      const tip = nodes[nodes.length - 1];
+      pts.push({ x: tip.x, y: tip.y, r: headR, damageMult: 1.0 });
+      return pts;
+    },
+    onHit(w) {
+      w.hits++;
+      w.bonusLength     = (w.bonusLength     || 0) + this.scaling.lengthAmt;
+      w.bonusDamage     = (w.bonusDamage     || 0) + this.scaling.damageAmt;
+      w.bonusHeadRadius = (w.bonusHeadRadius || 0) + 1.2; // đầu mace to lên 1.2px mỗi lần hit
+      sfxScale();
+    }
+  },
 
   // ══════════════════════════════════════════════════════════
   // ★ UNIQUE WEAPONS (Championship only — removed from pool once rolled)
   // ══════════════════════════════════════════════════════════
+  // Unique Weapon chỉ xuất hiện trong Championship draft.
+  // Mỗi unique chỉ được 1 người dùng trong suốt tournament (pool shrinks khi rolled).
+  // unique: true → championship.js sẽ loại khỏi pool sau khi ai đó nhận.
+  // baseWeapon → xác định weapon gốc để kế thừa cooldown formula trong ball._initWeapon.
   {
     id: 'jingubang', name: 'Jingubang', icon: '🪄', color: '#ffd700',
     unique: true, baseWeapon: 'spear',
@@ -1400,5 +1618,8 @@ const WEAPON_DEFS = [
     }
   },
 ];
+// ─── WEAPON_MAP: tra cứu nhanh weapon theo id ─────────────────────────────
+// Thay vì find() mỗi lần, dùng WEAPON_MAP['sword'] để lấy instant O(1).
+// Được tạo tự động từ WEAPON_DEFS ngay sau khi file này load.
 const WEAPON_MAP = {};
 WEAPON_DEFS.forEach(d => WEAPON_MAP[d.id] = d);

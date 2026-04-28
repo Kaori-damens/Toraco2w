@@ -1,5 +1,20 @@
 // CHARGEN DATA
 // ============================================================
+// ─── Tổng quan ───────────────────────────────────────────────
+// File này chứa toàn bộ dữ liệu tĩnh cho hệ thống tạo nhân vật:
+//   WHEEL_PALETTE / STAT_COLORS  — màu cho các ô trên spin wheel
+//   CG_RACES          — 13 race với weight roll, subKey, trait đặc biệt
+//   CG_SUBRACES       — subrace pools cho từng race (key = race.subKey)
+//   CG_STAT_WEIGHTS   — weight phân phối stat 1–10 theo race (mỗi stat × 13 race)
+//   CG_GOD_SUBRACE_WEIGHTS — weight riêng cho God theo từng subrace (Surtr/Raijin/…)
+//   STAT_DISPLAY      — tên hiển thị + emoji cho 6 stat
+//
+// Cách dùng weight trong spin wheel:
+//   Mảng 10 số = weight cho từng giá trị 1–10.
+//   Tổng không cần bằng 100 — SpinWheel normalize tự động.
+//   Ví dụ: goblin[strength] = [10,10,15,18,25,10,5,3,2,2]
+//   → STR=5 có weight 25 (cao nhất) → Goblin thường ra STR=5
+
 const WHEEL_PALETTE = [
   '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db',
   '#9b59b6','#e91e63','#00bcd4','#8bc34a','#ff5722','#607d8b',
@@ -13,7 +28,15 @@ const STAT_COLORS = [
   '#1abc9c','#3498db','#2980b9','#8e44ad','#6c3483'
 ];
 
-// Races available (13 specified)
+// ─── CG_RACES ────────────────────────────────────────────────
+// Danh sách 13 race. Các field:
+//   id       — key nội bộ (dùng trong ball.charRace, RACE_SKILL_DEFS…)
+//   name     — tên hiển thị
+//   emoji    — hiển thị trên wheel và HUD
+//   weight   — xác suất ra trong spin wheel (tổng = ~60, normalize tự động)
+//   subKey   — key tra trong CG_SUBRACES để lấy subrace pool (null = không có subrace)
+//   trait    — đặc điểm đặc biệt áp dụng trong tournament/championship (null = không có)
+// Gnome có weight:0 → disabled (placeholder, chưa có trait)
 const CG_RACES = [
   { id:'goblin',    name:'Goblin',          emoji:'👺', weight:6.5,  subKey:'goblinHorde', trait:null },
   { id:'gnome',     name:'Gnome',           emoji:'🧙', weight:0,    subKey:null,          trait:null }, // DISABLED — placeholder, no unique trait yet
@@ -30,6 +53,13 @@ const CG_RACES = [
   { id:'god',       name:'God',             emoji:'✨', weight:2.5,  subKey:'godGift',     trait:null },
 ];
 
+// ─── CG_SUBRACES ─────────────────────────────────────────────
+// Map subKey → array subrace. Mỗi subrace có:
+//   label   — tên hiển thị (dùng làm id nội bộ trong skills.js, game-loop.js…)
+//   weight  — xác suất trong spin wheel
+//   desc    — mô tả effect (tiếng Việt — hiển thị trong chargen UI)
+//   raceId  — chỉ có trong boneLineage: Skeleton kế thừa race khác
+// ✏️  Để thêm subrace mới: thêm object vào array tương ứng, tăng weight là xong.
 const CG_SUBRACES = {
   goblinHorde: [
     { label:'×1',      weight:5,  desc:'Nhận -1 all stats. [Trong tournament] Sau mỗi game thắng: +2 vào 3 random stats (có thể trùng).' },
@@ -107,8 +137,14 @@ const CG_SUBRACES = {
   ],
 };
 
-// Stat weights from Chargen.md — columns: Goblin,Gnome,Human,Dwarf,Skeleton,Troll,Orc,Giant,Dragon,Angel,Primordial,Demon,God
-// Rows are stat values 1-10
+// ─── CG_STAT_WEIGHTS ─────────────────────────────────────────
+// Distribution weight cho mỗi stat (STR/SPD/DUR/IQ/BIQ/MA) theo từng race.
+// Format: { statName: { raceId: [w1, w2, ..., w10] } }
+//   w[i] = weight của giá trị (i+1) → index 0 = giá trị 1, index 9 = giá trị 10
+// Ví dụ đọc: CG_STAT_WEIGHTS.strength.orc = [2,3,4,5,6,35,20,10,8,7]
+//   → Orc rất hay ra STR=6 (weight 35), hiếm ra STR=1 (weight 2)
+// skeleton[iq] = [100,0,...,0]: Skeleton IQ luôn = 1 (baked in chargen.js)
+// angel: weight đồng đều [10,10,...,10] mỗi stat → Angel random đều tất cả giá trị
 const CG_STAT_WEIGHTS = {
   strength: {
     goblin:[10,10,15,18,25,10,5,3,2,2], gnome:[15,10,10,13,22,15,5,5,3,2],

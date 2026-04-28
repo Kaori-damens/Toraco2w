@@ -1,7 +1,20 @@
 // ============================================================
 // BALL CLASS
 // ============================================================
+// ─── Lớp Ball — đại diện cho mỗi chiến đấu viên trong trận ───────────────
+// Mỗi nhân vật là 1 Ball: có vị trí, vận tốc, HP, vũ khí, skills.
+// Ball KHÔNG có AI — chuyển động hoàn toàn theo vật lý (va chạm, knockback, wall bounce).
+// Được tạo trong setup.js bằng cách truyền charStats từ màn chargen.
 class Ball {
+  // ─── Khởi tạo Ball từ stats nhân vật ──────────────────────────────────────
+  // Tham số:
+  //   x, y       — vị trí ban đầu (pixel trên canvas)
+  //   color      — màu hex của ball (dùng trong draw và battle log)
+  //   weaponId   — id vũ khí (phải có trong WEAPON_MAP)
+  //   side       — 'left' | 'right' (chỉ dùng cho setup vị trí ban đầu)
+  //   charStats  — object stats từ chargen: { strength, speed, iq, battleiq, ma, durability, race, subrace }
+  //   teamId     — -1 = FFA, 0 hoặc 1 = 2v2 team
+  // Trả về: không có (constructor)
   constructor(x, y, color, weaponId, side, charStats = null, teamId = -1) {
     this.x = x; this.y = y;
     this.vx = 0; this.vy = 0;
@@ -10,13 +23,14 @@ class Ball {
     this.side = side;  // 'left' | 'right'
     this.teamId = teamId; // -1 = FFA, 0 or 1 = team match
 
-    // Chargen stat mapping
+    // ── Map charStats vào biến tắt ────────────────────────────────
+    // cs = charStats object; dùng ?? null để phân biệt stat=0 với "không có stat"
     const cs = charStats || {};
-    const dur = cs.durability ?? null;
-    const spd = cs.speed      ?? null;
-    const iq  = cs.iq         ?? null;
-    const biq = cs.battleiq   ?? null;
-    const ma  = cs.ma         ?? null;
+    const dur = cs.durability ?? null; // DUR → HP
+    const spd = cs.speed      ?? null; // SPD → maxSpd + weapon cooldown
+    const iq  = cs.iq         ?? null; // IQ  → crit chance
+    const biq = cs.battleiq   ?? null; // BIQ → evade chance
+    const ma  = cs.ma         ?? null; // MA  → weapon spin + deflect
     this.charSTR     = cs.strength ?? null;  // used in getDamage()
     this.charSPD     = spd;                  // used in initGame launchSpeed
     this.charDUR     = dur;                  // stored for HUD display
@@ -26,13 +40,15 @@ class Ball {
     this.charRace    = cs.race    ?? null;   // used in drawRaceDecoration
     this.charSubrace = cs.subrace ?? null;   // used in drawRaceDecoration
 
+    // ── Tính HP và tốc độ từ stat ──────────────────────────────────
+    // STAT_FORMULAS được định nghĩa trong constants.js, có thể override bằng Config Loader
     const SF = window.STAT_FORMULAS;
-    this.maxHp = dur !== null ? (SF.hp.base + dur * SF.hp.perDur) : BASE_HP;
-    this.hp    = this.maxHp;
-    this.maxSpd     = spd !== null ? (SF.speed.base + spd * SF.speed.perSpd) : 15;
-    this.baseMaxSpd = this.maxSpd; // Speed Floor reference
+    this.maxHp = dur !== null ? (SF.hp.base + dur * SF.hp.perDur) : BASE_HP; // DUR càng cao → HP càng nhiều
+    this.hp    = this.maxHp; // bắt đầu full HP
+    this.maxSpd     = spd !== null ? (SF.speed.base + spd * SF.speed.perSpd) : 15; // SPD → vận tốc tối đa (px/frame)
+    this.baseMaxSpd = this.maxSpd; // lưu lại để Speed Floor (overtime) tham chiếu
     this.alive = true;
-    this.mass = this.radius * this.radius * 0.05;
+    this.mass = this.radius * this.radius * 0.05; // mass dùng cho công thức va chạm đàn hồi
 
     this.immunityFrames = 0;
     this.projImmunityFrames = 0;  // separate counter for projectile hits
@@ -41,11 +57,14 @@ class Ball {
     this.scale = 1;
     this.bounceCooldown = 0;   // frames after a collision where AI backs off
     this.wallBoostFactor = 1.0; // speed multiplier from wall boost (decays back to 1.0)
-    this.evadeChance   = biq !== null ? biq * SF.evade.perBIQ   : 0.10;
-    this.deflectChance = ma  !== null ? ma  * SF.deflect.perMA  : 0;
+    this.evadeChance   = biq !== null ? biq * SF.evade.perBIQ   : 0.10; // BIQ × hệ số → % né đòn (0~1)
+    this.deflectChance = ma  !== null ? ma  * SF.deflect.perMA  : 0;    // MA × hệ số → % hóa giải dame
     this.mindBreakDebuff = 0;  // % outgoing damage reduction (set by opponent's Mind Break)
     this.evadeFrames = 0;
 
+    // ── Crit ──────────────────────────────────────────────────────
+    // critChance: IQ cao → crit thường xuyên hơn
+    // critMult: IQ>10 → nhân dame crit cao hơn (diminishing returns dưới 10)
     this.critChance  = iq  !== null ? iq  * SF.crit.chancePerIQ : 0.15;
     this.critMult    = SF.crit.baseMult + Math.max(0, (iq !== null ? iq : 5) - 10) * SF.crit.extraPerIQAbove10;
 
@@ -53,8 +72,9 @@ class Ball {
     this.weaponDef = WEAPON_MAP[weaponId];
 
     this.stats = { hits: 0, parries: 0, damageDone: 0, damageTaken: 0, evades: 0 };
-    this.speechText = null;
+    this.speechText   = null;
     this.speechFrames = 0;
+    this._speechColor = null;
 
     // Skill system — populated by setup.js after construction
     this.skills          = [];
@@ -72,11 +92,18 @@ class Ball {
     this.raceSkillDef = null;
   }
 
+  // ─── Khởi tạo trạng thái vũ khí cho ball này ──────────────────────────────
+  // Tạo ra object `weapon` lưu trên ball — chứa toàn bộ runtime state của vũ khí:
+  //   angle (góc quay hiện tại), cooldown, hits, bonusDamage, v.v.
+  // Cooldown được tính lại dựa vào SPD stat: SPD càng cao → cooldown càng ngắn.
+  // Tham số: id (string) — id vũ khí, phải có trong WEAPON_MAP
+  // Trả về: object weapon state
   _initWeapon(id) {
     const def = WEAPON_MAP[id];
     const spd = this.charSPD ?? 5;
     // Per-ball attackCooldown based on SPD
     // For unique weapons, derive from baseWeapon if not explicitly set
+    // bwid = "base weapon id" — unique weapon kế thừa cooldown từ base (vd: muramasa → katana)
     const bwid = def.baseWeapon || def.id;
     let ac = def.attackCooldown;
     if      (bwid === 'fists')   ac = Math.max(5, 15 - spd);
@@ -88,9 +115,13 @@ class Ball {
     else if (bwid === 'rapier')  ac = Math.max(2, 18 - spd);
     else if (bwid === 'katana')  ac = Math.max(2, 42 - spd);
     // Ranged: fireInterval overridden per-ball via weapon.fireInterval
+    // fi = số frame giữa 2 lần bắn; SPD cao → fi thấp → bắn nhanh hơn
     let fi = def.fireInterval || null;
-    if      (bwid === 'bow')      fi = Math.max(5, 140 - spd * 2);
-    else if (bwid === 'shuriken') fi = Math.max(5, 250 - spd * 2);
+    if      (bwid === 'bow')      fi = Math.max(5, 140 - spd * 2);  // bow: 140f base, giảm 2f/SPD
+    else if (bwid === 'shuriken')   fi = Math.max(5, 250 - spd * 2); // shuriken: 250f base
+    else if (bwid === 'chakram')    fi = Math.max(28, 90 - spd * 2); // chakram: 90f base
+    if (bwid === 'lance')  ac = Math.max(12, 44 - spd);
+    if (bwid === 'flail')  ac = Math.max(12, 40 - spd);
     return {
       id,
       angle: 0,
@@ -150,9 +181,18 @@ class Ball {
       // Muramasa
       muramasaFrenzy: 0,
       muramasaFrenzyTimer: 0,
+      // Lance
+      lanceImpulse: 6,
+      lanceDashTimer: 0,
+      lanceDashPending: false,
+      lanceDashAngle: 0,
     };
   }
 
+  // ─── Tính tốc độ quay vũ khí frame này ───────────────────────────────────
+  // Trả về: số thực (rad/frame) — giá trị này được cộng vào weapon.angle mỗi frame.
+  // Dương = quay thuận chiều kim đồng hồ, âm = ngược lại (do spinDir = -1).
+  // Nhiều debuff/buff ảnh hưởng tới tốc độ quay: parry debuff, hammer slow, net trap, v.v.
   getSpeed() {
     const def    = this.weaponDef;
     const spearDebuff  = this.weapon.spinDebuffTimer > 0 ? 0.9 : 1.0;  // -10% from spear parry
@@ -167,17 +207,23 @@ class Ball {
     return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff * lbExhausted * pt1Boost;
   }
 
+  // ─── Tính sát thương đầu ra của ball này ─────────────────────────────────
+  // Trả về: số thực — lượng dame gây ra 1 lần đánh trúng (trước khi defender giảm dame)
+  // Công thức gốc: (baseDamage × STR × strMult + bonusDamage) × rageMult
+  //   + bonus MA (fists/dagger)
+  //   × nhiều hệ số skill (berserker, war cry, counter, human limit break, v.v.)
+  // Hàm này KHÔNG tự cộng crit — crit mult được áp dụng sau bởi collision.js.
   getDamage() {
     const def = this.weaponDef;
     const bwid = def.baseWeapon || def.id; // effective base weapon id
     const CF = window.COMBAT_FORMULAS;
-    const str = (this.charSTR ?? 1) * CF.strMult;
+    const str = (this.charSTR ?? 1) * CF.strMult; // STR thực tế sau hệ số nhân
     const ma  = this.charMA  ?? 0;
-    const rageMult = (state.matchTime >= CF.rageThresholdSec * 60) ? CF.rageMult : 1.0;
+    const rageMult = (state.matchTime >= CF.rageThresholdSec * 60) ? CF.rageMult : 1.0; // rage sau 80s → dame tăng
     let base = def.baseDamage;
-    if (bwid === 'dagger') base += ma * CF.daggerMAScaling;
+    if (bwid === 'dagger') base += ma * CF.daggerMAScaling; // dagger: MA nhân vào base trước STR
     let dmg = (base * str + this.weapon.bonusDamage) * rageMult;
-    if (bwid === 'fists')  dmg += ma * CF.fistsMAFlat;
+    if (bwid === 'fists')  dmg += ma * CF.fistsMAFlat; // fists: MA cộng flat sau STR (không nhân)
     // Skills that modify outgoing damage
     const SKF = window.SKILL_FORMULAS; const RF = window.RACE_FORMULAS;
     if (this.skills.includes('berserker') && this.hp / this.maxHp < SKF.berserker.hpThreshold) dmg *= (SKF.berserker.baseMult + (this.charIQ ?? 5) * SKF.berserker.iqScaling);
@@ -248,17 +294,26 @@ class Ball {
     return dmg;
   }
 
+  // ─── Tính lực đẩy (knockback) của đòn đánh này ──────────────────────────
+  // Trả về: số thực (px/frame) — lực đẩy áp lên defender khi bị trúng đòn
+  // Rage Mode (sau 80s) tăng knockback thêm 50%
   getKnockback() {
     const def = this.weaponDef;
-    const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0;
+    const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0; // rage → knockback ×1.5
     return (def.baseKnockback + this.weapon.bonusKnockback) * rageMult;
   }
 
+  // ─── Tính chiều dài vũ khí ────────────────────────────────────────────────
+  // Trả về: số thực (px) — khoảng cách từ tâm ball đến đầu vũ khí
+  // = bán kính ball + chiều dài base + chiều dài bonus (từ scaling on-hit)
   getWeaponLength() {
     const def = this.weaponDef;
     return this.radius + def.baseLength + this.weapon.bonusLength;
   }
 
+  // ─── Gây stun sau khi bị parry ────────────────────────────────────────────
+  // Khi bị parry: ball bị đóng băng `frames` frame, vũ khí bị khóa, spin đảo chiều khi hết stun
+  // Tham số: frames (số nguyên) — số frame bị stun
   // Parry stun: freeze ball + lock weapon for `frames` frames, reverse spin on release
   parryStun(frames) {
     this.stunTimer            = frames;
@@ -266,18 +321,29 @@ class Ball {
     this.weapon.parryCooldown = frames; // prevent re-trigger during stun
   }
 
+  // ─── Cập nhật trạng thái ball mỗi frame (60fps) ──────────────────────────
+  // Đây là hàm chính được gọi mỗi frame trong game loop.
+  // Tham số:
+  //   arena      — config đấu trường hiện tại (dùng để clamp vào tường)
+  //   opponent   — ball gần nhất (dùng cho bow aim, rapier lunge, v.v.)
+  //   projectiles — mảng projectile hiện tại (để bắn thêm đạn vào)
+  //   gravity    — true/false — có áp dụng trọng lực không (PVE map đặc biệt)
+  // Trả về: không có
   update(arena, opponent, projectiles, gravity) {
     if (!this.alive) return;
 
     // Parry stun: skip position update — velocity preserved so balls naturally separate on stun end
     // (matches reference game: only block physics movement, not velocity itself)
+    // _parryFrozen = true → ball bị đóng băng hoàn toàn (không di chuyển, không ma sát)
     const _parryFrozen = this.stunTimer > 0 && this.parryStunReverse;
 
     // No AI steering — pure physics only
 
+    // ── Vật lý cơ bản ───────────────────────────────────────────
     // Physics — friction: ~99% after 1s, ~91% after 10s, ~84% after 20s
+    // Ma sát rất nhỏ (0.99985/frame) → ball giữ tốc độ lâu
     if (!_parryFrozen) {
-      if (gravity) this.vy += 0.15;
+      if (gravity) this.vy += 0.15; // trọng lực chỉ áp dụng trong một số PVE map
       this.vx *= 0.99985;
       this.vy *= 0.99985;
     }
@@ -382,15 +448,21 @@ class Ball {
       this.critMult     = 1.5 + Math.max(0, this.charIQ - 10) * 0.1;
       this.deflectChance = this.charMA * 0.02;
       spawnDamageNumber(this.x, this.y - this.radius - 18, '😈 WRATH RAGE!', '#ff4400');
-      spawnBigAnnouncement?.('😈 BEHEMOTH RAGE!', '#ff4400');
+      this.shout('😈 BEHEMOTH RAGE!', 220, '#ff4400');
       if (typeof spawnSparks === 'function') spawnSparks(this.x, this.y, 18);
     }
 
+    // ── Quay vũ khí ─────────────────────────────────────────────
     // Weapon rotation
+    // getSpeed() trả về rad/frame, cộng vào angle → vũ khí quay liên tục quanh ball
     this.weapon.angle += this.getSpeed();
+
+    // Flail: cập nhật Verlet chain mỗi frame sau khi angle xoay
+    if (this.weaponDef.id === 'flail') this._updateFlailChain();
 
     // Bow soft aim: gently nudge weapon angle toward opponent (MA scales tracking speed)
     // MA 1 → barely noticeable pull; MA 10 → clear but not snap-aim
+    // Bow tự nhẹ nhàng xoay về phía đối thủ — không snap ngay, chỉ kéo từ từ
     if (this.weaponDef.id === 'bow' && opponent && opponent.alive) {
       const dx = opponent.x - this.x, dy = opponent.y - this.y;
       let diff = Math.atan2(dy, dx) - this.weapon.angle;
@@ -452,7 +524,7 @@ class Ball {
     if (this.weaponDef?.id === 'jingubang') {
       if (this.weapon.whirlJustActivated) {
         this.weapon.whirlJustActivated = false;
-        spawnBigAnnouncement?.('🪄 如意棒 WHIRL!', this.color);
+        this.shout('🌀 如意棒 WHIRL!', 210, '#ffd700');
         spawnDamageNumber(this.x, this.y - this.radius - 20, '🌀 WHIRL!', '#ffd700');
       }
       if (this.weapon.whirlTimer > 0) {
@@ -462,15 +534,18 @@ class Ball {
         }
       }
     }
-    // ── Unique weapon per-frame logic ─────────────────────────
+    // ── Logic riêng của từng Unique Weapon (mỗi frame) ──────────
+    // Mỗi unique weapon có hành vi đặc biệt chạy mỗi frame: đếm timer, bắn tự động, v.v.
+    // Các weapon thường (sword, dagger...) KHÔNG có code ở đây — chỉ xử lý qua collision.js
     const udef = this.weaponDef;
     // Excalibur: trigger Transform Mode when HP drops to ≤30% (once per match)
+    // Khi HP xuống ≤30%: kích hoạt "Last Stand" — bắn beam tự động mỗi 2s trong 20s
     if (udef?.id === 'excalibur' && !this.weapon.excaliburActivated && this.hp / this.maxHp <= 0.30) {
       this.weapon.excaliburActivated = true;
       this.weapon.excaliburTransformTimer = 20 * 60; // 20s
       this.weapon.excaliburBeamCooldown = 0;
       spawnDamageNumber(this.x, this.y - this.radius - 28, '🌟 LAST STAND!', '#ffe84c');
-      spawnBigAnnouncement?.('🌟 EXCALIBUR AWAKENS!', this.color);
+      this.shout('🌟 EXCALIBUR AWAKENS!', 250, '#ffe84c');
       sfxScale(); sfxScale();
     }
     // Excalibur: during Transform — countdown and fire beam every 120 frames
@@ -532,7 +607,7 @@ class Ball {
             .reduce((best, p) => !best ||
               Math.hypot(p.x-this.x, p.y-this.y) < Math.hypot(best.x-this.x, best.y-this.y) ? p : best, null);
           if (target) {
-            spawnBigAnnouncement?.('🔥 FLAMING SALVO!', '#ff4400');
+            this.shout('🔥 FLAMING SALVO!', 200, '#ff4400');
             spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 SALVO!', '#ff6600');
             spawnSparks(this.x, this.y, 20);
             const baseAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -579,7 +654,7 @@ class Ball {
     // Harvester: soul burst AOE on pending flag
     if (udef?.id === 'harvester' && this.weapon.soulBurstPending && typeof state !== 'undefined') {
       this.weapon.soulBurstPending = false;
-      spawnBigAnnouncement?.('💀 SOUL BURST!', this.color);
+      this.shout('💀 SOUL BURST!', 210, '#cc44ff');
       spawnDamageNumber(this.x, this.y - this.radius - 24, '💀 SOUL BURST!', '#cc44ff');
       spawnSparks(this.x, this.y, 18);
       for (const en of state.players) {
@@ -613,6 +688,18 @@ class Ball {
       // Apply frenzy: reduce base attack cooldown
       const frenzy = this.weapon.muramasaFrenzy || 0;
       this.weapon.attackCooldown = Math.max(8, (WEAPON_MAP.muramasa?.attackCooldown ?? 42) - (this.charSPD || 0) - frenzy * 3);
+    }
+    // Lance: apply dash impulse and track immunity window
+    if (udef?.id === 'lance') {
+      if (this.weapon.lanceDashPending) {
+        this.weapon.lanceDashPending = false;
+        const imp = this.weapon.lanceImpulse || 2;
+        const da  = this.weapon.lanceDashAngle;
+        this.vx += Math.cos(da) * imp;
+        this.vy += Math.sin(da) * imp;
+        this.weapon.lanceDashTimer = Math.max(8, Math.round(imp * 2));
+      }
+      if (this.weapon.lanceDashTimer > 0) this.weapon.lanceDashTimer--;
     }
     // Medusa Bow: tick target-side petrify (stored on ball as medusaPetrify)
     if ((this.medusaPetrify || 0) > 0) {
@@ -688,10 +775,14 @@ class Ball {
       }
     }
 
-    // Projectile firing — burst system
+    // ── Hệ thống bắn đạn (burst system) ────────────────────────
+    // Ranged weapon (bow, shuriken, boomerang) bắn theo burst — không bắn cùng lúc nhiều mũi.
+    // burstQueue = số đạn còn lại trong burst này
+    // burstTimer = đếm ngược BURST_DELAY frame giữa 2 đạn liên tiếp
+    // fireTimer  = đếm ngược fireInterval frame giữa 2 burst
     const def = this.weaponDef;
     if (def.aiType === 'ranged') {
-      const BURST_DELAY = 4;
+      const BURST_DELAY = 4; // 4 frame giữa 2 đạn trong cùng 1 burst (~67ms)
       if (this.weapon.burstQueue > 0) {
         // Mid-burst: fire one shot every BURST_DELAY frames
         this.weapon.burstTimer--;
@@ -727,6 +818,7 @@ class Ball {
               const bwidFire = def.baseWeapon || def.id;
               const count = bwidFire === 'bow'
                 ? (this.weapon.arrowCount || 1)
+                : bwidFire === 'chakram' ? 1
                 : (this.weapon.shurikenCount || 1);
               if (bwidFire === 'bow') {
                 // Multi-stream: MA>=5 → 2 streams, MA>=10 → 3 streams
@@ -748,11 +840,23 @@ class Ball {
 
     // Speech
     if (this.speechFrames > 0) this.speechFrames--;
-    else this.speechText = null;
+    else { this.speechText = null; this._speechColor = null; }
+  }
+
+  // Shout a skill/weapon phrase as a speech bubble above this ball
+  // color defaults to ball color; frames ≈ 200 for skill shouts
+  shout(text, frames = 200, color = null) {
+    this.speechText   = text;
+    this.speechFrames = frames;
+    this._speechColor = color || this.color;
   }
 
   // AI removed — movement is purely physics-driven
 
+  // ─── Bắn 1 đạn theo hướng vũ khí hiện tại ───────────────────────────────
+  // Được gọi từ burst system trong update(). Tạo 1 Projectile và push vào mảng projectiles.
+  // Loại đạn phụ thuộc vào weapon: bow → arrow, shuriken → star, chakram → chakram
+  // Tham số: projectiles (mảng) — mảng projectile toàn cục, đạn mới được push vào đây
   // Fire a single projectile in the direction the weapon is currently pointing
   _fireSingle(projectiles) {
     const def     = this.weaponDef;
@@ -847,6 +951,28 @@ class Ball {
       const aaStar = godBiqAutoAim(star.vx, star.vy);
       if (aaStar) { star.vx = aaStar.vx; star.vy = aaStar.vy; }
       projectiles.push(star);
+
+    } else if (def.id === 'chakram') {
+      const boomSpd = (def.boomSpeed || 6) + spdStat * 0.3;
+      // Aim toward nearest enemy
+      let boomAngle = a;
+      if (typeof state !== 'undefined') {
+        const enemies = state.players.filter(p => p !== this && p.alive
+          && (this.teamId >= 0 ? p.teamId !== this.teamId : true));
+        if (enemies.length > 0) {
+          const t = enemies.reduce((best, p) => !best ||
+            Math.hypot(p.x-this.x, p.y-this.y) < Math.hypot(best.x-this.x, best.y-this.y) ? p : best, null);
+          if (t) boomAngle = Math.atan2(t.y - this.y, t.x - this.x);
+        }
+      }
+      const boom = new Projectile(
+        this.x + Math.cos(boomAngle) * this.radius,
+        this.y + Math.sin(boomAngle) * this.radius,
+        Math.cos(boomAngle) * boomSpd, Math.sin(boomAngle) * boomSpd,
+        this, 'chakram', (this.charSTR ?? 1) * (def.boomDamage || 1.2)
+      );
+      boom.piercing = true;
+      projectiles.push(boom);
       // Fan Throw: every 5th throw → fire 2 extra shurikens at ±20°
       if (this.skills.includes('fan_throw') && this.skillState && def.id !== 'fuma_shuriken') {
         this.skillState.sk_fanCount = (this.skillState.sk_fanCount || 0) + 1;
@@ -869,11 +995,33 @@ class Ball {
     }
   }
 
+  // ─── Xử lý khi ball nhận dame ─────────────────────────────────────────────
+  // Hàm này quyết định xem dame có được áp dụng không, và áp dụng bao nhiêu.
+  // Thứ tự kiểm tra:
+  //   1. Immunity frames → bỏ qua (return false)
+  //   2. Lance dash → miễn nhiễm hoàn toàn (return false)
+  //   3. Evade roll → né đòn (return false)
+  //   4. Shadow Clone → hút đòn (return false)
+  //   5. Fortify Shield → hút 1 phần dame
+  //   6. Deflection → hóa giải hoàn toàn (return false)
+  //   7. Thick Hide / Adaptation → giảm dame
+  //   8. Trừ HP, trigger death nếu HP ≤ 0
+  //   9. Race skills, skill hooks (phoenix, read&react, orc, skeleton, human...)
+  // Tham số:
+  //   dmg          — lượng dame (sau getDamage, trước giảm thêm)
+  //   fromX, fromY — tọa độ nguồn dame (để tính góc knockback + vẽ máu)
+  //   isCrit       — true nếu là crit
+  //   attacker     — ball tấn công (null nếu là dame môi trường)
+  //   isReactCounter — true nếu là counter (để tránh loop vô hạn)
+  //   isProjectile   — true nếu từ projectile (dùng immunity riêng)
+  // Trả về: true nếu dame được áp dụng, false nếu bị block/né
   takeDamage(dmg, fromX, fromY, isCrit = false, attacker = null, isReactCounter = false, isProjectile = false) {
     // Projectile and melee use separate immunity counters
     if (isProjectile ? this.projImmunityFrames > 0 : this.immunityFrames > 0) return false;
+    // Lance: full immunity during dash
+    if (this.weapon?.id === 'lance' && (this.weapon.lanceDashTimer || 0) > 0) return false;
 
-    // Evade roll
+    // Evade roll — BIQ × hệ số% ngẫu nhiên mỗi hit
     if (Math.random() < this.evadeChance) {
       this.evadeFrames = 60;
       this.immunityFrames = 20;
@@ -1025,6 +1173,10 @@ class Ball {
       });
     }
 
+    // ── Cấp immunity sau khi bị hit ─────────────────────────────
+    // Melee: 4 frame immunity (tránh hit nhiều lần trong 1 swing)
+    // Projectile: 0 frame (mũi tên liên tiếp đều tính dame)
+    // Extended Immunity skill: tăng lên 30 frame
     // Immunity after hit — melee: 4 frames, projectile: 0 frames (no immunity between arrows)
     const hasExtImmune = this.skills.includes('extended_immunity');
     if (isProjectile) {
@@ -1240,34 +1392,140 @@ class Ball {
     // Race decoration (cosmetic only, no hitbox change)
     if (this.alive) drawRaceDecoration(ctx, this);
 
-    // Speech bubble
+    // Speech bubble — chat bubble style with tail pointing to ball
     if (this.speechText) {
       ctx.save();
-      ctx.font = 'bold 14px Arial';
-      ctx.textAlign = 'center';
-      const alpha = Math.min(1, this.speechFrames / 20);
+      const fadeIn  = Math.min(1, this.speechFrames / 12);   // quick fade-in
+      const fadeOut = this.speechFrames < 30 ? this.speechFrames / 30 : 1; // slow fade-out
+      const alpha   = fadeIn * fadeOut;
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 3;
-      ctx.strokeText(this.speechText, this.x, this.y - this.radius - 10);
-      ctx.fillText(this.speechText, this.x, this.y - this.radius - 10);
+
+      const fontSize = 13;
+      ctx.font = `bold ${fontSize}px 'Segoe UI', Arial, sans-serif`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+
+      const tw   = ctx.measureText(this.speechText).width;
+      const padX = 9, padY = 6;
+      const bw   = tw + padX * 2;
+      const bh   = fontSize + padY * 2;
+      const br   = 7;          // corner radius
+      const tailH = 8;         // tail height
+      const bx   = this.x - bw / 2;
+      const by   = this.y - this.radius - bh - tailH - 6;
+
+      // Bubble background (dark semi-transparent)
+      const accentColor = this._speechColor || this.color;
+      ctx.fillStyle   = 'rgba(8,8,24,0.90)';
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth   = 1.5;
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur  = 8;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, br);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tail triangle (no shadow on tail border to keep it clean)
+      ctx.shadowBlur  = 0;
+      ctx.fillStyle   = 'rgba(8,8,24,0.90)';
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(this.x - 5, by + bh - 1);
+      ctx.lineTo(this.x + 5, by + bh - 1);
+      ctx.lineTo(this.x,     by + bh + tailH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Text
+      ctx.shadowColor = accentColor;
+      ctx.shadowBlur  = 5;
+      ctx.fillStyle   = '#ffffff';
+      ctx.fillText(this.speechText, this.x, by + bh / 2);
       ctx.restore();
     }
   }
 
+  // ─── Vẽ vũ khí lên canvas ────────────────────────────────────────────────
+  // Gọi weaponDef.draw(ctx, ball) — mỗi vũ khí tự định nghĩa cách vẽ trong weapons.js.
+  // Nếu weapon đã có hits > 0 (đã scale): thêm glow theo màu weapon.
   drawWeapon(ctx) {
     if (!this.alive) return;
     ctx.save();
-    // Scale glow
+    // Scale glow — hit càng nhiều → glow càng sáng (tối đa shadowBlur = 20)
     if (this.weapon.hits > 0) {
       ctx.shadowColor = this.weaponDef.color;
       ctx.shadowBlur = Math.min(20, this.weapon.hits * 3);
     }
-    this.weaponDef.draw(ctx, this);
+    this.weaponDef.draw(ctx, this); // ủy quyền vẽ cho weapons.js
     ctx.restore();
   }
 
+  // ─── _updateFlailChain ──────────────────────────────────────
+  // Verlet integration cho dây xích Flail — gọi mỗi frame sau khi weapon.angle cập nhật.
+  //
+  // Cách hoạt động:
+  //   - 5 node: node[0] = điểm neo trên ball (cứng), node[1-4] = đốt xích tự do
+  //   - Mỗi frame: mỗi node tự do di chuyển theo quán tính (pos - prevPos) * damping
+  //   - Sau đó bị kéo lại để đúng khoảng cách segLen từ node cha (length constraint)
+  //   - Kết quả: xích "lắc lư" tự nhiên theo quán tính, không bị snap cứng
+  //
+  // DAMPING = 0.93 → xích giảm dần tốt, không quá nhanh (dead) hay quá chậm (rung mãi)
+  _updateFlailChain() {
+    const w   = this.weapon;
+    const def = this.weaponDef;
+    const NUM_NODES  = 5;
+    const totalChain = def.baseLength + (w.bonusLength || 0);
+    const segLen     = totalChain / (NUM_NODES - 1);
+    const DAMPING    = 0.93;
+
+    // Lazy init: tạo node lần đầu, trải dọc theo góc hiện tại
+    if (!w.flailNodes) {
+      const ax = this.x + Math.cos(w.angle) * this.radius;
+      const ay = this.y + Math.sin(w.angle) * this.radius;
+      w.flailNodes = [];
+      for (let i = 0; i < NUM_NODES; i++) {
+        const frac = i / (NUM_NODES - 1);
+        const nx = ax + Math.cos(w.angle) * frac * totalChain;
+        const ny = ay + Math.sin(w.angle) * frac * totalChain;
+        w.flailNodes.push({ x: nx, y: ny, px: nx, py: ny });
+      }
+    }
+
+    const nodes = w.flailNodes;
+
+    // Node 0: neo cứng vào điểm trên bề mặt ball theo weapon.angle
+    const anchorX = this.x + Math.cos(w.angle) * this.radius;
+    const anchorY = this.y + Math.sin(w.angle) * this.radius;
+    nodes[0].px = nodes[0].x;
+    nodes[0].py = nodes[0].y;
+    nodes[0].x  = anchorX;
+    nodes[0].y  = anchorY;
+
+    // Node 1–4: verlet + length constraint
+    for (let i = 1; i < nodes.length; i++) {
+      const n  = nodes[i];
+      // Verlet: ước tính vị trí tiếp theo từ vận tốc (pos - prevPos) × damping
+      const vx = (n.x - n.px) * DAMPING;
+      const vy = (n.y - n.py) * DAMPING;
+      n.px = n.x;
+      n.py = n.y;
+      n.x += vx;
+      n.y += vy;
+      // Length constraint: kéo node về đúng khoảng cách segLen từ node cha
+      const par  = nodes[i - 1];
+      const dx   = n.x - par.x;
+      const dy   = n.y - par.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      n.x = par.x + (dx / dist) * segLen;
+      n.y = par.y + (dy / dist) * segLen;
+    }
+  }
+
+  // ─── Tạo nhãn trạng thái scaling để hiển thị trên màn result ────────────
+  // Trả về: string mô tả scaling hiện tại (vd: "⭐ Stars: 3", "🌙 DUAL 15/20")
   getScaleLabel() {
     const def = this.weaponDef;
     const w = this.weapon;

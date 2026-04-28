@@ -7,6 +7,7 @@ const CS_SAVE_KEY = 'cgChampionshipSave';
 // Weighted arena random for championship — size depends on player count
 // 4+ players (FFA/Battle Royale): 65% L / 35% M — never S
 // 2 players (1v1 BO1/BO3/DE): 75% M / 25% S — never L
+// Object chance: M/L → 90% with objects, S → 70% with objects
 function randomArenaChampionship(playerCount) {
   // Step 1: pick size by player count
   const sizeRoll = Math.random() * 100;
@@ -24,8 +25,9 @@ function randomArenaChampionship(playerCount) {
   const plain     = sizePool.filter(k => !ARENAS[k].traps && !ARENAS[k].holes);
   const withObj   = sizePool.filter(k =>  ARENAS[k].traps ||  ARENAS[k].holes);
 
-  // Step 3: 30% plain, 70% with objects (fall back to other group if one is empty)
-  const useObj = withObj.length > 0 && (plain.length === 0 || Math.random() < 0.70);
+  // Step 3: M/L → 10% plain / 90% with objects; S → 30% plain / 70% with objects
+  const objChance = targetSize === 'small' ? 0.70 : 0.90;
+  const useObj = withObj.length > 0 && (plain.length === 0 || Math.random() < objChance);
   const pool   = useObj ? withObj : plain;
   return pool[Math.floor(Math.random() * pool.length)];
 }

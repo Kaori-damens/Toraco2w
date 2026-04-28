@@ -1,6 +1,48 @@
 // ============================================================
 // UI / SCREENS
 // ============================================================
+// File này xử lý toàn bộ UI logic không thuộc về game loop:
+//
+//   Screen Navigation:
+//     showScreen(id)          — ẩn tất cả .screen, chỉ hiện #id; stop game nếu rời 'game'
+//
+//   Fighter Selection:
+//     buildFightersPanel()    — render lại grid fighter cards (weapon chọn, remove, add)
+//     updateStartBtn()        — enable/disable nút Start (cần ≥2 fighter)
+//
+//   Game Controls (event listeners):
+//     pauseBtn, menuBtn       — pause / về menu
+//     gravBtn, zoomSlider     — toggle gravity, điều chỉnh zoom canvas
+//     speedSlider             — 7 mức tốc độ: ¼× → ½× → ¾× → 1× → 2× → 3× → 5×
+//     Space key               — pause/resume
+//
+//   Result Screen:
+//     rematchBtn, menuBtnR    — chơi lại / về menu
+//     nextGameBtn             — game tiếp trong BO3
+//     bracketBtn              — xem bracket
+//
+//   Tournament:
+//     tStartBtn               — tạo tournament mới, chuyển sang bracket
+//     nextMatchBtn            — launch trận tiếp theo trong tournament
+//     prevPhaseBtn/nextPhaseBtn — navigate giữa các round trong bracket view
+//     _updateTournamentResumeUI() — hiển thị nút resume nếu có save
+//
+//   Championship:
+//     championshipBtn         — mở championship setup screen
+//     csStartBtn              — bắt đầu championship (draft flow hoặc roster-pick 256)
+//     [data-cssize]           — chọn size 32/64/128/256 (lock khi draft đã có người)
+//
+//   Arena Builder:
+//     openArenaBuilder()      — mở modal builder, load type hiện tại
+//     abRenderPreview()       — vẽ preview 260×260 (scale từ 1000×1000)
+//     abRenderParams()        — render slider controls theo arena type
+//     abBuildConfig()         — convert type + params → arena config object
+//     arenaBuilderSave        — ghi vào state.customArena, chọn 'custom' trên menu
+
+// ─── showScreen ─────────────────────────────────────────────
+// Chuyển sang screen có id khớp (menu | game | result | bracket | tournament | ...).
+// Ẩn tất cả .screen, hiện #id.classList.add('active').
+// Nếu id !== 'game': gọi stopGame() để dừng RAF loop (tránh loop chạy ngầm).
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -8,6 +50,12 @@ function showScreen(id) {
   if (id !== 'game') stopGame();
 }
 
+// ─── buildFightersPanel ─────────────────────────────────────
+// Re-render toàn bộ fighter selection grid từ state.fighters[].
+// Gọi mỗi khi thêm/xóa fighter, hoặc khi vào menu.
+// Mỗi card gồm: dot màu + tên + weapon picker + nút remove (nếu >2 fighter).
+// Radoser (có charName): hiện weapon cố định, không cho đổi.
+// Anonymous ball: hiện weapon grid (tất cả WEAPON_DEFS) để chọn.
 // Build fighters selection panel (multi-ball)
 function buildFightersPanel() {
   const panel = document.getElementById('fighters-panel');
@@ -174,6 +222,8 @@ document.getElementById('zoomSlider').addEventListener('input', e => {
 
 // Speed slider — 7 stops, center (index 3) = 1×, left = slow, right = fast
 // Stops: 0.25 / 0.5 / 0.75 / 1 / 2 / 3 / 5
+// state.speed được đọc bởi game-loop.js để nhân số step mỗi frame
+// (speed=2 → game-loop tính 2 step/frame → mọi thứ chạy gấp đôi)
 const SPEED_STOPS  = [0.25, 0.5, 0.75, 1, 2, 3, 5];
 const SPEED_LABELS = ['¼×', '½×', '¾×', '1×', '2×', '3×', '5×'];
 document.getElementById('speedSlider').addEventListener('input', e => {
@@ -211,7 +261,7 @@ document.getElementById('menuBtnR').addEventListener('click', () => {
 document.getElementById('nextGameBtn').addEventListener('click', () => {
   // Continue BO3 — keep same fighters, random arena
   if (state.championship) state.arenaId = randomArenaChampionship(state.fighters?.length ?? 2);
-  else if (state.tournament || state.tournament2v2) state.arenaId = randomArena();
+  else if (state.tournament || state.tournament2v2) state.arenaId = randomArenaChampionship(state.fighters?.length ?? 2);
   showScreen('game');
   startGame();
 });
@@ -346,7 +396,7 @@ document.getElementById('nextMatchBtn').addEventListener('click', () => {
     state.fighters  = [...match.p1.fighters, ...match.p2.fighters];
     state.teamIds   = [0, 0, 1, 1];
     state.matchMode = '2v2';
-    state.arenaId   = randomArena();
+    state.arenaId   = randomArenaChampionship(4);
     state.bo3 = {
       wins: [0, 0],
       gameNum: 1,
@@ -365,7 +415,7 @@ document.getElementById('nextMatchBtn').addEventListener('click', () => {
   state.fighters  = [match.p1, match.p2];
   state.matchMode = '1v1';
   state.teamIds   = [];
-  state.arenaId   = randomArena();
+  state.arenaId   = randomArenaChampionship(2);
   state.bo3 = { wins: [0, 0], gameNum: 1, fighters: [match.p1, match.p2], winsNeeded: Math.ceil(bo / 2) };
   if (typeof applyAsmodeusBo3Bonus === 'function') applyAsmodeusBo3Bonus();
   updateBO3Display();
@@ -422,6 +472,10 @@ document.getElementById('nextPhaseBtn').addEventListener('click', () => {
   }
 });
 
+// ─── _updateTournamentResumeUI ──────────────────────────────
+// Hiển thị/ẩn nút "Resume Tournament" dựa vào localStorage save.
+// Nếu có save chưa hoàn thành: hiện info (size, mode, BO, progress, thời gian lưu).
+// Nếu không có hoặc đã hoàn thành: ẩn wrap.
 // ── Tournament Resume UI ──────────────────────────────────────────
 function _updateTournamentResumeUI() {
   const wrap = document.getElementById('tournament-resume-wrap');
@@ -584,6 +638,15 @@ function _csShowSizeLockWarning(anchor, draftCount) {
 // ============================================================
 // ARENA BUILDER
 // ============================================================
+// Modal cho phép user tạo arena tùy chỉnh với 5 type: square/circle/rect/cross/hole.
+// Mỗi type có 1-2 slider tham số (size, radius, width/height, arm/thick, holeR).
+// Preview canvas 260×260 vẽ live khi kéo slider (scale từ 1000×1000 → /SCALE).
+// Khi Save: ghi vào state.customArena, chọn 'custom' trên arena menu.
+//
+// AB_PARAMS — định nghĩa slider cho mỗi type: id, label, min, max, step, def, unit, note
+// _abType   — type đang chọn trong builder
+// _abParams — { type: { paramId: currentValue } } — lưu settings mỗi type riêng
+// abBuildConfig(type, params) — convert params → arena config object (cùng format ARENAS)
 
 // Parameter definitions for each arena type
 const AB_PARAMS = {
@@ -620,6 +683,11 @@ for (const [type, defs] of Object.entries(AB_PARAMS)) {
   for (const p of defs) _abParams[type][p.id] = p.def;
 }
 
+// ─── abBuildConfig ──────────────────────────────────────────
+// Chuyển đổi type + params thành arena config object cùng format với ARENAS.
+// Tất cả arena được căn giữa trên canvas 1000×1000 (cx=500, cy=500 hoặc tính offset).
+// Tham số: type (string), params (object { paramId: value })
+// Trả về: arena config object (không có label/size — chỉ dùng cho preview và play)
 // Build an arena config object from current type + params
 function abBuildConfig(type, params) {
   switch (type) {
@@ -645,6 +713,10 @@ function abBuildConfig(type, params) {
   }
 }
 
+// ─── abRenderPreview ────────────────────────────────────────
+// Vẽ preview arena lên canvas nhỏ 260×260 trong modal builder.
+// Scale = W/1000 → tất cả tọa độ 1000×1000 tự động fit vào preview.
+// Gọi drawArena() bình thường sau khi ctx.scale(SCALE, SCALE).
 // Draw the arena preview at 260×260, scaled from 800×800
 function abRenderPreview() {
   const canvas = document.getElementById('arenaPreviewCanvas');
@@ -757,6 +829,7 @@ document.getElementById('arenaBuilderSave').addEventListener('click', () => {
 });
 
 // ============================================================
-// INIT
+// INIT — chạy một lần khi trang load
 // ============================================================
+// buildFightersPanel() — render fighter grid ban đầu (từ state.fighters = [])
 buildFightersPanel();

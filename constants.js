@@ -2,6 +2,23 @@
 // ============================================================
 // CONSTANTS
 // ============================================================
+// File này chứa tất cả hằng số và config data tĩnh của game:
+//   - CW/CH/BALL_R/BASE_HP  — kích thước canvas & ball mặc định
+//   - RANDOM_NAME_POOL       — pool tên ngẫu nhiên lấy từ game nổi tiếng
+//   - ARENAS                 — ~40+ cấu hình arena (type, size, vị trí, traps, events)
+//   - BALL_COLORS            — palette màu mặc định cho 6 ball đầu
+//   - STAT_FORMULAS          — công thức tính HP/SPD/crit/evade từ stat (ball.js constructor)
+//   - COMBAT_FORMULAS        — hệ số dame trong chiến đấu (rageMult, STR scaling...)
+//   - SKILL_FORMULAS         — tham số của ~30 skill (threshold, mult, scaling...)
+//   - RACE_FORMULAS          — mechanic đặc biệt theo race (Human Limit Break, Orc Blood Price...)
+//   - generateRadoserColor() — sinh màu ball từ index, đảm bảo luôn khác màu nhau
+//
+// window.STAT/COMBAT/SKILL/RACE_FORMULAS được gán lên window để config-loader.js
+// có thể snapshot và restore về default khi user reset config.
+
+// CW/CH — kích thước canvas (chiều rộng × chiều cao), đơn vị pixel
+// BALL_R — bán kính ball tiêu chuẩn (24px), dùng cho collision và render
+// BASE_HP — HP gốc trước khi cộng stat DUR (100 + DUR × 10)
 const CW = 1000, CH = 1000;
 const BALL_R = 24;
 const BASE_HP = 100;
@@ -9,6 +26,9 @@ const BASE_HP = 100;
 // ============================================================
 // RANDOM NAME POOL — heroes from Dota2, LoL, Valorant, Overwatch, etc.
 // ============================================================
+// Pool tên ngẫu nhiên dùng cho Quick Create & Bulk Create.
+// Tên lấy từ các game nổi tiếng — mỗi tên là nhân vật quen thuộc của cộng đồng.
+// Thêm tên mới: chỉ cần append vào mảng, không cần sửa thêm gì.
 const RANDOM_NAME_POOL = [
   // Dota 2
   'Invoker','Juggernaut','Pudge','Axe','Lina','Crystal Maiden','Phantom Assassin',
@@ -56,7 +76,22 @@ function getRandomGameName() {
   return RANDOM_NAME_POOL[Math.floor(Math.random() * RANDOM_NAME_POOL.length)];
 }
 
-// Arena configs — 18 arenas: 3 sizes × 3 shapes × (blank + trap)
+// ─── ARENAS ─────────────────────────────────────────────────
+// Danh sách toàn bộ arena có sẵn trong game.
+// Mỗi arena là một object config với các field:
+//   type   — hình dạng: 'square' | 'circle' | 'rect' | 'hole_sq' | 'hole_ci' |
+//             'hole_re' | 'diamond' | 'cross' — dùng bởi arena.js để vẽ và tính collision
+//   x/y/w/h — bounding box (cho type square/rect/hole_sq/hole_re)
+//   cx/cy/r  — tâm + bán kính (cho type circle/hole_ci)
+//   cx/cy/hw/hh — tâm + half-width/half-height (cho type diamond)
+//   cx/cy/arm/thick — tâm + độ dài cánh + độ rộng (cho type cross)
+//   size   — 'small' | 'medium' | 'large' — UI filter + gợi ý số người chơi
+//   label  — tên hiển thị trong dropdown chọn arena
+//   traps  — object { pillars:N, lightning:N, scythe:bool, bombs:N } — init bởi traps.js
+//   holes  — mảng { shape:'circle'|'square', cx/cy/r | x/y/w/h } — vùng "hố", ball rơi = chết
+//   events — mảng event động (spawn_hole, shrink, volcanic_vent) — xử lý bởi arena-events.js
+//   dynamicHoles — mảng hố sinh ra trong runtime (cho diamond_rift)
+//
 // Size guide: Small = 1v1, Medium = 4–6, Large = 7–12
 const ARENAS = {
   // ── Small (1v1) ───────────────────────────────────────────────────
@@ -70,19 +105,19 @@ const ARENAS = {
   med_square: { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square' },
   med_circle: { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle' },
   med_rect:   { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect' },
-  med_square_trap:  { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square ⚡', traps:{ pillars:3, lightning:1 } },
-  med_circle_trap:  { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle ⚡', traps:{ pillars:3, lightning:1 } },
-  med_rect_trap:    { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect ⚡',   traps:{ pillars:3, lightning:1 } },
-  med_square_trap2: { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square ⚔', traps:{ pillars:3, scythe:true } },
-  med_circle_trap2: { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle ⚔', traps:{ pillars:3, scythe:true } },
-  med_rect_trap2:   { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect ⚔',   traps:{ pillars:3, scythe:true } },
+  med_square_trap:  { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square ⚡', traps:{ pillars:5, lightning:1 } },
+  med_circle_trap:  { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle ⚡', traps:{ pillars:5, lightning:1 } },
+  med_rect_trap:    { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect ⚡',   traps:{ pillars:5, lightning:1 } },
+  med_square_trap2: { type:'square', x:190, y:190, w:620, h:620, size:'medium', label:'M. Square ⚔', traps:{ pillars:5, scythe:true } },
+  med_circle_trap2: { type:'circle', cx:500, cy:500, r:290, size:'medium', label:'M. Circle ⚔', traps:{ pillars:5, scythe:true } },
+  med_rect_trap2:   { type:'rect',   x:125, y:250, w:750, h:500, size:'medium', label:'M. Rect ⚔',   traps:{ pillars:5, scythe:true } },
   // ── Large (7–12) ──────────────────────────────────────────────────
   large_square: { type:'square', x:90, y:90, w:820, h:820, size:'large', label:'L. Square' },
   large_circle: { type:'circle', cx:500, cy:500, r:370, size:'large', label:'L. Circle' },
   large_rect:   { type:'rect',   x:50, y:175, w:900, h:650, size:'large', label:'L. Rect' },
-  large_square_trap: { type:'square', x:90, y:90, w:820, h:820, size:'large', label:'L. Square ⚠', traps:{ pillars:5, scythe:true } },
-  large_circle_trap: { type:'circle', cx:500, cy:500, r:370, size:'large', label:'L. Circle ⚠', traps:{ pillars:5, scythe:true } },
-  large_rect_trap:   { type:'rect',   x:50, y:175, w:900, h:650, size:'large', label:'L. Rect ⚠',   traps:{ pillars:5, scythe:true } },
+  large_square_trap: { type:'square', x:90, y:90, w:820, h:820, size:'large', label:'L. Square ⚠', traps:{ pillars:7, scythe:true } },
+  large_circle_trap: { type:'circle', cx:500, cy:500, r:370, size:'large', label:'L. Circle ⚠', traps:{ pillars:7, scythe:true } },
+  large_rect_trap:   { type:'rect',   x:50, y:175, w:900, h:650, size:'large', label:'L. Rect ⚠',   traps:{ pillars:7, scythe:true } },
   // ── Hole arenas — Small ───────────────────────────────────────────
   hole_sq_c_s:    { type:'hole_sq', x:300, y:300, w:400, h:400, size:'small',  label:'S.Sq ●',   holes:[{shape:'circle',cx:500,cy:500,r:65}] },
   hole_sq_sq_s:   { type:'hole_sq', x:300, y:300, w:400, h:400, size:'small',  label:'S.Sq ■',   holes:[{shape:'square',x:440,y:440,w:120,h:120}] },
@@ -110,11 +145,6 @@ const ARENAS = {
     events: [{ type: 'spawn_hole', interval: 1800, holeR: 55, maxHoles: 5 }],
     dynamicHoles: [],
   },
-  tempest_octagon: {
-    type: 'octagon', cx: 500, cy: 500, r: 275,
-    size: 'medium', label: '💨 Tempest Octagon',
-    events: [{ type: 'wind_gust', interval: 900, power: 9, duration: 90 }],
-  },
   shrinking_ring: {
     type: 'circle', cx: 500, cy: 500, r: 350,
     size: 'large', label: '⚠️ Shrinking Ring',
@@ -127,11 +157,24 @@ const ARENAS = {
   },
 };
 
+// BALL_COLORS — palette màu mặc định cho 6 ball đầu tiên khi dùng legacy color picker.
+// Từ ball thứ 7 trở đi, generateRadoserColor() sinh màu động dựa theo index.
 const BALL_COLORS = ['#4488ff', '#ff4455', '#44cc88', '#ffaa22', '#cc44ff', '#ff88aa'];
 
 // ── Config-overridable formula constants ──────────────────
 // Consumed by ball.js constructor (STAT_FORMULAS) and getDamage() (COMBAT_FORMULAS).
 // config-loader.js snapshots these at load time so reset always restores true defaults.
+
+// ─── STAT_FORMULAS ──────────────────────────────────────────
+// Công thức tính chỉ số cơ bản của Ball từ stat — dùng trong Ball constructor.
+// User có thể override bằng Config Loader (Debug mode → 📂 Config → tab Formula).
+//
+//   hp.base + hp.perDur × DUR       → maxHP (DUR=10 → 150 HP)
+//   speed.base + speed.perSpd × SPD → maxSpeed (SPD=10 → 22)
+//   crit.chancePerIQ × IQ           → critChance (IQ=10 → 30%)
+//   crit.baseMult + (IQ>10? extraPerIQAbove10×(IQ-10): 0) → critMult (crit nhân dame bao nhiêu)
+//   evade.perBIQ × BIQ              → evadeChance (BIQ=10 → 20%)
+//   deflect.perMA × MA              → deflectChance (weapon deflect projectile, MA=10 → 20%)
 window.STAT_FORMULAS = {
   hp:      { base: 50,  perDur: 10  },
   speed:   { base: 7,   perSpd: 1.5 },
@@ -140,6 +183,14 @@ window.STAT_FORMULAS = {
   deflect: { perMA:  0.02 },
 };
 
+// ─── COMBAT_FORMULAS ────────────────────────────────────────
+// Hệ số tính dame trong chiến đấu — dùng trong Ball.getDamage().
+//
+//   rageMult         — nhân dame khi Rage Mode bật (sau rageThresholdSec giây)
+//   rageThresholdSec — giây để kích hoạt Rage Mode (80s mặc định)
+//   strMult          — hệ số nhân STR vào dame (1.0 = tuyến tính, STR=10 → ×10)
+//   daggerMAScaling  — dagger: base += MA × 0.15, rồi nhân STR (MA scale thấp hơn fists)
+//   fistsMAFlat      — fists: dmg += MA × 0.5 FLAT sau STR (không nhân vào base, tránh triple-scale)
 window.COMBAT_FORMULAS = {
   rageMult:         1.5,
   rageThresholdSec: 80,
@@ -148,62 +199,100 @@ window.COMBAT_FORMULAS = {
   fistsMAFlat:      0.5,
 };
 
+// ─── SKILL_FORMULAS ─────────────────────────────────────────
+// Tham số cho ~30 skill — được đọc bởi skills.js, ball.js, collision.js.
+// Mỗi key = skillId khớp với SKILL_DEFS trong skills.js.
+// User có thể override bằng Config Loader.
 window.SKILL_FORMULAS = {
-  // Passive stat bonuses
-  iron_body:       { hpBonus: 20 },
-  swift:           { speedMult: 1.15 },
-  sharp_eye:       { critBonus: 0.10 },
-  heavy_mass:      { massMult: 1.30 },
-  // Healing
-  vampiric:        { healPct: 0.05 },
-  // Outgoing damage mults
+  // ── Passive stat bonuses — áp dụng trong Ball constructor ──
+  iron_body:       { hpBonus: 20 },          // +20 HP flat
+  swift:           { speedMult: 1.15 },      // ×1.15 maxSpeed
+  sharp_eye:       { critBonus: 0.10 },      // +10% crit chance
+  heavy_mass:      { massMult: 1.30 },       // ×1.30 mass (knockback nặng hơn khi nhận hit)
+
+  // ── Healing ────────────────────────────────────────────────
+  vampiric:        { healPct: 0.05 },        // hồi 5% dame gây ra thành HP mỗi hit
+
+  // ── Outgoing damage mults — nhân vào getDamage() ──────────
   berserker:       { hpThreshold: 0.30, baseMult: 1.2, iqScaling: 0.03 },
+  // Khi HP < 30%: mult = 1.2 + IQ×0.03. IQ=10 → ×1.5 dame
   war_cry:         { baseMult: 1.5,  iqScaling: 0.05 },
+  // Lần đánh sau khi kích hoạt: 1.5 + IQ×0.05. IQ=10 → ×2.0
   counter:         { baseMult: 1.5,  biqScaling: 0.05 },
-  duel_instinct:   { mult: 1.30 },
-  parry_punish:    { mult: 2.0 },
-  brawlers_rhythm: { mult: 2.5 },
-  flurry_finisher: { mult: 2.5 },
-  heavy_momentum:  { perStack: 0.20 },
-  // Incoming damage reduction
-  thick_hide:      { reduction: 0.10 },
+  // Sau khi nhận đòn: 1.5 + BIQ×0.05. BIQ=10 → ×2.0
+  duel_instinct:   { mult: 1.30 },           // ×1.30 khi chỉ còn 2 ball trên sân
+  parry_punish:    { mult: 2.0 },            // ×2.0 đòn đánh ngay sau khi parry thành công
+  brawlers_rhythm: { mult: 2.5 },            // ×2.5 sau 3 lần parry liên tiếp (stack reset)
+  flurry_finisher: { mult: 2.5 },            // ×2.5 sau 5 lần hit liên tiếp không bị parry
+  heavy_momentum:  { perStack: 0.20 },       // +20% dame mỗi stack (tăng khi di chuyển nhanh)
+
+  // ── Incoming damage reduction — áp dụng trong takeDamage() ─
+  thick_hide:      { reduction: 0.10 },      // giảm 10% mọi damage nhận vào
   adaptation:      { baseReduction: 0.15, biqScaling: 0.02, maxReduction: 0.35 },
+  // Giảm 15% + BIQ×2% damage, tối đa 35%. BIQ=10 → 35% (đạt max)
   guard_stance:    { perBIQ: 0.03, maxReduction: 0.30 },
+  // Giảm BIQ×3%, tối đa 30%. BIQ=10 → 30%
   fortify:         { baseAbsorb: 10, perBIQ: 2 },
-  // Projectile skills
-  predator:        { mult: 1.15 },
+  // Mỗi hit hấp thụ (10 + BIQ×2) damage flat trước khi tính reduction
+
+  // ── Projectile skills — áp dụng trong collision.resolveProjectiles() ─
+  predator:        { mult: 1.15 },           // ×1.15 dame projectile khi target đang chậm/stun
   sniper:          { baseMult: 1.4, iqScaling: 0.03 },
+  // ×(1.4 + IQ×0.03) dame projectile thẳng. IQ=10 → ×1.7
   volley:          { baseMult: 1.5, iqScaling: 0.05 },
-  bounce_damage:   { perBounce: 0.15 },
+  // ×(1.5 + IQ×0.05) cho đợt bắn volley (nhiều mũi). IQ=10 → ×2.0
+  bounce_damage:   { perBounce: 0.15 },      // +15% dame sau mỗi lần nảy tường
   ricochet_kill:   { mult: 2.0, minBounces: 2 },
-  // Melee proc skills
+  // ×2.0 dame nếu projectile đã nảy ≥2 lần trước khi trúng
+
+  // ── Melee proc skills — trig ngẫu nhiên trong _checkWeaponHit() ─
   exploit:         { chancePerCombinedStat: 0.01, baseMult: 1.5, iqScaling: 0.05 },
+  // Chance = (STR+IQ)×1% kích hoạt: ×(1.5 + IQ×0.05). STR=IQ=10 → 20% chance, ×2.0
   reapers_mark:    { mult: 1.80, hpThreshold: 0.30 },
+  // ×1.80 dame khi mục tiêu dưới 30% HP
 };
 
+// ─── RACE_FORMULAS ──────────────────────────────────────────
+// Tham số cho mechanic đặc biệt theo race — đọc bởi ball.js và skills.js.
 window.RACE_FORMULAS = {
   human: {
     limitBreak: {
-      hpThreshold:     0.20,
-      speedMult:       1.5,
-      exhaustionMult:  0.7,
-      perStack:        0.15,
-      durationFrames:  480,
+      // Kích hoạt khi HP < 20%: tăng tốc ×1.5, kéo dài 480 frame (8 giây @ 60fps)
+      // Sau khi hết: exhaustion → speed ×0.7 trong vài giây
+      // Mỗi lần kích hoạt thêm: +15% dame (perStack), stack không giới hạn
+      hpThreshold:     0.20,  // ngưỡng HP để kích hoạt
+      speedMult:       1.5,   // nhân tốc độ khi Limit Break
+      exhaustionMult:  0.7,   // nhân tốc độ sau khi Limit Break hết
+      perStack:        0.15,  // +15% dame per stack tích lũy
+      durationFrames:  480,   // 480f = 8 giây
     },
   },
   orc: {
     bloodPrice: {
+      // Sau mỗi 5 lần nhận damage (stackThreshold): kích nổ burst damage
+      // Burst dame = STR × 0.15 × số stack (burstDmgPerSTR)
       stackThreshold:  5,
       burstDmgPerSTR:  0.15,
     },
   },
   dwarf: {
     sharpness: {
+      // Mỗi lần hit tích 1 stack Sharpness: +5% dame/stack
+      // Stack reset khi bị parry hoặc khi nhận đòn
       perStack: 0.05,
     },
   },
 };
 
+// ─── generateRadoserColor ───────────────────────────────────
+// Sinh màu hex duy nhất cho ball theo index, đảm bảo màu kế tiếp luôn cách xa nhau nhất.
+// Tham số: index (number) — thứ tự ball (0-based)
+// Trả về: string hex — ví dụ '#4a8fc2'
+//
+// Thuật toán Golden Angle: mỗi index dịch thêm 137.508° trên vòng tròn màu (hue).
+// 137.508 = 360° × (1 - 1/φ) với φ = golden ratio ≈ 1.618.
+// Kết quả: không bao giờ lặp lại màu dù có hàng trăm ball, và 2 màu liền kề luôn trông khác nhau.
+// Saturation 65–89% và Lightness 52–68% → màu tươi sáng, không quá nhạt hay tối.
 // Generate a unique ball color using golden-ratio hue distribution
 // — guarantees max visual distance between adjacent colors, no repeat ever
 function generateRadoserColor(index) {

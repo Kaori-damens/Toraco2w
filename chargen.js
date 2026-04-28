@@ -1,13 +1,35 @@
 // ============================================================
 // CHARGEN FLOW
 // ============================================================
+// ─── Tổng quan ───────────────────────────────────────────────
+// Hệ thống tạo nhân vật dạng "spin wheel từng bước":
+//   14 bước: name → race → subrace → str → spd → dur → iq → biq → ma
+//            → hasweapon → weapon → skillcount → skillpick → done
+//
+// cgState: object lưu kết quả từng bước trong phiên tạo hiện tại
+// cgRoster: mảng nhân vật đã tạo, persist vào localStorage
+//
+// Flow chính:
+//   initChargen()  → reset cgState, show màn chargen, gọi renderCgStep()
+//   renderCgStep() → render UI cho bước hiện tại (spin wheel hoặc text input)
+//   advanceCg()    → move đến bước tiếp theo, gọi lại renderCgStep()
+//
+// Một số bước bị skip tự động:
+//   • subrace: skip nếu race không có subKey
+//   • iq:      auto set = 1 nếu race = skeleton
+//   • hasweapon: skip nếu subrace đảm bảo có vũ khí (Goblin ×100k, Human Trắng…)
+//
+// Mode đặc biệt:
+//   quickCreateMode — tạo nhanh với tên preset, skip màn name
+//   cgDraftMode     — tạo cho championship draft, lọc demon sins đã claim
+
 const CHARGEN_STEPS = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','weapon','skillcount','skillpick','done'];
 let cgState = null;
-let cgRoster = JSON.parse(localStorage.getItem('cgRoster') || '[]');
+let cgRoster = JSON.parse(localStorage.getItem('cgRoster') || '[]'); // persist qua localStorage
 let quickCreateMode = false;
-let quickCreateName = ''; // custom name from prompt
-let cgDraftMode = false;  // true when creating for championship draft
-let _cgpAnimId = null;    // rAF handle for preview ball animation
+let quickCreateName = ''; // tên tùy chỉnh cho quick create
+let cgDraftMode = false;  // true khi tạo nhân vật cho championship draft
+let _cgpAnimId = null;    // rAF handle cho preview ball animation (cancel khi initChargen)
 
 // ── DEBUG HELPER ─────────────────────────────────────────────
 // Appends a debug quick-pick panel below any chargen spin wheel.
@@ -27,8 +49,13 @@ function _cgDebug(box, title, items) {
   if (reroll) reroll.onclick = () => renderCgStep();
 }
 
+// ─── initChargen ─────────────────────────────────────────────
+// Reset hoàn toàn cgState và bắt đầu flow từ bước 'name'.
+// Gọi từ nút "Tạo nhân vật mới" hoặc khi bắt đầu quick/draft create.
+// Tham số: không có
+// Trả về: không có
 function initChargen() {
-  if (_cgpAnimId) { cancelAnimationFrame(_cgpAnimId); _cgpAnimId = null; }
+  if (_cgpAnimId) { cancelAnimationFrame(_cgpAnimId); _cgpAnimId = null; } // dừng animation preview cũ
   // Remove done-step layout modifier if present
   document.querySelector('.cg-layout')?.classList.remove('cg-layout-done');
   cgState = {
@@ -57,6 +84,12 @@ function renderCgDots() {
   ).join('');
 }
 
+// ─── renderCgStep ────────────────────────────────────────────
+// Render UI cho bước hiện tại (cgState.step) vào div#cg-content.
+// Mỗi bước gọi hàm render riêng: cgRenderName / cgRenderSpin / cgRenderDone…
+// Debug mode: thêm quick-pick buttons bên dưới wheel qua _cgDebug().
+// Tham số: không có (đọc cgState.step)
+// Trả về: không có
 function renderCgStep() {
   renderCgDots();
   const box = document.getElementById('cg-content');
@@ -83,7 +116,8 @@ function renderCgStep() {
     const srAll = CG_SUBRACES[cgState.race.subKey];
     if (!srAll) { advanceCg(); return; }
 
-    // Demon in championship draft: filter wheel to available sins only
+    // Championship draft: Demon chỉ được roll các sin chưa ai dùng trong draft
+    // Mỗi sin (Lucifer, Mammon…) là unique — đã claim thì không ai roll được nữa
     let sr = srAll;
     if (cgState.race.id === 'demon' && cgDraftMode && typeof getAvailableDemonSins === 'function') {
       sr = getAvailableDemonSins();
@@ -158,7 +192,10 @@ function renderCgStep() {
     if (race === 'human' && srLabel === 'Đen' && sk === 'durability')
       constraintNote = ' <span style="opacity:0.55;font-size:0.75em">(min 5)</span>';
 
-    // Default flat-delta transform and onResult
+    // statTransform: function biến đổi label hiển thị khi wheel đang quay
+    //   nhận (weight, idx) → trả string HTML hiện ở giữa wheel
+    //   delta ≠ 0: hiển thị "adj (rolled raw, ±delta subrace)"
+    // onStatResult: callback khi wheel dừng — lưu giá trị cuối vào cgState.stats[sk]
     let statTransform = delta !== 0 ? (_w, idx) => {
       const raw = idx + 1;
       const adj = Math.max(1, raw + delta);
@@ -167,7 +204,8 @@ function renderCgStep() {
     } : null;
     let onStatResult = (_w, idx) => { cgState.stats[sk] = Math.max(1, idx + 1 + delta); advanceCg(); };
 
-    // ── GIANT TRAIT: compare STR vs IQ right when IQ lands ──
+    // ── GIANT TRAIT: so sánh STR vs IQ khi IQ vừa roll xong ──
+    // Giant trait: stat cao hơn +5, stat thấp hơn -5 | bằng nhau: cả hai +3
     if (sk === 'iq' && race === 'giant') {
       statTransform = (_w, idx) => {
         const rawIQ  = Math.max(1, idx + 1 + delta);
@@ -205,7 +243,8 @@ function renderCgStep() {
       };
     }
 
-    // ── GOD OF STRENGTH: STR guaranteed ≥10; roll 10 → STR doubled (→20) ──
+    // ── GOD SUBRACE OVERRIDES: mỗi God subrace đảm bảo 1 stat ≥10, roll 10 → ×2 ──
+    // Áp dụng từng stat khi bước đó đến: Surtr=STR, Raijin=SPD, Thoth=IQ, Athena=BIQ, Shiva=MA, Atlas=DUR
     if (sk === 'strength' && race === 'god' && srLabel === 'Blessed by Surtr') {
       statTransform = (_w, idx) => {
         const raw = idx + 1;
@@ -265,7 +304,9 @@ function renderCgStep() {
       onStatResult = (_w, idx) => { cgState.stats.durability = (idx + 1 >= 10) ? 20 : 10; advanceCg(); };
     }
 
-    // ── LAST-STAT EFFECTS: Dragon Flame / Primordial Air/Water applied at MA ──
+    // ── LAST-STAT EFFECTS: Dragon Flame / Primordial Air/Water áp dụng khi roll MA ──
+    // MA là stat cuối cùng → lúc này đã biết toàn bộ stats → tính effect dựa trên min/max stat
+    // Dragon Flame: +2 vào stat thấp nhất | Primordial Air: +1 stat thấp nhất | Water: +1 stat cao nhất
     if (sk === 'ma') {
       const hasLastEffect = (race === 'dragon' && srLabel === 'Flame') ||
                             (race === 'primordial' && (srLabel === 'Air' || srLabel === 'Water'));
@@ -1013,8 +1054,11 @@ function openDebugRadoser() {
   const allWeapons = [
     ...CG_WEAPONS_ARMED,
     { id:'fists',  label:'✊ Fists (Unarmed)' },
-    { id:'rapier', label:'🤺 Rapier [FORBIDDEN]' },
-    { id:'katana', label:'⚔️ Katana [FORBIDDEN]' },
+    { id:'rapier',    label:'🤺 Rapier [FORBIDDEN]' },
+    { id:'katana',    label:'⚔️ Katana [FORBIDDEN]' },
+    { id:'lance',     label:'🏇 Lance [FORBIDDEN]' },
+    { id:'chakram', label:'🥏 Chakram [FORBIDDEN]' },
+    { id:'flail',     label:'⛓️ Flail [FORBIDDEN]' },
     ...uniqueWeapons,
   ];
   weaponEl.innerHTML = allWeapons.map(w => `<option value="${w.id}">${w.label}</option>`).join('');

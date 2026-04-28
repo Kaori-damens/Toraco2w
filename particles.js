@@ -1,63 +1,117 @@
 // ============================================================
 // PARTICLES
 // ============================================================
+// File này gộp nhiều hệ thống hiệu ứng hình ảnh và UI log:
+//
+//   Particles (mảng `particles`):
+//     spawnSparks()         — tia lửa vàng khi weapon va chạm
+//     spawnBlood()          — vảy máu đỏ khi nhận dame
+//     spawnDeathExplosion() — nổ tung khi ball chết
+//     spawnDamageNumber()   — số dame nổi lên (floating text)
+//     updateParticles()     — cập nhật vị trí + vòng đời mỗi frame
+//     drawParticles()       — render lên canvas
+//
+//   Big Announcements (mảng `bigAnnouncements`):
+//     spawnBigAnnouncement()       — chữ lớn giữa màn (Speed Floor, Rage Mode...)
+//     updateDrawBigAnnouncements() — update + draw trong 1 pass
+//
+//   Weapon Scale Helpers:
+//     getBallScaleVal()  — giá trị số của weapon scale hiện tại (để vẽ chart)
+//     getBallScaleUnit() — đơn vị đo của scale ('+dmg', 'arrows', 'stars'...)
+//
+//   Stats Log Chart:
+//     drawStatsChart(metric) — vẽ biểu đồ speed/spin/dmg/scale lên canvas
+//     showStatsModal()       — mở modal chart
+//
+//   Battle Log:
+//     addBattleLog(type, data) — thêm event vào state.battleLog[]
+//     getBlogText(e)           — render 1 event thành HTML string
+//     updateLiveLog()          — cập nhật HUD live log (8 entry cuối)
+//     showBattleLogModal()     — mở modal toàn bộ battle log
+
+// Mảng particles toàn cục — tất cả spark/blood/death/number đang active
 const particles = [];
 
+// ─── spawnSparks ────────────────────────────────────────────
+// Spawn tia lửa màu vàng/cam khi weapon đánh trúng (parry, hit).
+// Tham số: x, y (number) — vị trí va chạm; count (number) — số tia
+// Tia bắn ngẫu nhiên mọi hướng (angle 0–2π), speed 2–6, sống 20–35 frame
 function spawnSparks(x, y, count) {
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2;
     const sp = 2 + Math.random() * 4;
     particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
       life: 20 + Math.random()*15, maxLife: 35,
-      color: `hsl(${40+Math.random()*20},100%,${60+Math.random()*30}%)`,
+      color: `hsl(${40+Math.random()*20},100%,${60+Math.random()*30}%)`, // vàng-cam
       r: 2 + Math.random()*2, type: 'spark' });
   }
 }
 
+// ─── spawnBlood ─────────────────────────────────────────────
+// Spawn vảy máu màu đỏ theo hướng knockback.
+// Tham số: x, y — vị trí; count — số vảy; dir (radian) — hướng bắn chính
+// Góc lệch ±90° (Math.PI) quanh dir → máu bắn hình quạt về phía sau ball
 function spawnBlood(x, y, count, dir) {
   for (let i = 0; i < count; i++) {
-    const a = dir + (Math.random()-0.5) * Math.PI;
+    const a = dir + (Math.random()-0.5) * Math.PI; // ±90° quanh hướng nhận dame
     const sp = 1.5 + Math.random() * 3;
     particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
       life: 18 + Math.random()*10, maxLife: 28,
-      color: `hsl(0,90%,${40+Math.random()*20}%)`,
+      color: `hsl(0,90%,${40+Math.random()*20}%)`, // đỏ thẫm–đỏ sáng
       r: 2 + Math.random()*2, type: 'blood' });
   }
 }
 
+// ─── spawnDeathExplosion ─────────────────────────────────────
+// Nổ 30 mảnh khi ball chết: 15 mảnh màu ball + 15 mảnh màu ngẫu nhiên.
+// Tham số: x, y — vị trí chết; color — màu hex của ball
+// Sống 35–60 frame, r 3–8px — lớn hơn spark để ấn tượng hơn
 function spawnDeathExplosion(x, y, color) {
   for (let i = 0; i < 30; i++) {
     const a = Math.random() * Math.PI * 2;
     const sp = 2 + Math.random() * 6;
     particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
       life: 35 + Math.random()*25, maxLife: 60,
-      color: i < 15 ? color : `hsl(${Math.random()*360},80%,60%)`,
+      color: i < 15 ? color : `hsl(${Math.random()*360},80%,60%)`, // nửa màu ball, nửa rainbow
       r: 3 + Math.random()*5, type: 'death' });
   }
 }
 
+// ─── Big Announcements ──────────────────────────────────────
+// Chữ lớn hiện giữa màn cho các sự kiện quan trọng:
+//   "⚡ SPEED FLOOR", "🔥 RAGE MODE", "💀 LICH ASCENSION!" v.v.
+// Sống 180 frame (3 giây @ 60fps), trượt lên + fade out cuối.
 // Big centre announcement (Speed Floor, Rage Mode, etc.)
 const bigAnnouncements = [];
+
+// ─── spawnBigAnnouncement ───────────────────────────────────
+// Tham số: text (string) — nội dung hiển thị; color (string hex) — màu glow
+// SFX: RAGE → tone thấp 220Hz, khác → 440Hz (sawtooth = âm sắc bén)
 function spawnBigAnnouncement(text, color) {
   bigAnnouncements.push({ text, color, life: 180, maxLife: 180 });
   // also SFX
   playTone(text.includes('RAGE') ? 220 : 440, 'sawtooth', 0.35, 0.08, 0.4);
 }
+
+// ─── updateDrawBigAnnouncements ─────────────────────────────
+// Update vòng đời + draw tất cả announcement đang active.
+// Tham số: ctx — canvas context
+// Animation: zoom in (0.6→1.0) trong 25% đầu, slide lên 30px, fade out 40f cuối
 function updateDrawBigAnnouncements(ctx) {
   for (let i = bigAnnouncements.length - 1; i >= 0; i--) {
     const a = bigAnnouncements[i];
     a.life--;
     if (a.life <= 0) { bigAnnouncements.splice(i, 1); continue; }
-    const progress = 1 - a.life / a.maxLife;
-    const alpha    = a.life < 40 ? a.life / 40 : 1;
-    const scale    = 0.6 + 0.4 * Math.min(1, progress * 4);
-    const y        = CH / 2 - 40 - progress * 30;
+    const progress = 1 - a.life / a.maxLife;        // 0.0→1.0 theo thời gian
+    const alpha    = a.life < 40 ? a.life / 40 : 1; // fade out khi còn <40f
+    const scale    = 0.6 + 0.4 * Math.min(1, progress * 4); // zoom in nhanh trong 25% đầu
+    const y        = CH / 2 - 40 - progress * 30;   // trượt lên dần 30px
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.textAlign  = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `900 ${Math.floor(38 * scale)}px 'Segoe UI', sans-serif`;
-    // shadow
+    // shadow — offset (2,2) để tạo chiều sâu
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillText(a.text, CW / 2 + 2, y + 2);
     // glow
@@ -69,7 +123,17 @@ function updateDrawBigAnnouncements(ctx) {
   }
 }
 
-// ── Weapon scale numeric value (for chart) ──
+// ─── getBallScaleVal / getBallScaleUnit ─────────────────────
+// Đọc giá trị hiện tại của weapon scale để vẽ trên biểu đồ Stats Chart.
+// Mỗi weapon scale theo một chỉ số khác nhau:
+//   fists   → attackCooldown (giảm = nhanh hơn)
+//   sword   → bonusDamage (tăng dần qua scale)
+//   dagger  → spinBonus ×100 (dễ đọc hơn)
+//   bow     → arrowCount (số mũi mỗi shot)
+//   scythe  → hits (đếm đến 5 thì scale)
+//   hammer  → bonusKnockback
+//   shuriken→ shurikenCount
+// Trả về: number (giá trị thô) | string (đơn vị hiển thị trên legend)
 function getBallScaleVal(ball) {
   const def = ball.weaponDef, w = ball.weapon;
   if (!def || !w) return 0;
@@ -101,6 +165,11 @@ function getBallScaleUnit(ball) {
   }
 }
 
+// ─── Stats Log Chart ────────────────────────────────────────
+// Biểu đồ vẽ giá trị speed/spin/dmg/scale của từng ball theo giây.
+// state.statsLog[] — snapshot mỗi giây trong game-loop.
+// drawStatsChart(metric) — vẽ line chart lên <canvas id="stats-chart-canvas">.
+// _activeChart — tab đang chọn (speed | spin | dmg | scale).
 // ── Stats Log (per-second charts) ──
 let _activeChart = 'speed';
 
@@ -225,18 +294,31 @@ function showStatsModal() {
   setTimeout(() => drawStatsChart(_activeChart), 30);
 }
 
+// ─── Battle Log System ──────────────────────────────────────
+// Ghi lại mọi sự kiện chiến đấu vào state.battleLog[].
+// Mỗi entry: { time: 'MM:SS', type: string, ...extra data }
+// type có thể là: 'hit' | 'crit' | 'evade' | 'parry' | 'parry_fists' |
+//   'proj' | 'proj_crit' | 'proj_evade' | 'heal' | 'race_skill' |
+//   'lunge_trigger' | 'lunge_hit' | 'iai' | 'skill_trigger' | 'weapon_scale'
+//
+// Live log HUD: hiện 8 entry cuối (updateLiveLog → #live-log-entries).
+// Modal: hiện toàn bộ (showBattleLogModal → #battle-log-scroll).
 // ── Battle Log System ──
 function getBallLabel(ball) {
   return ball?.charName ?? ball?.weaponDef?.name ?? 'Unknown';
 }
 
+// ─── addBattleLog ───────────────────────────────────────────
+// Thêm 1 event vào state.battleLog[] với timestamp MM:SS.
+// Tham số: type (string) — loại event; data (object) — payload event
+// state.matchTime / 60 → giây, rồi format thành MM:SS
 function addBattleLog(type, data) {
   if (!state.battleLog) state.battleLog = [];
-  const secs = state.matchTime / 60;
+  const secs = state.matchTime / 60; // frame → giây
   const mm = String(Math.floor(secs / 60)).padStart(2, '0');
   const ss = String(Math.floor(secs % 60)).padStart(2, '0');
   state.battleLog.push({ time: `${mm}:${ss}`, type, ...data });
-  updateLiveLog();
+  updateLiveLog(); // cập nhật HUD live log ngay lập tức
 }
 
 function getBlogText(e) {
@@ -305,6 +387,11 @@ function showBattleLogModal() {
   setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 50);
 }
 
+// ─── spawnDamageNumber ──────────────────────────────────────
+// Spawn floating text (số dame, race event, skill trigger...) nổi lên trên arena.
+// Tham số: x, y — vị trí spawn; num (number|string) — dame hoặc text tuỳ ý; color — màu text
+// Nếu num là number → tự thêm dấu "-" (ví dụ: -25). Nếu là string → dùng nguyên.
+// Particle type 'num': không bị gravity, chỉ drift nhẹ và trôi lên (vy=-2)
 function spawnDamageNumber(x, y, num, color) {
   const text = typeof num === 'string' ? num : `-${Math.round(num)}`;
   particles.push({ x, y: y-10, vx: (Math.random()-0.5)*1.5, vy: -2,
@@ -312,22 +399,31 @@ function spawnDamageNumber(x, y, num, color) {
     text, color, type: 'num', r: 0 });
 }
 
+// ─── updateParticles ────────────────────────────────────────
+// Cập nhật vật lý tất cả particle mỗi frame:
+//   - Vị trí: += vx/vy
+//   - Gravity (type != 'num'): vy += 0.08 (rơi xuống nhẹ), vx *= 0.94 (ma sát)
+//   - Life: giảm mỗi frame, khi = 0 xóa khỏi mảng (duyệt ngược để safe splice)
 function updateParticles() {
   for (let i = particles.length-1; i >= 0; i--) {
     const p = particles[i];
     p.life--;
     p.x += p.vx; p.y += p.vy;
     if (p.type !== 'num') {
-      p.vy += 0.08;
-      p.vx *= 0.94;
+      p.vy += 0.08;  // gravity nhẹ — spark/blood/death rơi xuống
+      p.vx *= 0.94;  // ma sát — decelerates horizontally
     }
     if (p.life <= 0) particles.splice(i, 1);
   }
 }
 
+// ─── drawParticles ──────────────────────────────────────────
+// Vẽ tất cả particle lên canvas.
+// type 'num': text với outline đen (strokeText trước fillText để dễ đọc)
+// type khác: hình tròn (arc) mờ dần theo alpha = life/maxLife
 function drawParticles(ctx) {
   for (const p of particles) {
-    const alpha = p.life / p.maxLife;
+    const alpha = p.life / p.maxLife; // 1.0 lúc mới spawn → 0.0 khi hết life
     if (p.type === 'num') {
       ctx.save();
       ctx.globalAlpha = alpha;

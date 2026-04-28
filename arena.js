@@ -1,6 +1,28 @@
 // ============================================================
 // ARENA HELPERS
 // ============================================================
+// File này xử lý tất cả tương tác vật lý và render liên quan đến arena:
+//
+//   checkArenaWall(x,y,r,arena,skipHoles) — phát hiện va chạm (trả về normal)
+//   clampToBall(ball, arena)              — đẩy ball ra khỏi tường + bounce velocity
+//   _jitterVelocity(ball)                 — thêm nhiễu ±2° sau mỗi bounce (tránh stuck loop)
+//   getEyeColor(ball)                     — hash màu ball → màu mắt từ palette
+//   drawRaceDecoration(ctx, ball)         — vẽ trang trí theo race (tai, sừng, cánh, đuôi...)
+//   drawArena(ctx, arena)                 — vẽ nền arena (fill + border + grid)
+//   _drawHoleArena(ctx, arena)            — helper vẽ arena với lỗ hổng (even-odd rule)
+//
+// Hai hàm checkArenaWall + clampToBall dùng cùng logic nhưng khác mục đích:
+//   checkArenaWall — chỉ phát hiện + trả về { nx, ny } (dùng cho projectile bounce)
+//   clampToBall    — modify trực tiếp ball.x/y/vx/vy (dùng cho ball trong game-loop)
+
+// ─── checkArenaWall ─────────────────────────────────────────
+// Kiểm tra nếu hình tròn (x,y,r) chạm vào tường arena.
+// Tham số:
+//   x, y   (number) — vị trí kiểm tra (tâm)
+//   r      (number) — bán kính
+//   arena  (object) — config arena từ ARENAS
+//   skipHoles (bool) — true = bỏ qua hố bên trong (cho projectile)
+// Trả về: { nx, ny } (outward normal tại điểm chạm) hoặc null nếu không chạm
 // skipHoles = true → projectiles fly over inner holes (only outer boundary applies)
 function checkArenaWall(x, y, r, arena, skipHoles = false) {
   if (arena.type === 'circle') {
@@ -123,19 +145,36 @@ function checkArenaWall(x, y, r, arena, skipHoles = false) {
   return null;
 }
 
+// WALL_BOUNCE — hệ số đàn hồi khi nảy tường: 1.0 = đàn hồi hoàn toàn (không mất speed)
 // How much speed is kept after bouncing off a wall (1.0 = elastic, 0 = inelastic)
 const WALL_BOUNCE = 1.0;
 
+// ─── _jitterVelocity ────────────────────────────────────────
+// Thêm nhiễu ±2° vào vận tốc sau mỗi lần nảy tường.
+// Mục đích: phá vỡ quỹ đạo lặp đều (ball bắn 90° liên tục giữa 2 tường).
+// ±2° nhỏ đến mức mắt người không thấy nhưng đủ để deflect trajectory.
 // Tiny angle jitter after wall bounce — breaks periodic orbits (90°/180° stuck loops)
 // ±2° is invisible to the eye but enough to deflect any repeating trajectory
 function _jitterVelocity(ball) {
   const a = (Math.random() - 0.5) * 0.07; // ±0.035 rad ≈ ±2°
   const c = Math.cos(a), s = Math.sin(a);
+  // Rotation matrix: [cos a, -sin a; sin a, cos a] × (vx, vy)
   const vx = ball.vx * c - ball.vy * s;
   const vy = ball.vx * s + ball.vy * c;
   ball.vx = vx; ball.vy = vy;
 }
 
+// ─── clampToBall ────────────────────────────────────────────
+// Đẩy ball trở vào trong arena nếu nó đã vượt ra ngoài biên.
+// Thay đổi trực tiếp: ball.x, ball.y, ball.vx, ball.vy.
+// Gọi sau mỗi step trong game-loop.
+// Tham số: ball (Ball) — entity cần clamp; arena (object) — config arena
+// Cơ chế bounce:
+//   1. Phát hiện xuyên tường: so sánh ball.x±r với biên
+//   2. Snap position ra biên (tránh stick)
+//   3. Reflect velocity: vx/vy flip + nhân WALL_BOUNCE
+//   4. Dot product check (if dot > 0): chỉ reflect khi đang đi vào tường
+//   5. _jitterVelocity() sau mỗi bounce để tránh stuck loop
 function clampToBall(ball, arena) {
   const r = ball.radius;
   let bounced = false;
@@ -292,6 +331,10 @@ function clampToBall(ball, arena) {
   if (bounced) _jitterVelocity(ball);
 }
 
+// ─── getEyeColor ────────────────────────────────────────────
+// Hash màu ball (hex string) thành màu mắt từ palette 15 màu.
+// Dùng polynomial rolling hash: h = h×31 + charCode (mod 2^16).
+// Cùng màu ball → luôn cho cùng màu mắt (deterministic, không random mỗi frame).
 // Returns a consistent eye color for a ball, hashed from its color string
 function getEyeColor(ball) {
   const EYE_PALETTE = [
@@ -313,6 +356,26 @@ function getEyeColor(ball) {
 //   +X = forward (movement direction)   -X = back (tail)
 //   ±Y = sides (horns, ears, wings)     -Y = above-head (hat, halo)
 // ═══════════════════════════════════════════════════════════════
+// Các race và decoration tương ứng:
+//   goblin    — tai nhọn to, mắt vàng
+//   gnome     — mũ chóp nâu-cam, mắt trắng
+//   human     — tóc nâu, mắt nhạt
+//   dwarf     — râu dài xoắn, mũ kim loại, mắt xanh
+//   skeleton  — eye socket rỗng, mũi tam giác, răng
+//   troll     — tóc xù, sừng tù, mũi to, mắt vàng
+//   orc       — ngà trắng, lông mày nặng, mắt đỏ
+//   giant     — vết nứt đá, pebble, mắt cam (world-space)
+//   dragon    — đuôi vẫy, vảy arc, mắt vàng
+//   angel     — cánh lông, vòng halo (world-space), mắt xanh nhạt
+//   primordial— 3 orb bay quanh, swirl arc, mắt tím
+//   demon     — sừng nhọn, đuôi mũi tên, aura đỏ, mắt đỏ
+//   god       — 8 tia sáng pulse, halo vàng (world-space), mắt vàng
+//
+// Nếu có window._raceAssetOverrides[raceId]: dùng asset editor shape thay thế.
+// ─── drawRaceDecoration ─────────────────────────────────────
+// Tham số: ctx — canvas context; ball — Ball instance (có charRace, color, x, y, vx, vy)
+// fa = góc di chuyển (Math.atan2(vy, vx)) — decoration xoay theo hướng đi
+// ball._deco_fa: lưu lại góc cuối cùng khi spd > 0.3 (tránh flip khi đứng yên)
 function drawRaceDecoration(ctx, ball) {
   if (!ball.charRace) return;
   const raceId = typeof ball.charRace === 'object' ? ball.charRace.id : ball.charRace;
@@ -724,6 +787,11 @@ function drawRaceDecoration(ctx, ball) {
   ctx.restore();
 }
 
+// ─── drawArena ──────────────────────────────────────────────
+// Vẽ nền arena lên canvas: fill màu tối, border, grid dots/lines.
+// Gọi đầu tiên trong render() — lớp dưới cùng.
+// Tham số: ctx — canvas context; arena — config arena từ ARENAS
+// Mỗi arena.type có render logic riêng; hole arenas delegate sang _drawHoleArena().
 function drawArena(ctx, arena) {
   ctx.save();
   ctx.fillStyle = '#0e0e22';
@@ -857,6 +925,13 @@ function drawArena(ctx, arena) {
   ctx.restore();
 }
 
+// ─── _drawHoleArena ─────────────────────────────────────────
+// Helper vẽ arena có lỗ hổng bên trong (hole_sq, hole_re, hole_ci).
+// Kỹ thuật canvas: even-odd fill rule — vùng bị "đục lỗ" bởi path thứ 2 không được fill.
+//   Outer shape (square/circle) + inner holes (circle/square) trong cùng 1 path
+//   → ctx.fill('evenodd') tự động "trừ" lỗ ra khỏi fill
+// Hole border: màu tím phát sáng (shadowBlur glow) để báo hiệu nguy hiểm.
+// Grid: clip đến arena-minus-holes trước khi vẽ (tránh grid xuất hiện trong lỗ)
 function _drawHoleArena(ctx, arena) {
   const isCircOuter = arena.type === 'hole_ci';
   const isRect      = arena.type === 'hole_re';

@@ -1,7 +1,33 @@
 // ============================================================
 // PROJECTILE
 // ============================================================
+// Class đại diện cho một viên đạn / projectile đang bay trong arena.
+// Được tạo bởi Ball._fireSingle() hoặc các skill (Soul Orb, Bone Shard...).
+// Lưu trong state.projectiles[], update mỗi frame bởi game-loop.
+// Va chạm xử lý trong collision.resolveProjectiles().
+//
+// Các type hiện tại:
+//   'arrow'          — Bow / Medusa Bow
+//   'shuriken'       — Shuriken (nảy tường 2 lần)
+//   'fuma_shuriken'  — Fuma Shuriken (nảy 2 lần, lớn dần sau mỗi bounce)
+//   'lightning'      — Mjolnir thunder bolt (nảy tường 2 lần)
+//   'sword_beam'     — Excalibur mode beam (không nảy)
+//   'gungnir'        — Gungnir thrown spear (homing + không nảy)
+//   'soul_orb'       — Demon skill Soul Orb (homing, có lifetimer)
+//   'fire_fist'      — Dragon kick fire fist (homing mạnh hơn soul_orb)
+//   'bone_shard_proj'— Skeleton bone shard (từ pickup trên sân)
+//   'spirit_orb'     — Spirit race orb (nảy 1 lần)
+//   'chakram'        — Chakram (bay ra 40f rồi quay lại owner)
+
 class Projectile {
+  // ─── constructor ────────────────────────────────────────────
+  // Khởi tạo projectile tại vị trí (x,y) với vận tốc (vx,vy).
+  // Tham số:
+  //   x, y     (number) — tọa độ sinh ra
+  //   vx, vy   (number) — vận tốc ban đầu (pixel/frame)
+  //   owner    (Ball)   — ball chủ sở hữu (dùng để bỏ qua collision với chính nó)
+  //   type     (string) — loại projectile (xem list ở trên)
+  //   damage   (number) — dame gây ra khi trúng
   constructor(x, y, vx, vy, owner, type, damage) {
     this.x = x; this.y = y;
     this.vx = vx; this.vy = vy;
@@ -10,13 +36,22 @@ class Projectile {
     this.damage = damage;
     this.alive = true;
     this.bounces = 0;
+    // maxBounces — số lần projectile được phép nảy tường trước khi biến mất
+    // shuriken/fuma_shuriken/lightning: 2 lần, spirit_orb/chakram: 1 lần, còn lại: 0
     this.maxBounces = (type === 'shuriken' || type === 'fuma_shuriken') ? 2
                     : type === 'lightning' ? 2
                     : type === 'spirit_orb' ? 1
+                    : type === 'chakram' ? 1
                     : 0;
     this.immuneFrames = 5;  // brief immunity so it doesn't hit owner instantly
+    // immuneFrames: 5 frame đầu không hit owner — tránh tự bắn vào bản thân ngay lúc spawn
+
     this.lifetimer = -1;    // -1 = no expiry; set after construction for soul_orb etc.
-    this.angle = Math.atan2(vy, vx);
+    // lifetimer: đếm ngược frame, =0 thì biến mất (-1 = sống mãi cho đến khi trúng/nảy hết)
+
+    this.angle = Math.atan2(vy, vx); // góc nhìn (radian), cập nhật mỗi frame để rotate sprite
+
+    // r — bán kính hitbox projectile, khác nhau theo type
     this.r = type === 'arrow' ? 5
            : type === 'sword_beam' ? 10
            : type === 'gungnir' ? 8
@@ -25,25 +60,35 @@ class Projectile {
            : type === 'bone_shard_proj' ? 4
            : type === 'spirit_orb' ? 6
            : type === 'fire_fist' ? 9
+           : type === 'chakram' ? 8
            : 8; // shuriken / fuma_shuriken
   }
 
+  // ─── update ─────────────────────────────────────────────────
+  // Cập nhật vị trí, homing, và va chạm tường mỗi frame.
+  // Tham số: arena (object) — config arena hiện tại (từ ARENAS)
+  // Trả về: không có — thay đổi trực tiếp this.x/y/vx/vy/alive/bounces
   update(arena) {
     if (!this.alive) return;
-    this.x += this.vx;
+    this.x += this.vx; // di chuyển theo vận tốc hiện tại
     this.y += this.vy;
     if (this.immuneFrames > 0) this.immuneFrames--;
     if (this.lifetimer > 0) { this.lifetimer--; if (this.lifetimer === 0) { this.alive = false; return; } }
+
+    // ── Homing logic ─────────────────────────────────────────
+    // Cơ chế: thêm vector nhỏ hướng về target mỗi frame,
+    // sau đó clamp speed về giá trị gốc (tránh accelerate vô hạn).
+    // trackStrength khác nhau: fire_fist (0.09) > soul_orb (0.07) > gungnir (0.06)
 
     // Fire fist tracking (stronger curve than soul orb)
     if (this.type === 'fire_fist' && this.trackTarget?.alive) {
       const dx = this.trackTarget.x - this.x, dy = this.trackTarget.y - this.y;
       const dist = Math.hypot(dx, dy) || 1;
       const spd  = Math.hypot(this.vx, this.vy);
-      this.vx += (dx / dist) * spd * 0.09;
+      this.vx += (dx / dist) * spd * 0.09; // nudge 9% speed về phía target
       this.vy += (dy / dist) * spd * 0.09;
       const ns = Math.hypot(this.vx, this.vy);
-      if (ns > spd * 1.02) { this.vx = this.vx / ns * spd; this.vy = this.vy / ns * spd; }
+      if (ns > spd * 1.02) { this.vx = this.vx / ns * spd; this.vy = this.vy / ns * spd; } // clamp speed
     }
 
     // Soul orb soft tracking
@@ -51,7 +96,7 @@ class Projectile {
       const dx = this.trackTarget.x - this.x, dy = this.trackTarget.y - this.y;
       const dist = Math.hypot(dx, dy) || 1;
       const spd  = Math.hypot(this.vx, this.vy);
-      this.vx += (dx / dist) * spd * 0.07;
+      this.vx += (dx / dist) * spd * 0.07; // nudge 7% — nhẹ hơn fire_fist
       this.vy += (dy / dist) * spd * 0.07;
       const ns = Math.hypot(this.vx, this.vy);
       if (ns > spd * 1.02) { this.vx = this.vx / ns * spd; this.vy = this.vy / ns * spd; }
@@ -70,24 +115,50 @@ class Projectile {
       if (newSpd > spd * 1.02) { this.vx = this.vx/newSpd*spd; this.vy = this.vy/newSpd*spd; }
     }
 
+    // ── Chakram: outward 40f then home back to owner ───────
+    // Giai đoạn 1: bay ra 40f (boomOutTimer)
+    // Giai đoạn 2: returnPhase = true → homing về owner, biến mất khi chạm owner
+    if (this.type === 'chakram') {
+      if (!this.returnPhase) {
+        this.boomOutTimer = (this.boomOutTimer || 0) + 1;
+        if (this.boomOutTimer >= 40) this.returnPhase = true; // sau 40f → quay về
+      }
+      if (this.returnPhase && this.owner) {
+        const dx = this.owner.x - this.x, dy = this.owner.y - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        if (dist < (this.owner.radius || 15) + 12) { this.alive = false; return; } // caught
+        const spd = Math.hypot(this.vx, this.vy);
+        this.vx += (dx / dist) * spd * 0.18; // homing mạnh hơn soul_orb khi về
+        this.vy += (dy / dist) * spd * 0.18;
+        const ns = Math.hypot(this.vx, this.vy);
+        if (ns > spd * 1.02) { this.vx = this.vx/ns*spd; this.vy = this.vy/ns*spd; }
+      }
+    }
+
+    // ── Va chạm tường arena ──────────────────────────────────
+    // skipHoles=true: projectile bay qua vùng hố (chỉ ball mới rơi xuống hố)
+    // Nếu trúng tường: nảy (flip vx/vy theo normal) hoặc biến mất nếu hết maxBounces
     // Arena collision — skipHoles=true so projectiles fly over inner holes
     const hit = checkArenaWall(this.x, this.y, this.r, arena, true);
     if (hit) {
       if (this.bounces < this.maxBounces) {
-        if (hit.nx !== 0) this.vx = -this.vx;
-        if (hit.ny !== 0) this.vy = -this.vy;
+        if (hit.nx !== 0) this.vx = -this.vx; // phản chiếu theo trục X
+        if (hit.ny !== 0) this.vy = -this.vy; // phản chiếu theo trục Y
         this.bounces++;
         if (this.type === 'shuriken' || this.type === 'fuma_shuriken') sfxShurikenBounce();
         // Fuma Shuriken: grow on each bounce
         if (this.type === 'fuma_shuriken') {
-          this.r = Math.min(this.r + 4, 20);
-          this.damage *= 1.6;
+          this.r = Math.min(this.r + 4, 20); // lớn thêm 4px mỗi bounce, tối đa 20px
+          this.damage *= 1.6;                // dame ×1.6 mỗi bounce (exponential escalation)
         }
       } else {
-        this.alive = false;
+        this.alive = false; // hết bounce → biến mất
       }
     }
 
+    // ── Va chạm trụ (pillar) trong PvP map ───────────────────
+    // Shuriken/fuma_shuriken: nảy off pillar (tính vào bounce limit)
+    // Loại khác (arrow, lightning...): biến mất khi chạm trụ
     // Pillar collision (PvP only) — arrow disappears, shuriken bounces like wall
     if (this.alive && !state.pveMode && state.trapObjects?.length) {
       for (const trap of state.trapObjects) {
@@ -99,8 +170,8 @@ class Projectile {
             // Shuriken: bounce off pillar (counts toward bounce limit, same as wall)
             if (this.bounces < this.maxBounces) {
               const nx = pdx / (pd || 1), ny = pdy / (pd || 1);
-              const dot = this.vx * nx + this.vy * ny;
-              if (dot < 0) { this.vx -= 2 * dot * nx; this.vy -= 2 * dot * ny; }
+              const dot = this.vx * nx + this.vy * ny; // dot product → component dọc theo normal
+              if (dot < 0) { this.vx -= 2 * dot * nx; this.vy -= 2 * dot * ny; } // reflection formula
               this.bounces++;
               if (typeof sfxShurikenBounce === 'function') sfxShurikenBounce();
               if (this.type === 'fuma_shuriken') {
@@ -119,12 +190,17 @@ class Projectile {
       }
     }
 
-    this.angle = Math.atan2(this.vy, this.vx);
+    this.angle = Math.atan2(this.vy, this.vx); // cập nhật góc quay sprite
   }
 
+  // ─── draw ───────────────────────────────────────────────────
+  // Vẽ projectile lên canvas. Mỗi type có sprite riêng.
+  // Tham số: ctx (CanvasRenderingContext2D) — context canvas chính
+  // Kỹ thuật: ctx.save() + translate + rotate → vẽ quanh gốc tọa độ → ctx.restore()
+  // Điều này giúp mỗi type chỉ cần vẽ relative to (0,0), không cần tính tọa độ tuyệt đối.
   draw(ctx) {
     if (!this.alive) return;
-    const ownerCol = this.owner?.color || '#ffffff';
+    const ownerCol = this.owner?.color || '#ffffff'; // màu owner để tint projectile
 
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -243,6 +319,16 @@ class Projectile {
       ctx.lineTo(-this.r * 0.4, 0);
       ctx.lineTo(-this.r, this.r * 0.7);
       ctx.closePath(); ctx.fill();
+    } else if (this.type === 'chakram') {
+      const returning = !!this.returnPhase;
+      ctx.shadowColor = '#cc8844'; ctx.shadowBlur = returning ? 18 : 8;
+      ctx.strokeStyle = returning ? '#ffcc88' : '#cc8844';
+      ctx.lineWidth = 5; ctx.lineCap = 'round';
+      const spin = Date.now() * 0.02;
+      ctx.save(); ctx.rotate(spin);
+      ctx.beginPath(); ctx.moveTo(-14, 0); ctx.quadraticCurveTo(-3, -11, 14, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(14, 0); ctx.quadraticCurveTo(3, 11, -14, 0); ctx.stroke();
+      ctx.restore();
     } else if (this.type === 'spirit_orb') {
       // Spirit orb — teal translucent orb with ring
       ctx.shadowColor = '#44ffcc'; ctx.shadowBlur = 12;

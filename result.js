@@ -1,10 +1,32 @@
 // ============================================================
 // RESULT SCREEN
 // ============================================================
+// File này chứa một hàm duy nhất: showResult().
+// Được gọi từ game-loop.js khi round kết thúc (win/draw/timeout).
+//
+// showResult() thực hiện theo thứ tự:
+//   1. Capture stats vào tournament aggregate (nếu có)
+//   2. Render tiêu đề kết quả (winner / draw / 2v2 team win)
+//   3. Render bảng stats từng ball (hits, parries, damage, scaling)
+//   4. Trigger audience reaction (quick_kill nếu <15s, long_match nếu >90s)
+//   5. Xử lý BO3: cập nhật wins, check match winner, hiện nút tiếp theo
+//   6. Xử lý Championship 1v1 BO1 và FFA phase (riêng nhau)
+//   7. Gọi skillOnPostCombat() cho tất cả ball (Learning, Adaptation...)
+//   8. Race trait Orc: thắng → +2 stat thấp nhất, thua → -3 stat cao nhất
+//   9. Race trait Demon subrace: Beelzebub/Behemoth/Belphegor/Lucifer permanent changes
+//  10. Race trait Goblin ×1: thắng game → +2 × 3 stat random
+//  11. Race trait Skeleton: 2 lần thắng series → Lich Ascension (IQ ≥8)
+//  12. Analytics tracking
+//  13. showScreen('result') — chuyển sang màn hình kết quả
+
+// ─── showResult ─────────────────────────────────────────────
+// Hiển thị màn hình kết quả sau khi round kết thúc.
+// Xử lý tất cả post-combat logic: BO3, Championship, race traits, skill hooks.
+// Không có tham số — đọc trực tiếp từ state.
 function showResult() {
   // Capture per-game stats into tournament aggregate before anything else
   if (state.tournament && typeof updateTournamentAggregateStats === 'function') {
-    updateTournamentAggregateStats();
+    updateTournamentAggregateStats(); // ghi hits/dame/parries của game này vào aggregate
   }
 
   const titleEl  = document.getElementById('rTitle');
@@ -14,25 +36,33 @@ function showResult() {
   const nextGame = document.getElementById('nextGameBtn');
   const bracketB = document.getElementById('bracketBtn');
 
+  // ballLabel — tạo HTML label cho một ball: emoji + tên + icon vũ khí
+  // Nếu có charName: hiện tên + weapon (nhỏ); nếu không: chỉ hiện weapon
   const ballLabel = b => b.charName
     ? `${b.charEmoji ?? ''} ${b.charName} <span style="color:#888;font-size:.8em">(${b.weaponDef.icon} ${b.weaponDef.name})</span>`
     : `${b.weaponDef.icon} ${b.weaponDef.name}`;
 
+  // ── Tiêu đề kết quả — 3 trường hợp ──────────────────────────
   if (state.winner === 'draw' || (state.matchMode === '2v2' && state.winTeam === -1)) {
+    // Hòa: state.winner = 'draw' hoặc 2v2 không có team nào thắng
     titleEl.textContent = t('result_draw');
     titleEl.className = 'r-title draw';
   } else if (state.matchMode === '2v2' && state.winTeam >= 0) {
+    // 2v2: hiện màu team thắng (xanh cho team 0, cam cho team 1)
     const TC = ['#00ddff', '#ff8833'];
     const tc = TC[state.winTeam];
     const teamName = state.bo3?.fighters?.[state.winTeam]?.charName ?? `Team ${state.winTeam + 1}`;
     titleEl.innerHTML = `<span style="color:${tc};text-shadow:0 0 25px ${tc}">⚔️ ${teamName} WINS!</span>`;
     titleEl.className = 'r-title';
   } else {
+    // 1v1 / FFA: hiện màu ball thắng
     const w = state.winner;
     titleEl.innerHTML = `<span style="color:${w.color};text-shadow:0 0 25px ${w.color}">● ${ballLabel(w)} WINS!</span>`;
     titleEl.className = 'r-title';
   }
 
+  // ── Bảng stats từng ball ──────────────────────────────────
+  // state.matchTime đơn vị frame, chia 60 → giây
   const lines = state.players.map(ball => {
     const isWinner = ball === state.winner;
     return `<strong style="color:${ball.color}">● ${ballLabel(ball)}</strong>${isWinner ? ' 🏆' : ''}<br>
@@ -197,6 +227,9 @@ function showResult() {
     }
   }
 
+  // ── Post-combat skill hooks ───────────────────────────────
+  // Gọi skillOnPostCombat() cho mỗi ball: Learning (+1 stat), Adaptation (lưu reduction)...
+  // won = true nếu ball này là người thắng (hoặc team thắng trong 2v2)
   // Post-combat skill hooks (Learning, Adaptation)
   state.players.forEach((ball, i) => {
     const fi = state.fighters[i];
@@ -211,6 +244,10 @@ function showResult() {
   // Tournament/championship only. Applied once per MATCH, not per BO3 game.
   // BO1 → apply now (this game IS the match).
   // BO3 → apply only when match winner is decided (someone reaches winsNeeded).
+  //
+  // _orcMatchDone: cờ kiểm tra series đã quyết định chưa
+  //   BO1: luôn true (game = match)
+  //   BO3: true khi ai đó đạt winsNeeded (mặc định 2)
   const _inTournament = !!(state.tournament || state.tournament2v2 || state.championship);
   const _isDraw       = state.winner === 'draw' || (state.matchMode === '2v2' && state.winTeam === -1);
   let _orcMatchDone   = !state.bo3; // BO1: yes; BO3: check wins
@@ -248,6 +285,11 @@ function showResult() {
   }
 
   // ── Race trait: Demon subraces (permanent stat changes) ──────────────
+  // Mỗi subrace có effect khác nhau, áp dụng vĩnh viễn lên charStats:
+  //   Beelzebub (Gluttony): game win → +1 stat ngẫu nhiên
+  //   Behemoth  (Wrath):    mọi game → -1 DUR (dù win hay lose)
+  //   Belphegor (Sloth):    game win → +1 DUR
+  //   Lucifer   (Pride):    series loss → -1 TẤT CẢ stat
   // Per-game effects (Beelzebub win, Behemoth any, Belphegor win): fire every game.
   // Per-series effects (Lucifer loss): fire only when series is decided.
   const _DS = ['strength','speed','durability','iq','battleiq','ma'];
@@ -300,6 +342,9 @@ function showResult() {
   });
 
   // ── Race trait: Goblin ×1 (each game win → +2 to 3 random stats, can repeat) ──
+  // Khác Orc (chỉ khi match kết thúc): Goblin ×1 fire mỗi game win — không cần series xong.
+  // Loop 3 lần, mỗi lần pick 1 stat random trong _G1S, +2. Cùng stat có thể tích.
+  // Ví dụ: 3 lần pick STR → +6 STR. Hiếm nhưng xảy ra được.
   if (_inTournament) {
     const _G1S  = ['strength','speed','durability','iq','battleiq','ma'];
     const _G1SH = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
@@ -325,6 +370,9 @@ function showResult() {
   }
 
   // ── Race trait: Skeleton (win counter → Lich at 2 wins) ──
+  // Đếm số lần thắng series (cs.skeletonWins), khi đạt 2:
+  //   cs.isLich = true, IQ nâng lên tối thiểu 8 (Skeleton thường có IQ=1)
+  //   Lý do: Lich là undead cao cấp → có intelligence (cái xương thường thì không)
   // Only when a full match/series is decided (same guard as Orc).
   if (_inTournament && _orcMatchDone && !_isDraw) {
     const _SKS = ['strength','speed','durability','iq','battleiq','ma'];
