@@ -16,32 +16,29 @@
 
 // ✏️  Sửa AUDIENCE_LINES để thay đổi câu khán giả tự động nói:
 const AUDIENCE_LINES = [
-  "Look at the move! 👀",
-  "Faker, what was that?! 😤",
-  "L + ratio 💀",
-  "bro is cooked 🍳",
+  "Look at the move!",
+  "What was that?!",
+  "L + ratio",
+  "bro is cooked",
   "GG EZ no re",
   "skill issue tbh",
   "chat is this real??",
   "LETS GOOO 🎉",
   "nah he's DONE done",
-  "my grandma plays better 👵",
-  "this is cinema 🎬",
-  "CLEAN!! 🧹",
-  "WHO IS HIM",
+  "my grandma plays better",
+  "this is cinema ",
   "he's built different fr",
   "no way that just happened",
   "they're so cooked rn",
   "I've seen enough, I'm satisfied",
   "peak fiction 📖",
-  "hay đấy 🔥 hay đấy",
   "gg wp ez clap 👏",
 ];
 // ============================================================
 
 const _AUD_BUBBLE_MS = 3200; // ms bubble hiện trên màn hình trước khi ẩn
-const _AUD_DELAY_MIN = 2200; // khoảng cách tối thiểu giữa hai lần tự chat (ms)
-const _AUD_DELAY_MAX = 4800; // khoảng cách tối đa (random trong [min, max])
+const _AUD_DELAY_MIN = 3200; // khoảng cách tối thiểu giữa hai lần tự chat (ms)
+const _AUD_DELAY_MAX = 5800; // khoảng cách tối đa (random trong [min, max])
 
 // ── Triggered reaction lines ─────────────────────────────────
 // Mỗi key là 1 trigger event, value là mảng câu nói (hoặc function trả mảng).
@@ -70,7 +67,7 @@ const _AUD_REACT = {
   ],
   proj_kill: [
     "HEADSHOT 🎯", "sniped lmao", "finished from range??",
-    "bow diff", "long range execution", "he never even got close",
+    "bow diff","shuriken diff","long range execution", "he never even got close",
     "bro died to a projectile 💀", "didn't even touch him",
   ],
   disarm_react: [
@@ -79,13 +76,13 @@ const _AUD_REACT = {
     "DISARMED?!", "pick it up pick it up", "oh no oh no oh no",
   ],
   phoenix_react: [
-    "BRO REVIVED?? 😱", "no way phoenix", "he came back from the dead??",
+    "BRO REVIVED?? 😱", "no way Phoenix", "he came back from the dead??",
     "PHOENIX RISING 🔥", "that should've been the end", "undying fr",
-    "how is he still alive", "second chance activated",
+    "how is he still alive", "second chance activated","Gojo ahh momment",
   ],
   low_hp: [
-    "he's on fumes 😬", "almost cooked", "one more hit and he's done",
-    "he's BARELY alive", "critical condition 🚨", "come on come on",
+    "jj", "almost cooked", "one more hit and he's done",
+    "he's BARELY alive", "critical condition", "come on come on",
     "survive it", "this might be it", "bro has like 1 HP left",
   ],
   comeback: [
@@ -95,7 +92,7 @@ const _AUD_REACT = {
     "clutch factor: INFINITE", "down bad but WON", "what a match!!",
   ],
   rage_mode: [
-    "OVERTIME?? 😤", "they're going feral", "RAGE MODE IS INSANE",
+    "OVERTIME??", "RAGE MODE IS ACTIVED", "they're not done??", 
     "still going??? 💀", "nobody is dying in here",
     "this match is never ending", "bro it's rage mode already",
     "they're both built different", "chaos mode: ON",
@@ -108,12 +105,12 @@ const _AUD_REACT = {
   long_match: [
     "they're still going?? 😭", "longest match ever", "I aged watching this",
     "just END IT", "nobody wins here", "certified chess match",
-    "I went to get food and they're still fighting", "endurance arc",
+    "I went to get food and they're still fighting", "endurance arc","ragebait derby?"
   ],
   same_weapon: [
     "mirror match lol", "same weapon diff skill", "weapon diff decide this",
     "bro they copied each other", "clone wars fr",
-    "who has the better build tho", "identical loadout??",
+    "who has the better build tho",
   ],
   same_race: [
     "civil war fr 💀", "they're fighting their own kind",
