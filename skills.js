@@ -1423,7 +1423,15 @@ const RACE_SKILL_DEFS = {
   giant:      { id:'race_quake',        name:'Quake',        icon:'🌍',
                 desc:'Periodically slams the ground, pushing all enemies away with a shockwave. Enemies caught close also take damage. Power scales with STR, recharges faster with DUR.' },
   god:        { id:'race_god_gift',     name:'God Gift',     icon:'✨',
-                desc:'Unique passive based on your blessing. Surtr: ground slam at 70s. Raijin: gain speed with each wall bounce. Shiva: switch to pure fists at 70s. Atlas: regenerate HP every 1.5s (scales with DUR). Thoth/Athena: bonuses applied at character creation.' },
+                desc:'Unique passive based on your blessing. Surtr: ground slam at 70s. Raijin: gain speed with each wall bounce. Shiva: switch to pure fists at 70s. Atlas: regenerate HP every 1.5s (scales with DUR). Thoth/Athena: bonuses applied at character creation.',
+                descBySubrace: {
+                  'Blessed by Surtr':  '✊ At 70s — Divine Slam: knockback all enemies, deal STR-based damage to those within 160px, clear all traps from the arena.',
+                  'Blessed by Raijin': '⚡ Each wall bounce: +1 speed stack. At 10+ stacks: projectile evasion 50–95% (scales with stack count).',
+                  'Blessed by Shiva':  '🥋 At 70s — Martial God: discard weapon, switch to pure Fists with enhanced MA scaling. Fists can deflect projectiles without taking damage.',
+                  'Blessed by Atlas':  '🛡️ Passive regen every 1.5s: DUR × 0.05 HP/tick (min 0.5 HP). Scales strongly with DUR.',
+                  'Blessed by Thoth':  '📚 Bonus IQ at creation (guaranteed ≥10, ×2 if rolled max). Grants extra skills based on IQ — no skill wheel.',
+                  'Blessed by Athena': '⚔️ Bonus BIQ at creation (guaranteed ≥10, ×2 if rolled max). Weapon Mastery — can equip any weapon regardless of race restriction.',
+                } },
   skeleton:   { id:'race_bone_scatter',   name:'Bone Scatter',  icon:'🦴',
                 desc:'Passive: 50% chance on each hit to scatter bone shards (1 shard per 4 BIQ, min 1). Pick up own shards to heal (DUR×1.5 HP each) and gain a speed burst. Enemy contact destroys shards.' },
   demon:      { id:'race_blood_contract', name:'Blood Contract', icon:'📜',
@@ -1557,6 +1565,7 @@ function initRaceSkillState(ball) {
     ball.rs_shardSpeedMult  = 1.30;  // nhặt xương → speed cap tăng 30% trong 3s
     ball.rs_shardSpeedDur   = 180;   // 3s = 180f, cộng dồn khi nhặt nhiều xương liên tiếp
     ball.rs_shardSpeedTimer = 0;
+    ball.rs_boneDropCd      = 0;     // cooldown giữa mỗi lần drop xương (tránh spam từ bow/shuriken)
   }
   if (race === 'demon') {
     const dur = ball.charDUR ?? 5;
@@ -2013,13 +2022,14 @@ function updateRaceSkills(ball, players, rstate) {
     }
   }
 
-  // ── SKELETON: Bone Scatter — speed timer tick ────────────────
+  // ── SKELETON: Bone Scatter — speed timer tick + drop cooldown tick ──
   if (race === 'skeleton' && ball.raceSkillDef) {
     if ((ball.rs_shardSpeedTimer || 0) > 0) {
       ball.rs_shardSpeedTimer--;
       if (ball.rs_shardSpeedTimer === 0)
         spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🦴 speed fades', '#ccaa66');
     }
+    if ((ball.rs_boneDropCd || 0) > 0) ball.rs_boneDropCd--;
   }
 
   // ── DEMON: Blood Contract ─────────────────────────────────────

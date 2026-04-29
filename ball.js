@@ -1127,7 +1127,10 @@ class Ball {
     }
 
     // Race: Skeleton Bone Scatter — 50% chance to scatter shards when hit
-    if (this.charRace === 'skeleton' && this.raceSkillDef && this.alive && Math.random() < 0.50) {
+    // rs_boneDropCd: cooldown 90f (1.5s) giữa mỗi lần drop — tránh bow/shuriken spam ra hàng đống xương
+    if (this.charRace === 'skeleton' && this.raceSkillDef && this.alive
+        && (this.rs_boneDropCd || 0) === 0 && Math.random() < 0.50) {
+      this.rs_boneDropCd = 90; // 1.5s cooldown
       const count = this.rs_shardCount || 1;
       if (typeof state !== 'undefined') {
         state.boneShards = state.boneShards || [];

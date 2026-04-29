@@ -158,8 +158,9 @@ function initGame() {
   if (typeof resetArenaEvents === 'function') resetArenaEvents();
   state.winner = null;
   state.winTeam    = -1;
-  state.speedFloorActive = false;
-  state.rageModeActive   = false;
+  state.speedFloorActive  = false;
+  state.rageModeActive    = false;
+  state.suddenDeathActive = false; // reset Sudden Death giữa các trận
   state.battleLog = [];
   state.statsLog  = [];   // per-second snapshots for charts
   updateLiveLog(); // clear the live panel
@@ -219,7 +220,7 @@ function stopGame() {
 // _arenaZoom: 0.5–1.0, điều chỉnh bởi zoom slider trong UI.
 // Gọi từ startGame() sau initGame().
 const _ARENA_FIT_PAD = 55; // padding canvas-unit quanh arena
-let   _arenaZoom     = 1;  // hệ số zoom, điều chỉnh bởi zoom slider
+let   _arenaZoom     = 0.85;  // hệ số zoom mặc định 85%, điều chỉnh bởi zoom slider
 
 function applyArenaFit(arena) {
   const clip   = document.getElementById('canvas-clip-wrapper');

@@ -822,7 +822,11 @@ function buildHUD() {
         if (def.desc) {
           const desc = document.createElement('div');
           desc.className = 'hud-skill-desc' + (isRace ? ' hud-skill-desc-race' : '');
-          desc.textContent = def.desc;
+          // God Gift: hiển thị desc riêng theo subrace thay vì toàn bộ danh sách
+          const subLabel = ball.charSubrace?.label;
+          desc.textContent = (isRace && def.descBySubrace && subLabel && def.descBySubrace[subLabel])
+            ? def.descBySubrace[subLabel]
+            : def.desc;
           item.appendChild(desc);
         }
         skillsEl.appendChild(item);
