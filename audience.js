@@ -18,7 +18,6 @@
 const AUDIENCE_LINES = [
   "Look at the move!",
   "What was that?!",
-  "L + ratio",
   "bro is cooked",
   "GG EZ no re",
   "skill issue tbh",
