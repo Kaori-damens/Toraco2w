@@ -261,7 +261,7 @@ function _renderStand() {
   const frontRow = _audSpectators.slice(mid);
 
   stand.innerHTML = `
-    <div class="aud-label">🏟️ Khán đài</div>
+    <div class="aud-label">🏟️ Stage</div>
     <div class="aud-rows">
       <div class="aud-row aud-row-back">
         ${backRow.map((f, i)  => _specHTML(f, i)).join('')}

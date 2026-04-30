@@ -20,7 +20,7 @@ const PVP_REWARDS = [
   { id:'rnd3',  label:'+2 Rand×3',  desc:'+2 to 3 random stats',    icon:'🎲', weight:0.64, color:'#115566' },
   { id:'rnd6',  label:'+2 Rand×6',  desc:'+2 to 6 random stats',    icon:'🎰', weight:0.36, color:'#661188' },
   { id:'all1',      label:'+1 All',           desc:'All stats +1',            icon:'⭐', weight:4,    color:'#998800' },
-  { id:'forbidden', label:'🚫 Forbidden Weapon', desc:'Equip a Forbidden Weapon', icon:'🚫', weight:4,    color:'#8800cc' },
+  { id:'forbidden', label:'Forbidden Weapon', desc:'Equip a Forbidden Weapon', icon:'🚫', weight:4,    color:'#8800cc' },
 ];
 
 // ── Weighted pick ──────────────────────────────────────────────────
@@ -85,11 +85,12 @@ function _pvpApplyReward(fighter, reward) {
       STAT_KEYS_PVP.forEach(k => cs[k] = (cs[k]||0) + 1);
       return 'STR SPD DUR IQ BIQ MA — all +1';
     case 'forbidden': {
-      const pick = Math.random() < 0.5 ? 'rapier' : 'katana';
+      const weapons = ['rapier', 'katana', 'flail','lance','chakram']
+      const pick = weapons[Math.floor(Math.random() * weapons.length)];
       const def  = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[pick] : null;
       fighter.weaponId = pick;
       const wName = def ? `${def.icon} ${def.name}` : pick;
-      return `🚫 Forbidden: ${wName} equipped!`;
+      return `Forbidden: ${wName} equipped!`;
     }
     default:
       return reward.desc;

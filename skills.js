@@ -326,9 +326,9 @@ function _demonPreCombat(ball) {
           break;
       }
       spawnDamageNumber(opp.x, opp.y - opp.radius - 18, `😈 −6 ${SH[stat]}!`, '#9933ff');
-      if (typeof opp.shout === 'function') opp.shout('😈 CORRUPTED!', 180, '#9933ff');
+      if (typeof opp.shout === 'function') opp.shout('FAHHHHHH!', 180, '#9933ff');
     }
-    if (typeof ball.shout === 'function') ball.shout('😈 ENVY!!', 200, '#9933ff');
+    if (typeof ball.shout === 'function') ball.shout('ENVY CORRUPTED!!', 200, '#9933ff');
   }
 
   // Asmodeus (Lust): disable N opponent skills + optional −1 all stats (BO3+ only, not BR)
@@ -387,7 +387,7 @@ function _demonPreCombat(ball) {
         spawnDamageNumber(opp.x, opp.y - opp.radius - 28, `😈 −1 all stats!`, '#ff44aa');
       }
     }
-    if (typeof ball.shout === 'function') ball.shout('😈 LUST!!', 200, '#ff44aa');
+    if (typeof ball.shout === 'function') ball.shout('LUST CORRUPTED!!', 200, '#ff44aa');
   }
 }
 
@@ -448,8 +448,8 @@ function skillOnPreCombat(ball) {
       target.weapon      = target._initWeapon('fists');
       spawnDamageNumber(target.x, target.y - target.radius - 18, `🫴 STOLEN!`, '#ff4444');
       spawnDamageNumber(ball.x,   ball.y   - ball.radius   - 18, `🫴 ${stolenName}`, '#ffd700');
-      if (typeof ball.shout === 'function') ball.shout('🫴 USURP!', 200);
-      if (typeof target.shout === 'function') target.shout('⚠️ STOLEN!', 180, '#ff4444');
+      if (typeof ball.shout === 'function') ball.shout('GIVE ME THAT!', 200);
+      if (typeof target.shout === 'function') target.shout('STOLEN!', 180, '#ff4444');
       if (typeof flashSkillHUD === 'function') flashSkillHUD(ball, SKILL_MAP['usurp']);
     }
   }
@@ -503,7 +503,7 @@ function skillOnPreCombat(ball) {
       spawnDamageNumber(opp.x, opp.y - opp.radius - 18, '🧟 1 skill drained!', '#aa44ff');
       anyDrained = true;
     }
-    if (anyDrained && typeof ball.shout === 'function') ball.shout('🧟 SOUL DRAIN!', 210, '#aa44ff');
+    if (anyDrained && typeof ball.shout === 'function') ball.shout('SOUL DRAIN!', 210, '#aa44ff');
   }
 
   // War Banner: +30% damage for 10s
@@ -912,8 +912,8 @@ function skillOnParry(b1, b2) {
         ball.weapon.caliburnSpeedTimer = 300; // 5s boost
         ball.weapon.caliburnCrit = true;
         ball.weapon.caliburnStacks = 0;
-        spawnDamageNumber(ball.x, ball.y - ball.radius - 28, '⚡ BURST!', '#ffee44');
-        if (typeof ball.shout === 'function') ball.shout('⚡ CALIBURN BURST!', 200, '#ffee44');
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 28, 'BURST!', '#ffee44');
+        if (typeof ball.shout === 'function') ball.shout('CALIBURN BURST!', 200, '#ffee44');
       }
     }
     // Parry Punish (Sword): window scales IQ — (2 + IQ×0.2)s (IQ=5→3s, IQ=10→4s)
@@ -1836,9 +1836,9 @@ function updateRaceSkills(ball, players, rstate) {
         ball.rs_active     = false;
         ball.rs_lbExhausted = true;
         if (typeof spawnDamageNumber === 'function')
-          spawnDamageNumber(ball.x, ball.y - ball.radius - 26, '💀 EXHAUSTED', '#888888');
+          spawnDamageNumber(ball.x, ball.y - ball.radius - 26, 'EXHAUSTED', '#888888');
         if (typeof ball.shout === 'function')
-          ball.shout('💀 EXHAUSTED...', 280, '#888888');
+          ball.shout('Just little more...', 280, '#888888');
         if (typeof addBattleLog === 'function')
           addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color, text: '💀 Limit Break ended — exhausted!' });
       }
@@ -2051,8 +2051,8 @@ function updateRaceSkills(ball, players, rstate) {
         ball.hp      -= sacrifice;
         ball.rs_active = true;
         ball.rs_timer  = ball.rs_duration;
-        spawnDamageNumber(ball.x, ball.y - ball.radius - 24, `📜 BLOOD CONTRACT! (−${sacrifice.toFixed(1)})`, '#cc0044');
-        if (typeof ball.shout === 'function') ball.shout('📜 BLOOD CONTRACT!', 220, '#cc0044');
+        spawnDamageNumber(ball.x, ball.y - ball.radius - 24, `BLOOD CONTRACT! (−${sacrifice.toFixed(1)})`, '#cc0044');
+        if (typeof ball.shout === 'function') ball.shout('BLOOD CONTRACT!', 220, '#cc0044');
         addBattleLog('race_skill', { attacker: getBallLabel(ball), aColor: ball.color,
           text: `📜 Blood Contract! (−${sacrifice.toFixed(1)} HP sacrifice)` });
       } else {
