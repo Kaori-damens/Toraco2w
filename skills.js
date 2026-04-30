@@ -268,7 +268,7 @@ function initRoundSkillState(ball) {
     // Spawn skill states
     warBannerActive:   false,   // War Banner: true trong 10s đầu round
     warBannerTimer:    0,       // frame countdown (600f = 10s)
-    hordeTimer:        0,       // Horde Call: đếm frame, 900f → spawn 3 skeleton
+    hordeTimer:        0,       // Horde Call: đếm frame, 1200f → spawn 3 skeleton
   };
 }
 
@@ -1191,7 +1191,7 @@ function skillPerFrameUpdate(ball) {
   // Horde Call: spawn 3 minions every 15s
   if (ball.skills?.includes('horde_call') && typeof state !== 'undefined') {
     sk.hordeTimer = (sk.hordeTimer || 0) + 1;
-    if (sk.hordeTimer >= 900) {
+    if (sk.hordeTimer >= 1500) {
       sk.hordeTimer = 0;
       _spawnSkillMinions(ball, 'skeleton', 3);
       spawnDamageNumber(ball.x, ball.y - ball.radius - 20, '⚔️ HORDE!', '#ffaa44');
@@ -1240,7 +1240,7 @@ function _spawnSkillMinions(owner, type, count) {
       vx: 0, vy: 0,
       hp:    type === 'skeleton' ? 20 : 30,
       maxHp: type === 'skeleton' ? 20 : 30,
-      r:     type === 'skeleton' ? 9  : 11,
+      r:     type === 'skeleton' ? 15  : 18,
       color: type === 'skeleton' ? '#aaffaa' : '#88ccff',
       owner,
       teamId:      owner.teamId,
@@ -1250,7 +1250,8 @@ function _spawnSkillMinions(owner, type, count) {
       attackCdMax: 70,
       alive:    true,
       type,
-      lifetime: type === 'skeleton' ? 1200 : 900,
+      lifetime: (owner.skills.includes('necromancer_pact') && type === 'skeleton') ? 3600 : 900,
+      lifetime: type === 'skeleton' ? 900 : 900,
       _age:     0,
     });
   }
