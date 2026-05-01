@@ -224,6 +224,42 @@ function collidePair(b1, b2) {
 // Piercing arrow: không tắt sau hit, tiếp tục check target tiếp theo
 // resolveProjectiles: projectiles vs all alive balls (any non-owner is a valid target)
 function resolveProjectiles(players, projectiles) {
+  // ── Projectile vs Projectile ───────────────────────────────
+  // Shuriken vs Shuriken → cả hai hủy nhau
+  // Arrow vs Arrow       → arrow có owner STR lớn hơn sống sót, còn lại bị hủy
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const a = projectiles[i];
+    if (!a.alive) continue;
+    for (let j = i - 1; j >= 0; j--) {
+      const b = projectiles[j];
+      if (!b.alive) continue;
+      // Chỉ xét va chạm giữa 2 projectile của 2 owner khác nhau
+      if (a.owner === b.owner) continue;
+      // Kiểm tra va chạm
+      if (dist2(a.x, a.y, b.x, b.y) >= (a.r + b.r) * (a.r + b.r)) continue;
+
+      const aType = a.type; // 'arrow' | 'shuriken' | etc.
+      const bType = b.type;
+
+      const aIsShuriken = aType === 'shuriken' || aType === 'fuma_shuriken';
+      const bIsShuriken = bType === 'shuriken' || bType === 'fuma_shuriken';
+
+      if (aIsShuriken && bIsShuriken) {
+        // Cả hai hủy nhau
+        a.alive = false; b.alive = false;
+        spawnSparks((a.x + b.x) / 2, (a.y + b.y) / 2, 8);
+      } else if (!aIsShuriken && !bIsShuriken && aType === 'arrow' && bType === 'arrow') {
+        // STR lớn hơn thắng; bằng nhau → cả hai hủy
+        const aStr = a.owner?.charSTR ?? 5;
+        const bStr = b.owner?.charSTR ?? 5;
+        if (aStr > bStr)      { b.alive = false; spawnSparks(b.x, b.y, 6); }
+        else if (bStr > aStr) { a.alive = false; spawnSparks(a.x, a.y, 6); }
+        else                  { a.alive = false; b.alive = false; spawnSparks((a.x+b.x)/2, (a.y+b.y)/2, 8); }
+      }
+      // Các loại khác (arrow vs shuriken) không tương tác
+    }
+  }
+
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
     if (!proj.alive || proj.immuneFrames > 0) continue;
@@ -525,6 +561,60 @@ function _checkWeaponHit(attacker, defender) {
         addBattleLog('evade', { attacker: getBallLabel(attacker), defender: getBallLabel(defender), aColor: attacker.color, dColor: defender.color });
       }
       return;
+    }
+  }
+}
+
+// ─── Melee weapon vs skill minions ───────────────────────────────────────
+// Cho phép melee weapon (không phải ranged) đánh trúng minion trong state.skillMinions.
+// Logic đơn giản hơn _checkWeaponHit — không có crit/evade/skillOnHit, chỉ damage thẳng.
+// Dùng cùng weapon.cooldown nên sau khi hit minion, weapon vẫn phải chờ cooldown.
+// Tham số: players — array Ball đang alive
+// Trả về: không có
+function resolveMeleeVsMinions(players) {
+  if (!state.skillMinions?.length) return;
+  for (const attacker of players) {
+    if (!attacker.alive) continue;
+    if (attacker.weapon.cooldown > 0) continue;
+    const def = attacker.weaponDef;
+    if (!def || def.aiType === 'ranged') continue; // chỉ melee mới đánh được minion
+    if (attacker.stunTimer > 0 && attacker.parryStunReverse) continue;
+
+    const pts = def.getHitPoints(attacker);
+    const forgeSizeBonus = attacker.rs_forgeSizeBonus || 0;
+
+    for (let i = state.skillMinions.length - 1; i >= 0; i--) {
+      const m = state.skillMinions[i];
+      if (!m.alive) continue;
+      // Không đánh minion của chính mình hoặc đồng đội
+      if (m.owner === attacker) continue;
+      if (attacker.teamId >= 0 && m.teamId === attacker.teamId) continue;
+
+      let hit = false;
+      for (const p of pts) {
+        const threshold = p.r + forgeSizeBonus + m.r;
+        if (dist2(p.x, p.y, m.x, m.y) < threshold * threshold) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) continue;
+
+      // Damage = attacker getDamage (không có crit, không có knockback, không có exploit)
+      const dmg = attacker.getDamage();
+      m.hp -= dmg;
+      // Set weapon cooldown — cùng tốc độ như đánh ball thường
+      const rageCDMult = (state.matchTime >= 80 * 60) ? 0.7 : 1.0;
+      attacker.weapon.cooldown = Math.max(1, Math.floor(attacker.weapon.attackCooldown * rageCDMult));
+      attacker.stats.hits++;
+      attacker.stats.damageDone += dmg;
+      sfxHit(def?.id);
+      spawnDamageNumber(m.x, m.y - m.r - 10, `-${dmg.toFixed(1)}`, '#ffddaa');
+      if (m.hp <= 0) {
+        m.alive = false;
+        spawnDamageNumber(m.x, m.y - m.r - 20, '💀', '#aaffaa');
+      }
+      break; // một lần hit per frame per attacker
     }
   }
 }

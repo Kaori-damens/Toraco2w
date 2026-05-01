@@ -1010,10 +1010,24 @@ function bulkCreateOne() {
                           (raceId === 'goblin' && srLabel === '×100,000');
   const hasWeapon = guaranteedArmed || (Math.random() < 0.8);
 
-  // 7. Weapon (equal weight across armed types)
-  const weapon = hasWeapon
-    ? CG_WEAPONS_ARMED[Math.floor(Math.random() * CG_WEAPONS_ARMED.length)].id
-    : 'fists';
+  // 7. Weapon — nếu championship unique pool còn hàng, 30% cơ hội nhận unique weapon
+  let weapon;
+  if (hasWeapon) {
+    const uniquePool = state.championship?.uniquePool;
+    const availableUniques = (typeof WEAPON_DEFS !== 'undefined')
+      ? WEAPON_DEFS.filter(w => w.unique && uniquePool?.has?.(w.id))
+      : [];
+    if (availableUniques.length > 0 && Math.random() < 0.30) {
+      // Chọn ngẫu nhiên 1 unique weapon còn trong pool
+      const picked = availableUniques[Math.floor(Math.random() * availableUniques.length)];
+      weapon = picked.id;
+      if (typeof claimUnique === 'function') claimUnique(weapon);
+    } else {
+      weapon = CG_WEAPONS_ARMED[Math.floor(Math.random() * CG_WEAPONS_ARMED.length)].id;
+    }
+  } else {
+    weapon = 'fists';
+  }
 
   // 8. Skill count (weighted per race)
   const scWeights = CG_SKILL_COUNT_WEIGHTS[raceId] || Array(5).fill(20);

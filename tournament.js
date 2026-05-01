@@ -158,6 +158,34 @@ function _fcardFighterHTML(f, uid) {
 
   const hasSkills = curSkills.length > 0 || lostSkills.length > 0;
 
+  // ── Match history ──
+  const history = f.matchHistory ?? [];
+  const historyHTML = history.length === 0 ? '' : `
+    <div class="fcard-history-section">
+      <div class="fcard-history-title">📋 Match History</div>
+      ${history.map(entry => {
+        // opponents được lưu là array of strings (tên), không phải object
+        const vs = (entry.opponents ?? []).map(o => typeof o === 'string' ? o : (o.charName ?? '?')).join(', ') || '?';
+        const wonBadge = entry.won === true
+          ? '<span class="fcard-history-won">W</span>'
+          : entry.won === false
+            ? '<span class="fcard-history-lost">L</span>'
+            : '';
+        const changesHTML = (entry.changes ?? []).map(c => {
+          const isPos = /^\+/.test(c);
+          const isNeg = /^[-−]/.test(c);
+          const cls = isPos ? 'fcard-history-tag-pos' : isNeg ? 'fcard-history-tag-neg' : 'fcard-history-tag-neu';
+          return `<span class="fcard-history-tag ${cls}">${c}</span>`;
+        }).join('');
+        return `<div class="fcard-history-row">
+          <span class="fcard-history-label">${entry.label ?? '?'}</span>
+          ${wonBadge}
+          <span class="fcard-history-vs">vs ${vs}</span>
+          <span class="fcard-history-changes">${changesHTML || '<span class="fcard-history-tag fcard-history-tag-neu">No changes</span>'}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+
   return `
     <div class="fcard2-top">
       <canvas id="fcard-ball-${uid}" class="fcard2-ball-canvas" width="120" height="120"></canvas>
@@ -180,6 +208,7 @@ function _fcardFighterHTML(f, uid) {
            <div class="fcard-skills-wrap">${skillsHTML}</div>
          </div>`
       : `<div class="fcard-no-skills">${t('fighter_card_no_skills')}</div>`}
+    ${historyHTML}
   `;
 }
 

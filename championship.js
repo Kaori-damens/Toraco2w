@@ -128,20 +128,17 @@ function fillRemainingDraftSlots() {
   if (!cs || !cs.draftRoster) return;
   const needed = cs.size - cs.draftRoster.length;
   if (needed <= 0) return;
-  // Headless create without unique pool access
-  const savedPool = cs.uniquePool;
-  cs.uniquePool = null;
+  // uniquePool KHÔNG bị null → fill characters có thể nhận unique weapon theo pool
+  // (giống demon lấy sin từ demonSinPool — pool shrinks khi bị claim)
   for (let i = 0; i < needed; i++) {
     const char = bulkCreateOne();
-    // Tag with championship identity
     char.championshipTag  = cs.tag  ?? null;
     char.championshipName = cs.name ?? null;
     cs.draftRoster.push(char);
     cgRoster.push(char);
   }
   localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
-  cs.uniquePool = savedPool;
-  saveDraftProgress();   // persist after fill
+  saveDraftProgress();
   buildChampionshipSetup();
 }
 
@@ -332,6 +329,41 @@ function _csNextPhase(cs, survivors) {
   }
 }
 
+// ── Match History ─────────────────────────────────────────────
+// Fighter object gets:
+//   fighter.matchHistory      — array of committed entries
+//   fighter._pendingHistory   — entry being built for the current match
+//   fighter._pendingWon       — win/loss for the current pending entry
+// Entries: { label, opponents[], won, changes[] }
+
+let _csPendingFighters = []; // track fighters with pending entries
+
+// Call from any file to log a change to the current match's history
+function csAddHistoryChange(fighter, text) {
+  if (!fighter?._pendingHistory) return;
+  fighter._pendingHistory.changes.push(text);
+}
+
+function _csBeginMatchEntry(fighter, label, opponents) {
+  if (!fighter) return;
+  if (!fighter.matchHistory) fighter.matchHistory = [];
+  if (!fighter._pendingHistory) { // only start once per series (not per BO3 game 2/3)
+    fighter._pendingHistory = { label, opponents: [...opponents], won: null, changes: [] };
+    _csPendingFighters.push(fighter);
+  }
+}
+
+function _csCommitAllPending() {
+  for (const f of _csPendingFighters) {
+    if (!f._pendingHistory) continue;
+    if (!f.matchHistory) f.matchHistory = [];
+    f.matchHistory.push({ ...f._pendingHistory, won: f._pendingWon ?? null });
+    f._pendingHistory = null;
+    f._pendingWon     = undefined;
+  }
+  _csPendingFighters = [];
+}
+
 // ── Get / Record ──────────────────────────────────────────────
 function getNextChampionshipMatch() {
   const cs = state.championship; if (!cs||cs.completed) return null;
@@ -357,7 +389,12 @@ function getNextChampionshipMatch() {
 function recordChampionshipFfaResult(winnerFighter) {
   const cs=state.championship, phase=cs.phases[cs.currentPhaseIdx];
   if (phase.type!=='ffa') return;
-  const g=phase.groups[phase.currentGroup]; g.winner=winnerFighter; g.done=true; phase.currentGroup++;
+  const g=phase.groups[phase.currentGroup];
+  // Set won flags for match history
+  for (const f of (g.fighters || [])) {
+    if (f) f._pendingWon = _sameF(f, winnerFighter);
+  }
+  g.winner=winnerFighter; g.done=true; phase.currentGroup++;
   if (phase.currentGroup>=phase.groups.length) {
     phase.done=true;
     _csNextPhase(cs, phase.groups.map(g=>g.winner).filter(Boolean));
@@ -368,7 +405,12 @@ function recordChampionshipFfaResult(winnerFighter) {
 function recordChampionshipMatchResult(matchWinner) {
   const cs=state.championship, phase=cs.phases[cs.currentPhaseIdx];
   if (phase.type==='1v1') {
-    const m=phase.matches[phase.currentMatch]; m.winner=matchWinner; phase.currentMatch++;
+    const m=phase.matches[phase.currentMatch];
+    // Set won/loss flags for match history
+    if (matchWinner) matchWinner._pendingWon = true;
+    const loser1v1 = _sameF(m.p1, matchWinner) ? m.p2 : m.p1;
+    if (loser1v1)  loser1v1._pendingWon  = false;
+    m.winner=matchWinner; phase.currentMatch++;
     if (phase.currentMatch>=phase.matches.length) {
       phase.done=true; _csNextPhase(cs, phase.matches.map(m=>m.winner));
     }
@@ -376,6 +418,9 @@ function recordChampionshipMatchResult(matchWinner) {
     const {b,r,i} = phase.seq[phase.currentSeqIdx];
     const m = b==='gf' ? phase.gf : phase[b][r][i];
     const matchLoser = m.p1 === matchWinner ? m.p2 : m.p1;
+    // Set won/loss flags for match history
+    if (matchWinner) matchWinner._pendingWon = true;
+    if (matchLoser)  matchLoser._pendingWon  = false;
     const advanceFn = phase.n === 8 ? _deAdvance8 : _deAdvance16;
     advanceFn(phase, matchWinner, matchLoser);
     // Skeleton: first UB loss → entering losers bracket → +1 all stats
@@ -384,6 +429,7 @@ function recordChampionshipMatchResult(matchWinner) {
       ['strength','speed','durability','iq','battleiq','ma'].forEach(k => {
         matchLoser.charStats[k] = (matchLoser.charStats[k] ?? 0) + 1;
       });
+      csAddHistoryChange(matchLoser, '+1 All Stats (Skeleton — Entering LB)');
     }
     if (phase.done) { cs.completed=true; cs.champion=phase.champion; clearChampionshipSave(); }
   }
@@ -507,14 +553,51 @@ function champAutoTick() {
   // Register close callback so manual OR auto-close both trigger _proceed.
   if (typeof pvpRewardSetOnClose === 'function') pvpRewardSetOnClose(_proceed);
 
-  // ── Poll-based auto handler (fixes elemental + fog-of-war timing) ──
+  // ── Poll-based auto handler ───────────────────────────────────────
+  // Handles every modal that can appear after a championship match win:
+  //   1. Elemental Wheel   (Primordial race)
+  //   2. Angel Blessing    (Principalities subrace) — appears before PVP
+  //   3. PVP Reward Wheel  (main spin)
+  //   4. PVP Choice Wheel  (skill / weapon / stat — appears inside PVP flow)
+  //   5. Continue → proceed to next match
 
-  // Step 3: after PVP spin, poll until result panel visible, then Continue
+  // Step 4b: handle pvp-skill-modal (choice wheel inside PVP flow)
+  const _autoHandleSkwModal = () => {
+    if (!state.champAuto) return;
+    const skwModal = document.getElementById('pvp-skill-modal');
+    if (!skwModal || skwModal.style.display === 'none') {
+      // Modal closed — check pvp-reward-result now
+      setTimeout(_autoPvpContinue, 250);
+      return;
+    }
+    const spinBtn = document.getElementById('pvp-skill-spin-btn');
+    const contBtn = document.getElementById('pvp-skill-continue');
+    if (contBtn && contBtn.style.display !== 'none') {
+      // Result shown, continue/next button ready
+      setTimeout(() => {
+        if (!state.champAuto) return;
+        contBtn.click();
+        setTimeout(_autoHandleSkwModal, 450); // may open again for next spin
+      }, 650);
+    } else if (spinBtn && !spinBtn.disabled && spinBtn.style.display !== 'none') {
+      spinBtn.click();
+      setTimeout(_autoHandleSkwModal, 500);
+    } else {
+      setTimeout(_autoHandleSkwModal, 250); // still spinning / transitioning
+    }
+  };
+
+  // Step 4a: after PVP spin, poll until result visible (or choice wheel appears)
   const _autoPvpContinue = () => {
     if (!state.champAuto) return;
+    // pvp-skill-modal may be open (skill / weapon / stat choice wheel)
+    const skwModal = document.getElementById('pvp-skill-modal');
+    if (skwModal?.style.display !== 'none') {
+      _autoHandleSkwModal();
+      return;
+    }
     const res = document.getElementById('pvp-reward-result');
     if (res && res.style.display !== 'none') {
-      // Result visible — wait a beat then click Continue
       setTimeout(() => {
         if (!state.champAuto) return;
         document.getElementById('pvp-reward-continue')?.click();
@@ -524,34 +607,33 @@ function champAutoTick() {
     }
   };
 
-  // Step 2: auto-handle PVP reward modal once it appears
+  // Step 3: auto-handle PVP reward modal once it appears
   const _autoPvpModal = () => {
     if (!state.champAuto) return;
     const pvpModal = document.getElementById('pvp-reward-modal');
     const spinBtn  = document.getElementById('pvp-spin-btn');
     if (pvpModal?.style.display !== 'none' && spinBtn && !spinBtn.disabled) {
       spinBtn.click();
-      setTimeout(_autoPvpContinue, 500); // start polling for result after spin begins
+      setTimeout(_autoPvpContinue, 500);
     } else if (pvpModal?.style.display !== 'none') {
-      // Modal visible but button disabled (already spinning?) — just poll for result
       setTimeout(_autoPvpContinue, 500);
     } else {
-      setTimeout(_autoPvpModal, 250); // PVP modal not yet visible — keep polling
+      setTimeout(_autoPvpModal, 250);
     }
   };
 
-  // Step 1: check what appears first — elemental wheel or PVP reward wheel
+  // Step 1–2: check which modal appears first
   const _autoStart = () => {
     if (!state.champAuto) return;
 
     const ewModal  = document.getElementById('elemental-wheel-modal');
     const ewSpin   = document.getElementById('ew-spin-btn');
+    const abModal  = document.getElementById('angel-blessing-modal');
     const pvpModal = document.getElementById('pvp-reward-modal');
 
     if (ewModal?.style.display === 'flex' && ewSpin && !ewSpin.disabled) {
-      // Elemental wheel is up — auto-spin it
+      // Primordial: Elemental Wheel first, then PVP
       ewSpin.click();
-      // Poll for elemental result, then click Continue (which triggers PVP modal)
       const _waitEwResult = () => {
         if (!state.champAuto) return;
         const ewRes = document.getElementById('ew-result');
@@ -559,22 +641,25 @@ function champAutoTick() {
           setTimeout(() => {
             if (!state.champAuto) return;
             document.getElementById('ew-continue-btn')?.click();
-            // PVP reward modal will appear after elemental closes
             setTimeout(_autoPvpModal, 400);
           }, 700);
-        } else {
-          setTimeout(_waitEwResult, 250);
-        }
+        } else { setTimeout(_waitEwResult, 250); }
       };
       _waitEwResult();
 
+    } else if (abModal?.style.display === 'flex') {
+      // Principalities: Angel Blessing first, then PVP
+      setTimeout(() => {
+        if (!state.champAuto) return;
+        document.getElementById('ab-continue-btn')?.click();
+        setTimeout(_autoPvpModal, 400);
+      }, 1000);
+
     } else if (pvpModal?.style.display !== 'none') {
-      // PVP reward modal already visible (non-primordial winner)
       _autoPvpModal();
 
     } else {
-      // Neither visible yet — keep polling (handles async delays)
-      // After 3s with no modal, assume draw/no reward → proceed directly
+      // Nothing visible yet — keep polling; after 3s assume no reward → proceed
       _autoStart._polls = (_autoStart._polls || 0) + 1;
       if (_autoStart._polls > 12) {
         _autoStart._polls = 0;
@@ -586,7 +671,6 @@ function champAutoTick() {
     }
   };
 
-  // Give result.js time to show the wheel(s) before we start polling
   setTimeout(() => { _autoStart._polls = 0; _autoStart(); }, 700);
 }
 
@@ -617,6 +701,10 @@ function _updateChampAutoBtn() {
 function launchNextChampionshipMatch() {
   const cs=state.championship; if (!cs||cs.completed) return;
   const info=getNextChampionshipMatch(); if (!info) return;
+
+  // Commit any pending history from the previous match before starting a new one
+  _csCommitAllPending();
+
   const champPlayerCount = info.type === 'ffa' ? (info.fighters?.length ?? 4) : 2;
   state.arenaId=randomArenaChampionship(champPlayerCount); state.teamIds=[];
   if (info.type==='ffa') {
@@ -627,6 +715,31 @@ function launchNextChampionshipMatch() {
     state.bo3 = bo>1 ? {wins:[0,0],gameNum:1,fighters:[info.p1,info.p2],winsNeeded:Math.ceil(bo/2),bo} : null;
     if (typeof applyAsmodeusBo3Bonus === 'function') applyAsmodeusBo3Bonus();
   }
+
+  // Build match label and begin history entry for each fighter
+  const phaseNum = cs.currentPhaseIdx + 1;
+  const phase    = cs.phases[cs.currentPhaseIdx];
+  let matchLabel = `P${phaseNum}`;
+  if (info.type === 'ffa') {
+    matchLabel = `P${phaseNum}#G${(phase.currentGroup ?? 0) + 1}`;
+  } else if (!info.isDE) {
+    matchLabel = `P${phaseNum}#${(phase.currentMatch ?? 0) + 1}`;
+  } else {
+    const seq = phase.seq?.[phase.currentSeqIdx];
+    if (seq) {
+      const bLbl = seq.b === 'gf' ? 'GF'
+        : `${seq.b.toUpperCase()}-${seq.r.toUpperCase()}`;
+      matchLabel = `P${phaseNum} ${bLbl}`;
+    }
+  }
+  for (const f of (state.fighters || [])) {
+    if (!f) continue;
+    const opponents = (state.fighters || [])
+      .filter(o => o && o !== f)
+      .map(o => o.charName || '?');
+    _csBeginMatchEntry(f, matchLabel, opponents);
+  }
+
   updateBO3Display(); _syncChampAutoStopBtn(); showScreen('game'); startGame();
 }
 

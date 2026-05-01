@@ -254,6 +254,9 @@ function step() {
   // Projectiles vs all balls
   resolveProjectiles(players, state.projectiles);
 
+  // Melee weapons vs skill minions (necromancer_pact, horde_call…)
+  if (typeof resolveMeleeVsMinions === 'function') resolveMeleeVsMinions(players);
+
   // PVE: heal orb spawning + pickup
   if (state.pveMode && state.boss?.alive) {
     updateHealOrbs(players);

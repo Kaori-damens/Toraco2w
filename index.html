@@ -819,6 +819,57 @@
 
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 May 2026</span>
+          <span class="changelog-badge">Patch 137</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚔️ <b>Minion — Melee Hittable</b>: Skeleton minion (Necromancer's Pact, Horde Call) giờ có thể bị đánh bởi melee weapon. Trước đây chỉ bị range tiêu diệt.</li>
+              <li>🐛 <b>Bug fix — Primordial "No changes"</b>: Winner là Primordial trước đây chỉ nhận Elemental Wheel mà không nhận PVP Reward Wheel — giờ Elemental Wheel xong mới mở PVP Reward Wheel tiếp theo.</li>
+              <li>📋 <b>Match History — Elemental Wheel</b>: Kết quả quay Elemental Wheel (Air/Water/Fire/Earth bonus) giờ được ghi vào match history của Primordial winner.</li>
+              <li>📋 <b>Match History — Angel Blessing</b>: Stat +2 từ Principalities subrace giờ được ghi vào match history.</li>
+              <li>📋 <b>Match History — Goblin ×1</b>: Stat bonus khi thắng của Goblin ×1 giờ được ghi vào match history.</li>
+              <li>📋 <b>Match History — Skeleton Lich</b>: Sự kiện Lich Ascension (2 chiến thắng → IQ ≥ 8) giờ được ghi vào match history.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 May 2026</span>
+          <span class="changelog-badge">Patch 136</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>✨ <b>PVP Choice Wheel</b>: Tất cả rewards có yếu tố ngẫu nhiên giờ đều hiện vòng quay để user tự spin: <b>Skills</b> (pow1/2/3 — quay lần lượt, mỗi lần ra 1 skill), <b>Forbidden Weapon</b> (hiển thị tất cả 5 vũ khí cấm thay vì chỉ 2), <b>Stat Boost</b> (rnd3/rnd6 — quay 3 hoặc 6 lần trên vòng 6 stat).</li>
+              <li>🐛 <b>Bug fix — Weapon Skill Filter</b>: Các skill chỉ hoạt động với vũ khí cụ thể (Volley/Sniper cho Bow, Bounce Damage/Fan Throw cho Shuriken…) không còn xuất hiện trong pool PVP Reward nếu fighter đang dùng vũ khí khác.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">29 Apr 2026</span>
+          <span class="changelog-badge">Patch 135</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>📋 <b>Match History</b>: Thêm phần lịch sử trận đấu vào Fighter Card trong Championship. Mỗi hàng hiển thị mã trận (P1#1), kết quả W/L, đối thủ, và tất cả thay đổi stat/skill trong trận đó kèm nguồn gốc (PVP Reward, Copycat, Orc — Win/Loss, Demon subraces, Learning, Survivor...).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">29 Apr 2026</span>
           <span class="changelog-badge">Patch 134</span>
           <span class="changelog-chevron">▼</span>
@@ -2216,6 +2267,24 @@
       <div class="pvp-rw-res-outcome" id="cc-res-outcome"></div>
     </div>
     <button class="pvp-rw-cont-btn" id="cc-continue-btn" style="display:none" data-i18n="btn_continue">✓ Continue</button>
+  </div>
+</div>
+
+<!-- PVP Skill Selection Wheel Modal -->
+<div id="pvp-skill-modal" style="display:none">
+  <div id="pvp-skill-box">
+    <div class="pvp-rw-title">✨ Power Up!</div>
+    <div class="pvp-rw-winner" id="pvp-skill-winner">— Winner —</div>
+    <div class="pvp-skill-counter" id="pvp-skill-counter">✨ Choose a Skill</div>
+    <canvas id="pvp-skill-wheel" width="300" height="300"></canvas>
+    <div class="pvp-rw-spin-row">
+      <button id="pvp-skill-spin-btn" class="pvp-spin-btn">✨ SPIN!</button>
+    </div>
+    <div id="pvp-skill-result" style="display:none">
+      <div class="pvp-rw-res-label"   id="pvp-skill-res-label"></div>
+      <div class="pvp-rw-res-outcome" id="pvp-skill-res-desc"></div>
+    </div>
+    <button class="pvp-rw-cont-btn" id="pvp-skill-continue" style="display:none">✓ Accept &amp; Continue</button>
   </div>
 </div>
 

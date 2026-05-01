@@ -2,25 +2,41 @@
 // PVP REWARD WHEEL — spins after each tournament match win
 // ============================================================
 
-const STAT_KEYS_PVP = ['strength', 'speed', 'durability', 'iq', 'battleiq', 'ma'];
+const STAT_KEYS_PVP  = ['strength', 'speed', 'durability', 'iq', 'battleiq', 'ma'];
 const STAT_SHORT_PVP = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
 
+// ── PVP_REWARDS — data-driven, tự động apply qua _pvpApplyReward ────
+// Semantic fields (bất kỳ field nào không có = không trigger tính năng đó):
+//   stat         {string}  — key trong charStats để cộng vào (dùng với amount)
+//   allStats     {true}    — cộng amount vào TẤT CẢ 6 stats
+//   lowestStat   {true}    — cộng amount vào stat thấp nhất
+//   highestStat  {true}    — cộng amount vào stat cao nhất
+//   amount       {number}  — số cộng vào (dùng với stat/allStats/lowestStat/highestStat)
+//   skillCount   {number}  — số skill được chọn qua PVP Skill Wheel
+//   statSpins    {number}  — số lần quay stat wheel (+2 mỗi lần)
+//   statAmount   {number}  — amount mỗi lần spin stat wheel (default 2)
+//   forbiddenWeapon {true} — mở Forbidden Weapon Wheel
+//   statBlock    {true}    — Leviathan block reward này
+//   skillBlock   {true}    — Belphegor block reward này
+//
+// Để thêm reward mới, chỉ cần thêm object vào array — không cần sửa code apply.
+// Ví dụ: { id:'spd2', label:'+2 SPD', stat:'speed', amount:2, statBlock:true, icon:'⚡', weight:3, color:'#2266dd' }
 const PVP_REWARDS = [
-  { id:'str1',  label:'+1 STR',     desc:'Strength +1',             icon:'💪', weight:10,   color:'#bb3311' },
-  { id:'spd1',  label:'+1 SPD',     desc:'Speed +1',                icon:'⚡', weight:10,   color:'#1155bb' },
-  { id:'dur1',  label:'+1 DUR',     desc:'Durability +1',           icon:'🛡', weight:10,   color:'#117733' },
-  { id:'iq1',   label:'+1 IQ',      desc:'IQ +1',                   icon:'🧠', weight:10,   color:'#997711' },
-  { id:'biq1',  label:'+1 BIQ',     desc:'Battle IQ +1',            icon:'🎯', weight:10,   color:'#771199' },
-  { id:'ma1',   label:'+1 MA',      desc:'Martial Arts +1',         icon:'🥋', weight:10,   color:'#992211' },
-  { id:'low2',  label:'+2 Lowest',  desc:'+2 to your lowest stat',  icon:'📉', weight:6,    color:'#224466' },
-  { id:'high2', label:'+2 Highest', desc:'+2 to your highest stat', icon:'📈', weight:6,    color:'#664422' },
-  { id:'pow1',  label:'1 Power',    desc:'Gain 1 random skill',     icon:'✨', weight:6,    color:'#116688' },
-  { id:'pow2',  label:'2 Powers',   desc:'Gain 2 random skills',    icon:'🌟', weight:2,    color:'#bb7700' },
-  { id:'pow3',  label:'3 Powers',   desc:'Gain 3 random skills',    icon:'💫', weight:1,    color:'#aa1166' },
-  { id:'rnd3',  label:'+2 Rand×3',  desc:'+2 to 3 random stats',    icon:'🎲', weight:0.64, color:'#115566' },
-  { id:'rnd6',  label:'+2 Rand×6',  desc:'+2 to 6 random stats',    icon:'🎰', weight:0.36, color:'#661188' },
-  { id:'all1',      label:'+1 All',           desc:'All stats +1',            icon:'⭐', weight:4,    color:'#998800' },
-  { id:'forbidden', label:'🚫 Forbidden Weapon', desc:'Equip a Forbidden Weapon', icon:'🚫', weight:4,    color:'#8800cc' },
+  { id:'str1',  label:'+1 STR',           stat:'strength',   amount:1, statBlock:true,  icon:'💪', weight:10,   color:'#bb3311' },
+  { id:'spd1',  label:'+1 SPD',           stat:'speed',      amount:1, statBlock:true,  icon:'⚡', weight:10,   color:'#1155bb' },
+  { id:'dur1',  label:'+1 DUR',           stat:'durability', amount:1, statBlock:true,  icon:'🛡', weight:10,   color:'#117733' },
+  { id:'iq1',   label:'+1 IQ',            stat:'iq',         amount:1, statBlock:true,  icon:'🧠', weight:10,   color:'#997711' },
+  { id:'biq1',  label:'+1 BIQ',           stat:'battleiq',   amount:1, statBlock:true,  icon:'🎯', weight:10,   color:'#771199' },
+  { id:'ma1',   label:'+1 MA',            stat:'ma',         amount:1, statBlock:true,  icon:'🥋', weight:10,   color:'#992211' },
+  { id:'low2',  label:'+2 Lowest',  lowestStat:true,  amount:2, statBlock:true,         icon:'📉', weight:6,    color:'#224466' },
+  { id:'high2', label:'+2 Highest', highestStat:true, amount:2, statBlock:true,         icon:'📈', weight:6,    color:'#664422' },
+  { id:'pow1',  label:'1 Power',    skillCount:1,            skillBlock:true,            icon:'✨', weight:6,    color:'#116688' },
+  { id:'pow2',  label:'2 Powers',   skillCount:2,            skillBlock:true,            icon:'🌟', weight:2,    color:'#bb7700' },
+  { id:'pow3',  label:'3 Powers',   skillCount:3,            skillBlock:true,            icon:'💫', weight:1,    color:'#aa1166' },
+  { id:'rnd3',  label:'+2 Rand×3',  statSpins:3, statAmount:2, statBlock:true,          icon:'🎲', weight:0.64, color:'#115566' },
+  { id:'rnd6',  label:'+2 Rand×6',  statSpins:6, statAmount:2, statBlock:true,          icon:'🎰', weight:0.36, color:'#661188' },
+  { id:'all1',  label:'+1 All',     allStats:true, amount:1, statBlock:true,            icon:'⭐', weight:4,    color:'#998800' },
+  { id:'forbidden', label:'🚫 Forbidden Weapon', forbiddenWeapon:true,                  icon:'🚫', weight:4,    color:'#8800cc' },
 ];
 
 // ── Weighted pick ──────────────────────────────────────────────────
@@ -35,7 +51,11 @@ function _pvpPickReward() {
 function _pvpAddPowers(fighter, count) {
   if (typeof SKILL_DEFS === 'undefined') return [];
   const has  = new Set(fighter.skills || []);
-  const pool = SKILL_DEFS.filter(s => !has.has(s.id));
+  const pool = SKILL_DEFS.filter(s =>
+    !has.has(s.id) &&
+    !s.unique &&
+    !(s.weapon && s.weapon !== fighter.weaponId)  // lọc skill weapon-specific không phù hợp
+  );
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -46,54 +66,69 @@ function _pvpAddPowers(fighter, count) {
   return toAdd;
 }
 
-// ── Apply reward → returns human-readable outcome string ──────────
+// ── Apply reward — data-driven, đọc semantic fields từ reward object ──
+// Wheel-based rewards (skillCount / statSpins / forbiddenWeapon) bình thường bị
+// intercepted trong _pvpOnLand và không gọi tới đây.
+// Hàm này vẫn xử lý chúng như fallback (nếu modal wheel không tồn tại).
 function _pvpApplyReward(fighter, reward) {
   const cs = fighter.charStats;
-  switch (reward.id) {
-    case 'str1':  { const o=cs.strength   ||0; cs.strength   =o+1; return `STR: ${o} → ${o+1}`; }
-    case 'spd1':  { const o=cs.speed      ||0; cs.speed      =o+1; return `SPD: ${o} → ${o+1}`; }
-    case 'dur1':  { const o=cs.durability ||0; cs.durability =o+1; return `DUR: ${o} → ${o+1}`; }
-    case 'iq1':   { const o=cs.iq         ||0; cs.iq         =o+1; return `IQ: ${o} → ${o+1}`;  }
-    case 'biq1':  { const o=cs.battleiq   ||0; cs.battleiq   =o+1; return `BIQ: ${o} → ${o+1}`; }
-    case 'ma1':   { const o=cs.ma         ||0; cs.ma         =o+1; return `MA: ${o} → ${o+1}`;  }
-    case 'low2': {
-      const st = STAT_KEYS_PVP.reduce((a,k) => (cs[k]||0) < (cs[a]||0) ? k : a, STAT_KEYS_PVP[0]);
-      const o = cs[st]||0; cs[st] = o+2;
-      return `${STAT_SHORT_PVP[st]} (lowest): ${o} → ${o+2}`;
-    }
-    case 'high2': {
-      const st = STAT_KEYS_PVP.reduce((a,k) => (cs[k]||0) > (cs[a]||0) ? k : a, STAT_KEYS_PVP[0]);
-      const o = cs[st]||0; cs[st] = o+2;
-      return `${STAT_SHORT_PVP[st]} (highest): ${o} → ${o+2}`;
-    }
-    case 'pow1': case 'pow2': case 'pow3': {
-      const n     = reward.id === 'pow1' ? 1 : reward.id === 'pow2' ? 2 : 3;
-      const added = _pvpAddPowers(fighter, n);
-      return added.length ? 'Gained: ' + added.map(s => s.name).join(', ')
-                           : 'No skills available';
-    }
-    case 'rnd3': case 'rnd6': {
-      const n = reward.id === 'rnd3' ? 3 : 6;
-      const gained = {};
-      for (let i = 0; i < n; i++) {
-        const k = STAT_KEYS_PVP[Math.floor(Math.random() * 6)];
-        cs[k] = (cs[k]||0) + 2; gained[k] = (gained[k]||0) + 2;
-      }
-      return Object.entries(gained).map(([k,v]) => `${STAT_SHORT_PVP[k]} +${v}`).join('  ');
-    }
-    case 'all1':
-      STAT_KEYS_PVP.forEach(k => cs[k] = (cs[k]||0) + 1);
-      return 'STR SPD DUR IQ BIQ MA — all +1';
-    case 'forbidden': {
-      const pick = Math.random() < 0.5 ? 'rapier' : 'katana';
-      const def  = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[pick] : null;
-      fighter.weaponId = pick;
-      const wName = def ? `${def.icon} ${def.name}` : pick;
-      return `🚫 Forbidden: ${wName} equipped!`;
-    }
-    default:
-      return reward.desc;
+
+  // +N vào 1 stat cụ thể
+  if (reward.stat && reward.amount) {
+    const o = cs[reward.stat] || 0;
+    cs[reward.stat] = o + reward.amount;
+    const sh = STAT_SHORT_PVP[reward.stat] ?? reward.stat.toUpperCase();
+    return `${sh}: ${o} → ${o + reward.amount}`;
   }
+
+  // +N vào tất cả stats
+  if (reward.allStats && reward.amount) {
+    STAT_KEYS_PVP.forEach(k => cs[k] = (cs[k] || 0) + reward.amount);
+    const sign = reward.amount > 0 ? '+' : '';
+    return `STR SPD DUR IQ BIQ MA — all ${sign}${reward.amount}`;
+  }
+
+  // +N vào stat thấp nhất
+  if (reward.lowestStat && reward.amount) {
+    const st = STAT_KEYS_PVP.reduce((a, k) => (cs[k]||0) < (cs[a]||0) ? k : a, STAT_KEYS_PVP[0]);
+    const o  = cs[st] || 0; cs[st] = o + reward.amount;
+    return `${STAT_SHORT_PVP[st]} (lowest): ${o} → ${o + reward.amount}`;
+  }
+
+  // +N vào stat cao nhất
+  if (reward.highestStat && reward.amount) {
+    const st = STAT_KEYS_PVP.reduce((a, k) => (cs[k]||0) > (cs[a]||0) ? k : a, STAT_KEYS_PVP[0]);
+    const o  = cs[st] || 0; cs[st] = o + reward.amount;
+    return `${STAT_SHORT_PVP[st]} (highest): ${o} → ${o + reward.amount}`;
+  }
+
+  // Skill wheel fallback (bình thường intercepted trước)
+  if (reward.skillCount) {
+    const added = _pvpAddPowers(fighter, reward.skillCount);
+    return added.length ? 'Gained: ' + added.map(s => s.name).join(', ') : 'No skills available';
+  }
+
+  // Stat spin fallback (bình thường intercepted trước)
+  if (reward.statSpins && reward.statAmount) {
+    const gained = {};
+    for (let i = 0; i < reward.statSpins; i++) {
+      const k = STAT_KEYS_PVP[Math.floor(Math.random() * STAT_KEYS_PVP.length)];
+      cs[k] = (cs[k] || 0) + reward.statAmount;
+      gained[k] = (gained[k] || 0) + reward.statAmount;
+    }
+    return Object.entries(gained).map(([k, v]) => `${STAT_SHORT_PVP[k]} +${v}`).join('  ');
+  }
+
+  // Forbidden weapon wheel fallback (bình thường intercepted trước)
+  if (reward.forbiddenWeapon) {
+    const wdefs    = (typeof WEAPON_DEFS !== 'undefined') ? WEAPON_DEFS : [];
+    const pool     = wdefs.filter(w => w.forbidden);
+    const pick     = pool[Math.floor(Math.random() * pool.length)];
+    if (pick) { fighter.weaponId = pick.id; return `🚫 Forbidden: ${pick.icon} ${pick.name} equipped!`; }
+    return reward.desc ?? '';
+  }
+
+  return reward.desc ?? '';
 }
 
 // ── Wheel canvas state ─────────────────────────────────────────────
@@ -297,30 +332,87 @@ function _pvpOnLand() {
   if (_pvpApplied || !_pvpReward || !_pvpFighter) return;
   _pvpApplied = true;
 
-  // Demon subrace reward filters
+  // Demon subrace reward filters — đọc từ semantic fields, không hardcode ID list
   const _demonSrl   = _pvpFighter.charStats?.subrace?.label;
-  const _isStatRwd  = ['str1','spd1','dur1','iq1','biq1','ma1','low2','high2','rnd3','rnd6','all1'].includes(_pvpReward.id);
-  const _isSkillRwd = ['pow1','pow2','pow3'].includes(_pvpReward.id);
+  const _isStatRwd  = !!_pvpReward.statBlock;   // Leviathan blocks these
+  const _isSkillRwd = !!_pvpReward.skillBlock;  // Belphegor blocks these
 
+  // ── Rewards that use interactive spin wheels ──────────────────
+  // Skill wheel: bất kỳ reward nào có skillCount (pow1/pow2/pow3...)
+  if (_pvpReward.skillCount && _demonSrl !== 'Belphegor') {
+    showPVPSkillWheel(_pvpFighter, _pvpReward.skillCount, (gained) => {
+      const names = gained.map(s => s?.name).filter(Boolean).join(', ');
+      // Note: csAddHistoryChange is already called per-skill inside _skwDoSpin
+      _pvpFinishRewardDisplay(gained.length ? 'Gained: ' + names : 'No skills available');
+    });
+    return;
+  }
+
+  // Forbidden weapon wheel: bất kỳ reward nào có forbiddenWeapon:true
+  if (_pvpReward.forbiddenWeapon) {
+    showPVPForbiddenWheel(_pvpFighter, (gained) => {
+      const wName = gained[0] ? `${gained[0].icon} ${gained[0].name}` : '?';
+      // Note: csAddHistoryChange is already called inside _skwDoSpin (weapon mode)
+      _pvpFinishRewardDisplay(`🚫 Forbidden: ${wName} equipped!`);
+    });
+    return;
+  }
+
+  // Stat wheel: bất kỳ reward nào có statSpins (rnd3/rnd6...)
+  // Leviathan blocks stat rewards → skip wheel, show block message
+  if (_pvpReward.statSpins) {
+    if (_demonSrl === 'Leviathan') {
+      const blocked = t('pvp_leviathan_block');
+      if (typeof csAddHistoryChange === 'function' && _pvpFighter)
+        csAddHistoryChange(_pvpFighter, `${blocked} (PVP Reward)`);
+      _pvpFinishRewardDisplay(blocked);
+      return;
+    }
+    showPVPStatWheel(_pvpFighter, _pvpReward.statSpins, (gained) => {
+      const accum   = gained.reduce((acc, g) => { acc[g.short] = (acc[g.short] ?? 0) + g.amount; return acc; }, {});
+      const summary = Object.entries(accum).map(([k, v]) => `${k} +${v}`).join('  ');
+      if (typeof csAddHistoryChange === 'function' && _pvpFighter)
+        csAddHistoryChange(_pvpFighter, `${summary} (PVP Reward)`);
+      _pvpFinishRewardDisplay(summary || 'Stats boosted!');
+    });
+    return;
+  }
+
+  // ── Non-wheel rewards: apply immediately (data-driven) ───────
   let outcome;
   if (_demonSrl === 'Leviathan' && _isStatRwd) {
     outcome = t('pvp_leviathan_block');
   } else if (_demonSrl === 'Belphegor' && _isSkillRwd) {
     outcome = t('pvp_belphegor_block');
   } else {
-    // Apply reward + get outcome string (in-tournament only, does NOT sync to roster)
+    // _pvpApplyReward đọc semantic fields → không cần sửa khi thêm reward mới
     outcome = _pvpApplyReward(_pvpFighter, _pvpReward);
   }
 
+  // Log vào match history (stat / non-skill rewards)
+  if (typeof csAddHistoryChange === 'function' && _pvpFighter) {
+    csAddHistoryChange(_pvpFighter, `${outcome} (PVP Reward)`);
+  }
+
+  _pvpFinishRewardDisplay(outcome);
+}
+
+// Shared helper: save + show result panel (used by both wheel callbacks and direct rewards)
+function _pvpFinishRewardDisplay(outcomeText) {
   // Persist championship state AFTER reward is applied (not before — recordChampionshipMatchResult
   // saves earlier, before this runs, so skills/stats gained here would be lost on page reload)
   if (typeof state !== 'undefined' && state?.championship && typeof saveChampionshipProgress === 'function') {
     saveChampionshipProgress();
   }
 
-  // Show result panel
-  document.getElementById('pvp-reward-res-label').textContent   = _pvpReward.label;
-  document.getElementById('pvp-reward-res-outcome').textContent = outcome;
+  // Commit match history ngay tại đây — tất cả csAddHistoryChange đã chạy xong ở các bước trước.
+  // Giúp fighter card hiển thị history ngay khi trận kết thúc (kể cả trận cuối phase/championship).
+  if (typeof _csCommitAllPending === 'function' && typeof state !== 'undefined' && state?.championship) {
+    _csCommitAllPending();
+  }
+
+  document.getElementById('pvp-reward-res-label').textContent   = _pvpReward?.label ?? '';
+  document.getElementById('pvp-reward-res-outcome').textContent = outcomeText;
   document.getElementById('pvp-reward-result').style.display    = '';
 }
 
@@ -580,6 +672,198 @@ document.getElementById('cc-continue-btn')?.addEventListener('click', () => {
 });
 
 // ============================================================
+// PVP CHOICE WHEEL — generic: skills (pow1/2/3), forbidden weapon, stats (rnd3/rnd6)
+// ============================================================
+let _skwFighter   = null;
+let _skwMode      = 'skill';  // 'skill' | 'weapon' | 'stat'
+let _skwRemaining = 0;
+let _skwWheel     = null;
+let _skwGained    = [];  // skill: SkillDef[] | weapon: WeaponDef[] | stat: {key,short,amount}[]
+let _skwOnDone    = null;
+
+// ── Item pool builders ────────────────────────────────────────
+function _skwBuildSkillPool(fighter) {
+  const has = new Set(fighter.skills || []);
+  // Loại skill đã có, unique-only, hoặc weapon-specific không phù hợp vũ khí hiện tại
+  return (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS : []).filter(s =>
+    !has.has(s.id) &&
+    !s.unique &&
+    !(s.weapon && s.weapon !== fighter.weaponId)
+  );
+}
+
+function _skwBuildForbiddenItems() {
+  const wdefs = (typeof WEAPON_DEFS !== 'undefined') ? WEAPON_DEFS : [];
+  return wdefs
+    .filter(w => w.forbidden)
+    .map((w, i) => ({ label: `${w.icon} ${w.name}`, weight: 1, color: w.color ?? wColor(i), _def: w }));
+}
+
+function _skwBuildStatItems() {
+  // Đọc statAmount từ reward hiện tại (default 2 nếu không có)
+  const amt = _pvpReward?.statAmount ?? 2;
+  const s   = amt > 0 ? `+${amt}` : `${amt}`;
+  return [
+    { label: `${s} STR`, weight: 1, color: '#bb3311', _key: 'strength',   _short: 'STR', _amt: amt },
+    { label: `${s} SPD`, weight: 1, color: '#1155bb', _key: 'speed',      _short: 'SPD', _amt: amt },
+    { label: `${s} DUR`, weight: 1, color: '#117733', _key: 'durability', _short: 'DUR', _amt: amt },
+    { label: `${s} IQ`,  weight: 1, color: '#997711', _key: 'iq',         _short: 'IQ',  _amt: amt },
+    { label: `${s} BIQ`, weight: 1, color: '#771199', _key: 'battleiq',   _short: 'BIQ', _amt: amt },
+    { label: `${s} MA`,  weight: 1, color: '#992211', _key: 'ma',         _short: 'MA',  _amt: amt },
+  ];
+}
+
+function _skwGetItems() {
+  if (_skwMode === 'weapon') return _skwBuildForbiddenItems();
+  if (_skwMode === 'stat')   return _skwBuildStatItems();
+  return _skwBuildSkillPool(_skwFighter).map((s, i) => ({
+    label: s.name, weight: 1, color: wColor(i), _def: s,
+  }));
+}
+
+// ── Public entry points ───────────────────────────────────────
+function showPVPSkillWheel(fighter, count, onDone) {
+  _skwMode = 'skill';
+  _skwFighter = fighter; _skwRemaining = count; _skwGained = []; _skwOnDone = onDone;
+  _skwOpenNext();
+}
+
+function showPVPForbiddenWheel(fighter, onDone) {
+  _skwMode = 'weapon';
+  _skwFighter = fighter; _skwRemaining = 1; _skwGained = []; _skwOnDone = onDone;
+  _skwOpenNext();
+}
+
+function showPVPStatWheel(fighter, count, onDone) {
+  _skwMode = 'stat';
+  _skwFighter = fighter; _skwRemaining = count; _skwGained = []; _skwOnDone = onDone;
+  _skwOpenNext();
+}
+
+// ── Open next spin ────────────────────────────────────────────
+function _skwOpenNext() {
+  const modal  = document.getElementById('pvp-skill-modal');
+  const canvas = document.getElementById('pvp-skill-wheel');
+  if (!modal || !canvas) { _skwFinish(); return; }
+
+  const items = _skwGetItems();
+  if (items.length === 0) {
+    _skwGained.push(null);
+    _skwRemaining--;
+    if (_skwRemaining > 0) { _skwOpenNext(); return; }
+    _skwFinish(); return;
+  }
+
+  _skwWheel = new SpinWheel(canvas, items);
+
+  // Modal title
+  const titles = { skill: '✨ Power Up!', weapon: '🚫 Forbidden Weapon!', stat: '📈 Stat Boost!' };
+  const titleEl = modal.querySelector('.pvp-rw-title');
+  if (titleEl) titleEl.textContent = titles[_skwMode] ?? '🎰 Choose!';
+
+  // Counter label
+  const total   = _skwGained.length + _skwRemaining;
+  const current = _skwGained.length + 1;
+  const ctrEl   = document.getElementById('pvp-skill-counter');
+  if (ctrEl) {
+    if (_skwMode === 'weapon') {
+      ctrEl.textContent = '🚫 Choose a Forbidden Weapon';
+    } else {
+      const word = _skwMode === 'stat' ? 'Stat' : 'Skill';
+      ctrEl.textContent = total > 1 ? `${word} ${current} of ${total}` : `Choose a ${word}`;
+    }
+  }
+
+  // Winner name
+  const nameEl = document.getElementById('pvp-skill-winner');
+  if (nameEl) nameEl.textContent = `${_skwFighter.charEmoji ?? '⚔️'} ${_skwFighter.charName ?? 'Winner'}`;
+
+  // Reset UI
+  document.getElementById('pvp-skill-result').style.display = 'none';
+  const spinBtn = document.getElementById('pvp-skill-spin-btn');
+  const contBtn = document.getElementById('pvp-skill-continue');
+  if (spinBtn) { spinBtn.style.display = ''; spinBtn.disabled = false; spinBtn.textContent = '🎰 SPIN!'; }
+  if (contBtn) contBtn.style.display = 'none';
+
+  modal.style.display = 'flex';
+}
+
+// ── Spin handler ──────────────────────────────────────────────
+function _skwDoSpin() {
+  if (!_skwWheel || _skwWheel.spinning) return;
+  const spinBtn = document.getElementById('pvp-skill-spin-btn');
+  if (spinBtn) { spinBtn.disabled = true; spinBtn.textContent = '⏳ Spinning…'; }
+
+  _skwWheel.spin((winner) => {
+    let resLabel = '', resDesc = '';
+
+    if (_skwMode === 'skill') {
+      const def = winner._def;
+      if (!_skwFighter.skills) _skwFighter.skills = [];
+      _skwFighter.skills.push(def.id);
+      _skwGained.push(def);
+      if (typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(_skwFighter, `+${def.name} (PVP Reward)`);
+      resLabel = `✨ ${def.name}`;
+      resDesc  = def.desc ?? '';
+
+    } else if (_skwMode === 'weapon') {
+      const def = winner._def;
+      _skwFighter.weaponId = def.id;
+      _skwGained.push(def);
+      if (typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(_skwFighter, `🚫 Forbidden: ${def.icon} ${def.name} (PVP Reward)`);
+      resLabel = `🚫 ${def.icon} ${def.name}`;
+      resDesc  = def.desc ?? '';
+
+    } else if (_skwMode === 'stat') {
+      const key   = winner._key;
+      const short = winner._short;
+      const amt   = winner._amt ?? 2;  // đọc từ item, default 2
+      const old   = _skwFighter.charStats?.[key] ?? 0;
+      if (_skwFighter.charStats) _skwFighter.charStats[key] = old + amt;
+      _skwGained.push({ key, short, amount: amt });
+      resLabel = `📈 ${short}: ${old} → ${old + amt}`;
+      resDesc  = '';
+      // stat history sẽ được log tổng 1 lần sau khi xong hết spins (trong callback _pvpOnLand)
+    }
+
+    // Show result
+    const resLabelEl = document.getElementById('pvp-skill-res-label');
+    const resDescEl  = document.getElementById('pvp-skill-res-desc');
+    if (resLabelEl) resLabelEl.textContent = resLabel;
+    if (resDescEl)  resDescEl.textContent  = resDesc;
+    document.getElementById('pvp-skill-result').style.display = '';
+
+    _skwRemaining--;
+    if (spinBtn) spinBtn.style.display = 'none';
+    const contBtn = document.getElementById('pvp-skill-continue');
+    if (contBtn) {
+      contBtn.textContent = _skwRemaining > 0
+        ? `▶ Next (${_skwRemaining} remaining)`
+        : '✓ Accept & Continue';
+      contBtn.style.display = '';
+    }
+  });
+}
+
+// ── Continue / Finish ─────────────────────────────────────────
+function _skwContinue() {
+  if (_skwRemaining > 0) { _skwOpenNext(); } else { _skwFinish(); }
+}
+
+function _skwFinish() {
+  const modal = document.getElementById('pvp-skill-modal');
+  if (modal) modal.style.display = 'none';
+  const cb = _skwOnDone;
+  _skwOnDone = null; _skwFighter = null; _skwWheel = null;
+  if (cb) cb(_skwGained.filter(Boolean));
+}
+
+document.getElementById('pvp-skill-spin-btn')?.addEventListener('click', _skwDoSpin);
+document.getElementById('pvp-skill-continue')?.addEventListener('click', _skwContinue);
+
+// ============================================================
 // ANGEL BLESSING — Principalities: +2 lowest stat before PVP reward
 // ============================================================
 function showAngelBlessing(fighter, statKey, onClose) {
@@ -721,6 +1005,10 @@ function _ewOnLand() {
       resultText = t('ew_result_earth');
       break;
     }
+  }
+  // Log elemental wheel result to match history
+  if (typeof csAddHistoryChange === 'function' && _ewFighter) {
+    csAddHistoryChange(_ewFighter, `🌌 Elemental: ${_ewChosen.emoji} ${_ewChosen.label} — ${resultText}`);
   }
   if (typeof saveChampionshipProgress === 'function' && typeof state !== 'undefined' && state?.championship) {
     saveChampionshipProgress();

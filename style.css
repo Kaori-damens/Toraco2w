@@ -3894,6 +3894,26 @@ canvas#gameCanvas {
   background: rgba(0,0,0,0.88);
   display: flex; align-items: center; justify-content: center;
 }
+#pvp-skill-modal {
+  position: fixed; inset: 0; z-index: 9155;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+}
+#pvp-skill-box {
+  background: #0b0e1e;
+  border: 2px solid #3a2a6a;
+  border-radius: 20px;
+  padding: 24px 28px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+  box-shadow: 0 0 80px rgba(100,60,220,0.45);
+  max-width: 380px; width: 100%;
+}
+.pvp-skill-counter {
+  font-size: 13px; font-weight: 700;
+  color: #bb99ff; letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
 #angel-blessing-modal {
   position: fixed; inset: 0; z-index: 9160;
   background: rgba(0,0,0,0.88);
@@ -4245,6 +4265,66 @@ canvas#gameCanvas {
   font-size: 9px; font-weight: 900;
   color: #ff4444; letter-spacing: 0.5px;
   text-transform: uppercase; margin-left: 3px;
+}
+
+/* ── Fighter Card — Match History ────────────────────────── */
+.fcard-history-section {
+  border-top: 1px solid #1e2240;
+  padding-top: 8px;
+  margin-top: 6px;
+}
+.fcard-history-title {
+  font-size: 11px; font-weight: 700;
+  color: #6688bb; letter-spacing: 0.5px;
+  text-transform: uppercase; margin-bottom: 5px;
+}
+.fcard-history-row {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 5px; padding: 4px 0;
+  border-bottom: 1px solid #151a2c;
+  font-size: 11px;
+}
+.fcard-history-label {
+  font-weight: 700; color: #aabbd4;
+  min-width: 38px; flex-shrink: 0;
+}
+.fcard-history-won {
+  background: #1a3a1a; border: 1px solid #336633;
+  color: #55cc55; border-radius: 3px;
+  padding: 1px 5px; font-size: 10px; font-weight: 900;
+  flex-shrink: 0;
+}
+.fcard-history-lost {
+  background: #3a1a1a; border: 1px solid #663333;
+  color: #cc4444; border-radius: 3px;
+  padding: 1px 5px; font-size: 10px; font-weight: 900;
+  flex-shrink: 0;
+}
+.fcard-history-vs {
+  color: #556; font-style: italic;
+  flex-shrink: 0;
+}
+.fcard-history-changes {
+  display: flex; flex-wrap: wrap; gap: 3px;
+  flex: 1;
+}
+.fcard-history-tag {
+  display: inline-block;
+  border-radius: 3px; padding: 1px 5px;
+  font-size: 10px; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.fcard-history-tag-pos {
+  background: #0e2a0e; border-color: #2a5a2a;
+  color: #77cc77;
+}
+.fcard-history-tag-neg {
+  background: #2a0e0e; border-color: #5a2a2a;
+  color: #cc6666;
+}
+.fcard-history-tag-neu {
+  background: #151a2c; border-color: #2a3050;
+  color: #6677aa;
 }
 
 /* ── Tournament Resume button ─────────────────────────────── */

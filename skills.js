@@ -1039,6 +1039,8 @@ function skillOnPostCombat(ball, won, fighter) {
       fighter.learningBonus = (fighter.learningBonus || 0) + 0.05;
       spawnDamageNumber(ball.x, ball.y - ball.radius, 'LEARNING +5%', '#88aaff');
       flashSkillHUD(ball, SKILL_MAP['learning']);
+      if (state?.championship && typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(fighter, '+5% DMG stack (Learning)');
     }
 
     // Adaptation: 20% resistance to the weapon that killed you
@@ -1073,6 +1075,8 @@ function skillOnPostCombat(ball, won, fighter) {
       fighter.survivorHPBonus = (fighter.survivorHPBonus || 0) + 10;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 14, '🩹 +10 MAX HP!', '#ff6688');
       flashSkillHUD(ball, SKILL_MAP['survivor']);
+      if (state?.championship && typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(fighter, '+10 Max HP (Survivor)');
     }
 
     // Veteran: win → +1 random stat (no cap)
@@ -1132,6 +1136,11 @@ function skillOnPostCombat(ball, won, fighter) {
         if (inTournament) {
           // Store for Copycat Wheel — applied after wheel spin
           fighter._copycatWheel = { candidates: candidateSkills, result: learned };
+          if (learned && state?.championship && typeof csAddHistoryChange === 'function') {
+            const skName = (typeof SKILL_MAP !== 'undefined' && SKILL_MAP[learned])
+              ? SKILL_MAP[learned].name : learned;
+            csAddHistoryChange(fighter, `+${skName} (Copycat)`);
+          }
         } else if (learned) {
           // Non-tournament: apply directly
           fighter.copycatSkill = learned;

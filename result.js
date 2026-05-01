@@ -144,11 +144,16 @@ function showResult() {
       if (typeof showPVPRewardWheel === 'function' && (state.tournament || state.tournament2v2 || state.championship)) {
         const _pvpShow = () => showPVPRewardWheel(mw);
         if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-          setTimeout(() => showPrimordialElementalWheel(mw, null), 500);
+          // Pass _pvpShow so PVP reward wheel shows AFTER elemental wheel closes
+          setTimeout(() => showPrimordialElementalWheel(mw, _pvpShow), 500);
         } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
           const _abCs = mw.charStats, _abSK = ['strength','speed','durability','iq','battleiq','ma'];
           const _abK = _abSK.reduce((a, b) => (_abCs[a]??0) < (_abCs[b]??0) ? a : b);
           _abCs[_abK] = (_abCs[_abK]??0) + 2;
+          if (typeof csAddHistoryChange === 'function' && state?.championship) {
+            const _abSH = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+            csAddHistoryChange(mw, `👼 +2 ${_abSH[_abK] ?? _abK.toUpperCase()} (Angel Blessing)`);
+          }
           if (typeof saveChampionshipProgress==='function' && typeof state!=='undefined' && state?.championship) saveChampionshipProgress();
           setTimeout(() => showAngelBlessing(mw, _abK, _pvpShow), 500);
         } else {
@@ -180,11 +185,15 @@ function showResult() {
         if (typeof showPVPRewardWheel === 'function') {
           const _pvpShowBO1 = () => showPVPRewardWheel(mw);
           if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-            setTimeout(() => showPrimordialElementalWheel(mw, null), 500);
+            setTimeout(() => showPrimordialElementalWheel(mw, _pvpShowBO1), 500);
           } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
             const _abCs2 = mw.charStats, _abSK2 = ['strength','speed','durability','iq','battleiq','ma'];
             const _abK2 = _abSK2.reduce((a, b) => (_abCs2[a]??0) < (_abCs2[b]??0) ? a : b);
             _abCs2[_abK2] = (_abCs2[_abK2]??0) + 2;
+            if (typeof csAddHistoryChange === 'function' && state?.championship) {
+              const _abSH2 = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+              csAddHistoryChange(mw, `👼 +2 ${_abSH2[_abK2] ?? _abK2.toUpperCase()} (Angel Blessing)`);
+            }
             if (typeof saveChampionshipProgress==='function' && typeof state!=='undefined' && state?.championship) saveChampionshipProgress();
             setTimeout(() => showAngelBlessing(mw, _abK2, _pvpShowBO1), 500);
           } else {
@@ -211,11 +220,15 @@ function showResult() {
         if (typeof showPVPRewardWheel === 'function') {
           const _pvpShowFfa = () => showPVPRewardWheel(winnerFighter);
           if (winnerFighter?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-            setTimeout(() => showPrimordialElementalWheel(winnerFighter, null), 500);
+            setTimeout(() => showPrimordialElementalWheel(winnerFighter, _pvpShowFfa), 500);
           } else if (winnerFighter?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
             const _abCs3 = winnerFighter.charStats, _abSK3 = ['strength','speed','durability','iq','battleiq','ma'];
             const _abK3 = _abSK3.reduce((a, b) => (_abCs3[a]??0) < (_abCs3[b]??0) ? a : b);
             _abCs3[_abK3] = (_abCs3[_abK3]??0) + 2;
+            if (typeof csAddHistoryChange === 'function' && state?.championship) {
+              const _abSH3 = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ', battleiq:'BIQ', ma:'MA' };
+              csAddHistoryChange(winnerFighter, `👼 +2 ${_abSH3[_abK3] ?? _abK3.toUpperCase()} (Angel Blessing)`);
+            }
             if (typeof saveChampionshipProgress==='function' && typeof state!=='undefined' && state?.championship) saveChampionshipProgress();
             setTimeout(() => showAngelBlessing(winnerFighter, _abK3, _pvpShowFfa), 500);
           } else {
@@ -276,10 +289,14 @@ function showResult() {
         const k = _OS.reduce((a, b) => (cs[b] ?? 0) < (cs[a] ?? 0) ? b : a);
         cs[k] = (cs[k] ?? 0) + 2;
         spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `🗡️ ORC +2 ${_SH[k]}!`, '#ff7733');
+        if (state.championship && typeof csAddHistoryChange === 'function')
+          csAddHistoryChange(fi, `+2 ${_SH[k]} (Orc — Win)`);
       } else {
         const k = _OS.reduce((a, b) => (cs[b] ?? 0) > (cs[a] ?? 0) ? b : a);
         cs[k] = Math.max(0, (cs[k] ?? 0) - 3);
         spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `🗡️ ORC -3 ${_SH[k]}!`, '#995522');
+        if (state.championship && typeof csAddHistoryChange === 'function')
+          csAddHistoryChange(fi, `-3 ${_SH[k]} (Orc — Loss)`);
       }
     });
   }
@@ -310,18 +327,24 @@ function showResult() {
       const k = _DS[Math.floor(Math.random() * _DS.length)];
       cs[k] = (cs[k] ?? 0) + 1;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 18, `😈 GLUTTONY +1 ${_DSH[k]}!`, '#ff8800');
+      if (state.championship && typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(fi, `+1 ${_DSH[k]} (Beelzebub — Gluttony)`);
     }
 
     // Behemoth: after each game (win OR lose) → −1 DUR permanent
     if (srl === 'Behemoth') {
       cs.durability = Math.max(0, (cs.durability ?? 0) - 1);
       spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '😈 WRATH −1 DUR', '#cc4400');
+      if (state.championship && typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(fi, '-1 DUR (Behemoth — Wrath)');
     }
 
     // Belphegor: each game WIN (survive) → +1 DUR permanent
     if (srl === 'Belphegor' && gameWon && !isDraw) {
       cs.durability = (cs.durability ?? 0) + 1;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '😈 SLOTH +1 DUR', '#4488cc');
+      if (state.championship && typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(fi, '+1 DUR (Belphegor — Sloth)');
     }
 
     // Lucifer: series LOSS → −1 all stats permanent (only when match is decided)
@@ -337,6 +360,8 @@ function showResult() {
       if (seriesLost) {
         for (const k of _DS) cs[k] = Math.max(0, (cs[k] ?? 0) - 1);
         spawnDamageNumber(ball.x, ball.y - ball.radius - 18, '😈 PRIDE −1 ALL!', '#9900cc');
+        if (state.championship && typeof csAddHistoryChange === 'function')
+          csAddHistoryChange(fi, '-1 All Stats (Lucifer — Pride)');
       }
     }
   });
@@ -366,6 +391,8 @@ function showResult() {
       }
       const msg = Object.entries(gained).map(([k, v]) => `+${v} ${_G1SH[k]}`).join(' ');
       spawnDamageNumber(ball.x, ball.y - ball.radius - 20, `👺 ×1 ${msg}`, '#88ff44');
+      if (state.championship && typeof csAddHistoryChange === 'function')
+        csAddHistoryChange(fi, `${msg} (Goblin ×1 — Win)`);
     });
   }
 
@@ -399,6 +426,8 @@ function showResult() {
         cs.iq = Math.max(oldIQ, 8);
         spawnDamageNumber(ball.x, ball.y - ball.radius - 24, '💀 LICH ASCENSION!', '#8844ff');
         spawnBigAnnouncement?.('💀 SKELETON → LICH!', '#8844ff');
+        if (state.championship && typeof csAddHistoryChange === 'function')
+          csAddHistoryChange(fi, `💀 Lich Ascension — IQ → ${cs.iq} (Skeleton — 2nd Win)`);
       }
     });
   }
