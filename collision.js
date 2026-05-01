@@ -390,8 +390,8 @@ function resolveProjectiles(players, projectiles) {
               `🐍 SLOW ×${target.medusaSlowStacks}`, '#44cc88');
             if (target.medusaSlowStacks >= 5 && !target.medusaPetrify) {
               target.medusaPetrify = 120; // 2s = 120f → weapon bị freeze
-              spawnDamageNumber(target.x, target.y - target.radius - 24, '🐍 PETRIFIED!', '#44cc88');
-              if (typeof target.shout === 'function') target.shout('🐍 PETRIFIED!', 200, '#44cc88');
+              spawnDamageNumber(target.x, target.y - target.radius - 24, 'PETRIFIED!', '#44cc88');
+              if (typeof target.shout === 'function') target.shout('I\'m rock-hard...', 200, '#44cc88');
             }
           }
         } else {

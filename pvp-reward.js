@@ -22,6 +22,7 @@ const STAT_SHORT_PVP = { strength:'STR', speed:'SPD', durability:'DUR', iq:'IQ',
 // Để thêm reward mới, chỉ cần thêm object vào array — không cần sửa code apply.
 // Ví dụ: { id:'spd2', label:'+2 SPD', stat:'speed', amount:2, statBlock:true, icon:'⚡', weight:3, color:'#2266dd' }
 const PVP_REWARDS = [
+<<<<<<< HEAD
   { id:'str1',  label:'+1 STR',           stat:'strength',   amount:1, statBlock:true,  icon:'💪', weight:10,   color:'#bb3311' },
   { id:'spd1',  label:'+1 SPD',           stat:'speed',      amount:1, statBlock:true,  icon:'⚡', weight:10,   color:'#1155bb' },
   { id:'dur1',  label:'+1 DUR',           stat:'durability', amount:1, statBlock:true,  icon:'🛡', weight:10,   color:'#117733' },
@@ -37,6 +38,23 @@ const PVP_REWARDS = [
   { id:'rnd6',  label:'+2 Rand×6',  statSpins:6, statAmount:2, statBlock:true,          icon:'🎰', weight:0.36, color:'#661188' },
   { id:'all1',  label:'+1 All',     allStats:true, amount:1, statBlock:true,            icon:'⭐', weight:4,    color:'#998800' },
   { id:'forbidden', label:'🚫 Forbidden Weapon', forbiddenWeapon:true,                  icon:'🚫', weight:4,    color:'#8800cc' },
+=======
+  { id:'str1',  label:'+1 STR',     desc:'Strength +1',             icon:'💪', weight:10,   color:'#bb3311' },
+  { id:'spd1',  label:'+1 SPD',     desc:'Speed +1',                icon:'⚡', weight:10,   color:'#1155bb' },
+  { id:'dur1',  label:'+1 DUR',     desc:'Durability +1',           icon:'🛡', weight:10,   color:'#117733' },
+  { id:'iq1',   label:'+1 IQ',      desc:'IQ +1',                   icon:'🧠', weight:10,   color:'#997711' },
+  { id:'biq1',  label:'+1 BIQ',     desc:'Battle IQ +1',            icon:'🎯', weight:10,   color:'#771199' },
+  { id:'ma1',   label:'+1 MA',      desc:'Martial Arts +1',         icon:'🥋', weight:10,   color:'#992211' },
+  { id:'low2',  label:'+2 Lowest',  desc:'+2 to your lowest stat',  icon:'📉', weight:6,    color:'#224466' },
+  { id:'high2', label:'+2 Highest', desc:'+2 to your highest stat', icon:'📈', weight:6,    color:'#664422' },
+  { id:'pow1',  label:'1 Power',    desc:'Gain 1 random skill',     icon:'✨', weight:6,    color:'#116688' },
+  { id:'pow2',  label:'2 Powers',   desc:'Gain 2 random skills',    icon:'🌟', weight:2,    color:'#bb7700' },
+  { id:'pow3',  label:'3 Powers',   desc:'Gain 3 random skills',    icon:'💫', weight:1,    color:'#aa1166' },
+  { id:'rnd3',  label:'+2 Rand×3',  desc:'+2 to 3 random stats',    icon:'🎲', weight:0.64, color:'#115566' },
+  { id:'rnd6',  label:'+2 Rand×6',  desc:'+2 to 6 random stats',    icon:'🎰', weight:0.36, color:'#661188' },
+  { id:'all1',      label:'+1 All',           desc:'All stats +1',            icon:'⭐', weight:4,    color:'#998800' },
+  { id:'forbidden', label:'Forbidden Weapon', desc:'Equip a Forbidden Weapon', icon:'🚫', weight:4,    color:'#8800cc' },
+>>>>>>> 824de0f1885f15e32d77f296b4ce15b81b8206fd
 ];
 
 // ── Weighted pick ──────────────────────────────────────────────────
@@ -72,6 +90,7 @@ function _pvpAddPowers(fighter, count) {
 // Hàm này vẫn xử lý chúng như fallback (nếu modal wheel không tồn tại).
 function _pvpApplyReward(fighter, reward) {
   const cs = fighter.charStats;
+<<<<<<< HEAD
 
   // +N vào 1 stat cụ thể
   if (reward.stat && reward.amount) {
@@ -79,6 +98,53 @@ function _pvpApplyReward(fighter, reward) {
     cs[reward.stat] = o + reward.amount;
     const sh = STAT_SHORT_PVP[reward.stat] ?? reward.stat.toUpperCase();
     return `${sh}: ${o} → ${o + reward.amount}`;
+=======
+  switch (reward.id) {
+    case 'str1':  { const o=cs.strength   ||0; cs.strength   =o+1; return `STR: ${o} → ${o+1}`; }
+    case 'spd1':  { const o=cs.speed      ||0; cs.speed      =o+1; return `SPD: ${o} → ${o+1}`; }
+    case 'dur1':  { const o=cs.durability ||0; cs.durability =o+1; return `DUR: ${o} → ${o+1}`; }
+    case 'iq1':   { const o=cs.iq         ||0; cs.iq         =o+1; return `IQ: ${o} → ${o+1}`;  }
+    case 'biq1':  { const o=cs.battleiq   ||0; cs.battleiq   =o+1; return `BIQ: ${o} → ${o+1}`; }
+    case 'ma1':   { const o=cs.ma         ||0; cs.ma         =o+1; return `MA: ${o} → ${o+1}`;  }
+    case 'low2': {
+      const st = STAT_KEYS_PVP.reduce((a,k) => (cs[k]||0) < (cs[a]||0) ? k : a, STAT_KEYS_PVP[0]);
+      const o = cs[st]||0; cs[st] = o+2;
+      return `${STAT_SHORT_PVP[st]} (lowest): ${o} → ${o+2}`;
+    }
+    case 'high2': {
+      const st = STAT_KEYS_PVP.reduce((a,k) => (cs[k]||0) > (cs[a]||0) ? k : a, STAT_KEYS_PVP[0]);
+      const o = cs[st]||0; cs[st] = o+2;
+      return `${STAT_SHORT_PVP[st]} (highest): ${o} → ${o+2}`;
+    }
+    case 'pow1': case 'pow2': case 'pow3': {
+      const n     = reward.id === 'pow1' ? 1 : reward.id === 'pow2' ? 2 : 3;
+      const added = _pvpAddPowers(fighter, n);
+      return added.length ? 'Gained: ' + added.map(s => s.name).join(', ')
+                           : 'No skills available';
+    }
+    case 'rnd3': case 'rnd6': {
+      const n = reward.id === 'rnd3' ? 3 : 6;
+      const gained = {};
+      for (let i = 0; i < n; i++) {
+        const k = STAT_KEYS_PVP[Math.floor(Math.random() * 6)];
+        cs[k] = (cs[k]||0) + 2; gained[k] = (gained[k]||0) + 2;
+      }
+      return Object.entries(gained).map(([k,v]) => `${STAT_SHORT_PVP[k]} +${v}`).join('  ');
+    }
+    case 'all1':
+      STAT_KEYS_PVP.forEach(k => cs[k] = (cs[k]||0) + 1);
+      return 'STR SPD DUR IQ BIQ MA — all +1';
+    case 'forbidden': {
+      const weapons = ['rapier', 'katana', 'flail','lance','chakram']
+      const pick = weapons[Math.floor(Math.random() * weapons.length)];
+      const def  = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[pick] : null;
+      fighter.weaponId = pick;
+      const wName = def ? `${def.icon} ${def.name}` : pick;
+      return `Forbidden: ${wName} equipped!`;
+    }
+    default:
+      return reward.desc;
+>>>>>>> 824de0f1885f15e32d77f296b4ce15b81b8206fd
   }
 
   // +N vào tất cả stats

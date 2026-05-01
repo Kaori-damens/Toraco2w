@@ -38,7 +38,46 @@ const MOB_TEMPLATES = {
     skills:      ['berserker'],
     charStats:   { strength:8, speed:3, durability:4, iq:1, battleiq:1, ma:1 }, // total 18
   },
-
+  // ── Mike tyson ────────────────────────────────────────────────
+  mike: {
+    displayName:  'Tyson, Iron Mike',
+    race:         'human',
+    color:        '#3f3727',         // dark skin
+    radius:       24,
+    weaponId:     'fists',
+    skills:       [ ],                //
+    charStats:    { strength:10, speed:8, durability:4, iq:5, battleiq:5, ma:8 }, // total 40
+  },
+// ── Vi ────────────────────────────────────────────────
+  vi: {
+    displayName:  'Vi, The Forgotten Champion',
+    race:         'giant',
+    color:        '#6b2253',         // pink
+    radius:       24,
+    weaponId:     'katana',
+    skills:       ['mind_break','war_cry','phoenix','exploit','heavy_mass','parry_tech_3'],           //Stat trước trận chung kết
+    charStats:    { strength:10, speed:9, durability:9, iq:12, battleiq:11, ma:3 }, // total 54
+  },
+  // ── Hanzo ────────────────────────────────────────────────
+  hanzo: {
+    displayName:  'Hanzo, The Invisible Shadow',
+    race:         'human',
+    color:        '#f0c060',         // golden — yellow skin
+    radius:       24,
+    weaponId:     'chakram',
+    skills:       ['shadow_step','extended_immunity','thick_hide'],               
+    charStats:    { strength:3, speed:6, durability:5, iq:10, battleiq:10, ma:7 }, // total 41
+  },
+  // ── Thor ────────────────────────────────────────────────
+  thor: {
+    displayName:  'Thor, The God of Thunder',
+    race:         'god',
+    color:        '#f0c060e1',         // golden — yellow skin
+    radius:       32,
+    weaponId:     'mjolnir',
+    skills:       ['shadow_step','berserker','ground_pound'],                
+    charStats:    { strength:8, speed:8, durability:10, iq:6, battleiq:6, ma:3 }, // total 39
+  },
   // ── Ishin ────────────────────────────────────────────────
   ishin: {
     displayName:  'Ishin, Holy Sword',
@@ -46,8 +85,8 @@ const MOB_TEMPLATES = {
     color:        '#f0c060',         // golden — yellow skin
     radius:       24,
     weaponId:     'katana',
-    skills:       [],                // PT1/PT2/PT3 managed by _checkPT()
-    charStats:    { strength:7, speed:5, durability:3, iq:10, battleiq:5, ma:5 }, // total 35
+    skills:       ['parry_tech_1','parry_tech_2','parry_tech_3'],                // PT1/PT2/PT3 managed by _checkPT()
+    charStats:    { strength:7, speed:7, durability:8, iq:10, battleiq:5, ma:6 }, // total 43
     // Phase thresholds (HP %)
     ptThresholds: [0.75, 0.50, 0.25],
   },
@@ -93,5 +132,61 @@ const ENCOUNTER_DEFS = {
       },
     ],
   },
+  thor: {
+    id:         'thor',
+    icon:       '⚡',
+    name:       'Thor, The God of Thunder',
+    desc:       'A legendary god known for his immense strength and control over thunder.',
+    difficulty: 4,
+    waves: [
+      {
+        label: '⚔️ The Duel',
+        mobs: [{ template: 'thor', count: 1 }],
+      },
+    ],
+  },
 
+  vi: {
+    id:         'vi',
+    icon:       '⚔️',
+    name:       'Vi, The Forgotten Champion',
+    desc:       'A legendary warrior known for her unmatched combat skills and resilience.',
+    difficulty: 4,
+    waves: [
+      {
+        label: '⚔️ The Duel',
+        mobs: [{ template: 'vi', count: 1 }],
+      },
+    ],
+  },
+
+ mike: {
+    id:         'mike',
+    icon:       '🥊',
+    name:       'Tyson, Iron Mike',
+    desc:       'A legendary boxer known for his incredible punching power and resilience.',
+    difficulty: 4,
+    waves: [
+      {
+        label: '🥊 The Duel',
+        mobs: [{ template: 'mike', count: 1 }],
+      },
+    ],
+  },
+  
+ hanzo: {
+    id:         'hanzo',
+    icon:       '🥊',
+    name:       'Hanzo, The Invisible Shadow',
+    desc:       'A legendary ninja known for his unmatched precision and stealth.',
+    difficulty: 4,
+    waves: [
+      {
+        label: '🥊 The Duel',
+        mobs: [{ template: 'hanzo', count: 1 }],
+      },
+    ],
+  },
 };
+
+

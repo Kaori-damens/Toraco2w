@@ -448,7 +448,7 @@ class Ball {
       this.critMult     = 1.5 + Math.max(0, this.charIQ - 10) * 0.1;
       this.deflectChance = this.charMA * 0.02;
       spawnDamageNumber(this.x, this.y - this.radius - 18, '😈 WRATH RAGE!', '#ff4400');
-      this.shout('😈 BEHEMOTH RAGE!', 220, '#ff4400');
+      this.shout('BEHEMOTH RAGE!', 220, '#ff4400');
       if (typeof spawnSparks === 'function') spawnSparks(this.x, this.y, 18);
     }
 
@@ -524,7 +524,7 @@ class Ball {
     if (this.weaponDef?.id === 'jingubang') {
       if (this.weapon.whirlJustActivated) {
         this.weapon.whirlJustActivated = false;
-        this.shout('🌀 如意棒 WHIRL!', 210, '#ffd700');
+        this.shout('WHIRL!', 210, '#ffd700');
         spawnDamageNumber(this.x, this.y - this.radius - 20, '🌀 WHIRL!', '#ffd700');
       }
       if (this.weapon.whirlTimer > 0) {
@@ -545,7 +545,7 @@ class Ball {
       this.weapon.excaliburTransformTimer = 20 * 60; // 20s
       this.weapon.excaliburBeamCooldown = 0;
       spawnDamageNumber(this.x, this.y - this.radius - 28, '🌟 LAST STAND!', '#ffe84c');
-      this.shout('🌟 EXCALIBUR AWAKENS!', 250, '#ffe84c');
+      this.shout('EXCALIBUR AWAKENS!', 250, '#ffe84c');
       sfxScale(); sfxScale();
     }
     // Excalibur: during Transform — countdown and fire beam every 120 frames
@@ -607,7 +607,7 @@ class Ball {
             .reduce((best, p) => !best ||
               Math.hypot(p.x-this.x, p.y-this.y) < Math.hypot(best.x-this.x, best.y-this.y) ? p : best, null);
           if (target) {
-            this.shout('🔥 FLAMING SALVO!', 200, '#ff4400');
+            this.shout('FLAMING SALVO!', 200, '#ff4400');
             spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 SALVO!', '#ff6600');
             spawnSparks(this.x, this.y, 20);
             const baseAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -654,7 +654,7 @@ class Ball {
     // Harvester: soul burst AOE on pending flag
     if (udef?.id === 'harvester' && this.weapon.soulBurstPending && typeof state !== 'undefined') {
       this.weapon.soulBurstPending = false;
-      this.shout('💀 SOUL BURST!', 210, '#cc44ff');
+      this.shout('SOUL BURST!', 210, '#cc44ff');
       spawnDamageNumber(this.x, this.y - this.radius - 24, '💀 SOUL BURST!', '#cc44ff');
       spawnSparks(this.x, this.y, 18);
       for (const en of state.players) {
