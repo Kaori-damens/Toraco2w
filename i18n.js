@@ -284,6 +284,7 @@ const LANG = {
     ew_result_water:        '+1 {stat} (highest stat)',
     ew_result_fire:         '+1 Skill: {skill}',
     ew_result_fire_empty:   'No skills left in pool',
+    ew_result_fire_choose:  '🔥 Spin the Skill Wheel to choose!',
     ew_result_earth:        '+1 DUR, +1 STR',
 
     // ── RESULT SCREEN ─────────────────────────────────────────
@@ -703,6 +704,7 @@ const LANG = {
     ew_result_water:        '+1 {stat} (chỉ số cao nhất)',
     ew_result_fire:         '+1 Kỹ Năng: {skill}',
     ew_result_fire_empty:   'Không còn kỹ năng trong pool',
+    ew_result_fire_choose:  '🔥 Quay vòng Kỹ Năng để chọn!',
     ew_result_earth:        '+1 DUR, +1 STR',
 
     // ── RESULT SCREEN ─────────────────────────────────────────

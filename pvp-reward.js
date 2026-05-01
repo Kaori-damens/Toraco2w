@@ -122,7 +122,7 @@ function _pvpApplyReward(fighter, reward) {
   // Forbidden weapon wheel fallback (bình thường intercepted trước)
   if (reward.forbiddenWeapon) {
     const wdefs    = (typeof WEAPON_DEFS !== 'undefined') ? WEAPON_DEFS : [];
-    const pool     = wdefs.filter(w => w.forbidden);
+    const pool     = wdefs.filter(w => w.forbidden || _FORBIDDEN_IDS.has(w.id));
     const pick     = pool[Math.floor(Math.random() * pool.length)];
     if (pick) { fighter.weaponId = pick.id; return `🚫 Forbidden: ${pick.icon} ${pick.name} equipped!`; }
     return reward.desc ?? '';
@@ -399,16 +399,16 @@ function _pvpOnLand() {
 
 // Shared helper: save + show result panel (used by both wheel callbacks and direct rewards)
 function _pvpFinishRewardDisplay(outcomeText) {
+  // Commit history TRƯỚC khi save — phải commit _pendingHistory vào matchHistory trước,
+  // sau đó save mới bao gồm toàn bộ history (kể cả entry forbidden weapon / skill vừa nhận).
+  if (typeof _csCommitAllPending === 'function' && typeof state !== 'undefined' && state?.championship) {
+    _csCommitAllPending();
+  }
+
   // Persist championship state AFTER reward is applied (not before — recordChampionshipMatchResult
   // saves earlier, before this runs, so skills/stats gained here would be lost on page reload)
   if (typeof state !== 'undefined' && state?.championship && typeof saveChampionshipProgress === 'function') {
     saveChampionshipProgress();
-  }
-
-  // Commit match history ngay tại đây — tất cả csAddHistoryChange đã chạy xong ở các bước trước.
-  // Giúp fighter card hiển thị history ngay khi trận kết thúc (kể cả trận cuối phase/championship).
-  if (typeof _csCommitAllPending === 'function' && typeof state !== 'undefined' && state?.championship) {
-    _csCommitAllPending();
   }
 
   document.getElementById('pvp-reward-res-label').textContent   = _pvpReward?.label ?? '';
@@ -692,10 +692,13 @@ function _skwBuildSkillPool(fighter) {
   );
 }
 
+// IDs của forbidden weapons — fallback nếu w.forbidden chưa được set (cũ/cache)
+const _FORBIDDEN_IDS = new Set(['rapier', 'katana', 'lance', 'chakram', 'flail']);
+
 function _skwBuildForbiddenItems() {
   const wdefs = (typeof WEAPON_DEFS !== 'undefined') ? WEAPON_DEFS : [];
   return wdefs
-    .filter(w => w.forbidden)
+    .filter(w => w.forbidden || _FORBIDDEN_IDS.has(w.id))
     .map((w, i) => ({ label: `${w.icon} ${w.name}`, weight: 1, color: w.color ?? wColor(i), _def: w }));
 }
 
@@ -900,6 +903,7 @@ const ELEM_ENTRIES = [
 const _EW = 280, _EH = 280, _ER = 115, _ECX = 140, _ECY = 140;
 let _ewCtx = null, _ewSpinning = false, _ewApplied = false;
 let _ewFighter = null, _ewChosen = null, _ewOnClose = null;
+let _ewFirePending = false; // true khi Fire đất → chờ user chọn skill qua spin wheel
 let _ewRotation = 0, _ewSpinTarget = 0, _ewStartTime = null;
 const _ewSpinDur = 3500;
 
@@ -990,10 +994,9 @@ function _ewOnLand() {
       const pool = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS : [])
         .filter(s => !s.unique && !has.has(s.id));
       if (pool.length > 0) {
-        const sk = pool[Math.floor(Math.random() * pool.length)];
-        if (!_ewFighter.skills) _ewFighter.skills = [];
-        _ewFighter.skills.push(sk.id);
-        resultText = t('ew_result_fire').replace('{skill}', sk.name);
+        // Không assign ngay — đánh dấu cần spin wheel để user tự chọn
+        _ewFirePending = true;
+        resultText = t('ew_result_fire_choose');
       } else {
         resultText = t('ew_result_fire_empty');
       }
@@ -1007,11 +1010,21 @@ function _ewOnLand() {
     }
   }
   // Log elemental wheel result to match history
+  // Fire case: skill logging sẽ được _skwDoSpin lo — chỉ log label chứ không log UI string
   if (typeof csAddHistoryChange === 'function' && _ewFighter) {
-    csAddHistoryChange(_ewFighter, `🌌 Elemental: ${_ewChosen.emoji} ${_ewChosen.label} — ${resultText}`);
+    if (_ewFirePending) {
+      csAddHistoryChange(_ewFighter, `🌌 Elemental: ${_ewChosen.emoji} Fire — +1 Skill (Spin Wheel)`);
+    } else {
+      csAddHistoryChange(_ewFighter, `🌌 Elemental: ${_ewChosen.emoji} ${_ewChosen.label} — ${resultText}`);
+    }
   }
   if (typeof saveChampionshipProgress === 'function' && typeof state !== 'undefined' && state?.championship) {
     saveChampionshipProgress();
+  }
+  // Commit match history ngay tại đây (giống _pvpFinishRewardDisplay) để Primordial
+  // không cần chain sang PVP Reward Wheel chỉ để trigger commit.
+  if (typeof _csCommitAllPending === 'function' && typeof state !== 'undefined' && state?.championship) {
+    _csCommitAllPending();
   }
   document.getElementById('ew-result-label').textContent   = `${_ewChosen.emoji} ${_ewChosen.label}`;
   document.getElementById('ew-result-outcome').textContent = resultText;
@@ -1021,12 +1034,13 @@ function _ewOnLand() {
 }
 
 function showPrimordialElementalWheel(fighter, onClose) {
-  _ewFighter   = fighter;
-  _ewOnClose   = onClose;
-  _ewApplied   = false;
-  _ewSpinning  = false;
-  _ewStartTime = null;
-  _ewRotation  = 0;
+  _ewFighter    = fighter;
+  _ewOnClose    = onClose;
+  _ewApplied    = false;
+  _ewSpinning   = false;
+  _ewStartTime  = null;
+  _ewRotation   = 0;
+  _ewFirePending = false;
 
   // Pre-pick element (equal weight — just pick randomly)
   const idx   = Math.floor(Math.random() * ELEM_ENTRIES.length);
@@ -1070,5 +1084,19 @@ document.getElementById('ew-continue-btn')?.addEventListener('click', () => {
   document.getElementById('elemental-wheel-modal').style.display = 'none';
   const cb = _ewOnClose;
   _ewOnClose = null;
-  if (cb) setTimeout(cb, 200);
+
+  if (_ewFirePending && _ewFighter) {
+    // Fire case: mở skill spin wheel để user chọn skill, xong mới gọi PVP reward
+    _ewFirePending = false;
+    if (typeof showPVPSkillWheel === 'function') {
+      showPVPSkillWheel(_ewFighter, 1, (gained) => {
+        // csAddHistoryChange đã được gọi per-skill bên trong _skwDoSpin
+        if (cb) setTimeout(cb, 200);
+      });
+    } else {
+      if (cb) setTimeout(cb, 200);
+    }
+  } else {
+    if (cb) setTimeout(cb, 200);
+  }
 });

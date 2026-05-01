@@ -820,6 +820,25 @@
       <div class="changelog-patch">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">1 May 2026</span>
+          <span class="changelog-badge">Patch 138</span>
+          <span class="changelog-chevron">▼</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🔥 <b>Elemental Wheel — Fire (Spin to Choose)</b>: Khi quay Elemental Wheel ra Fire, thay vì tự động nhận skill ngẫu nhiên, giờ sẽ mở thêm vòng quay Skill Wheel để người dùng tự chọn skill.</li>
+              <li>🐛 <b>Bug fix — Primordial nhận cả 2 reward</b>: Primordial winner trước đây nhận cả Elemental Wheel lẫn PVP Reward Wheel — nay Elemental Wheel là reward duy nhất, không chain sang PVP wheel nữa. Match history vẫn được commit đúng lúc.</li>
+              <li>🐛 <b>Bug fix — Forbidden Weapon "equipped?"</b>: Pool vũ khí Forbidden luôn rỗng do thiếu flag <code>forbidden: true</code> trên các weapon object (Rapier, Katana, Lance, Chakram, Flail) — đã thêm flag, vòng quay Forbidden Weapon giờ hoạt động đúng.</li>
+              <li>🐛 <b>Bug fix — Forbidden Weapon history mất sau reload</b>: <code>saveChampionshipProgress</code> được gọi trước <code>_csCommitAllPending</code> khiến entry forbidden weapon chưa vào <code>matchHistory</code> khi save — đã đổi thứ tự.</li>
+              <li>🔀 <b>Fighter Card — Weapon Changed</b>: Fighter card giờ hiển thị badge <b>[Forbidden]</b> và <b>🔀 Changed</b> khi vũ khí được thay thế qua PVP Reward.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">1 May 2026</span>
           <span class="changelog-badge">Patch 137</span>
           <span class="changelog-chevron">▼</span>
         </div>

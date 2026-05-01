@@ -496,6 +496,7 @@ const WEAPON_DEFS = [
   // Cơ chế thường phức tạp hơn basic (parry counter, dash immunity, chain physics...).
   {
     id: 'rapier', name: 'Rapier', icon: '🤺', color: '#aae0ff',
+    forbidden: true,
     desc: 'Riposte',
     aiType: 'melee',
     baseLength: 40, baseSpeed: 0.072, baseDamage: 0.8,
@@ -551,6 +552,7 @@ const WEAPON_DEFS = [
   },
   {
     id: 'katana', name: 'Katana', icon: '⚔️', color: '#e8e8ff',
+    forbidden: true,
     desc: 'Momentum',
     aiType: 'melee',
     baseLength: 62, baseSpeed: 0.038, baseDamage: 1.5,
@@ -623,6 +625,7 @@ const WEAPON_DEFS = [
   },
   {
     id: 'lance', name: 'Lance', icon: '🏇', color: '#cc9966',
+    forbidden: true,
     desc: 'Jousting lance. On hit: dash forward and stun enemy 80f. Dash impulse 6px base, +0.3/hit. Immune to all damage during dash.',
     aiType: 'melee',
     baseLength: 75, baseSpeed: 0.026, baseDamage: 1.5, baseKnockback: 6,
@@ -686,6 +689,7 @@ const WEAPON_DEFS = [
   },
   {
     id: 'chakram', name: 'Chakram', icon: '🥏', color: '#cc8844',
+    forbidden: true,
     desc: 'Thrown weapon that returns to owner. Hits on way out and way back. Gets faster each hit (both passes count).',
     aiType: 'ranged',
     baseLength: 28, baseSpeed: 0.04, baseDamage: 0, baseKnockback: 1,
@@ -722,6 +726,7 @@ const WEAPON_DEFS = [
   },
   {
     id: 'flail', name: 'Flail', icon: '⛓️', color: '#aa8866',
+    forbidden: true,
     desc: 'Spiked ball on a chain. Long reach, large hit radius. Chain grows and hits harder each hit.',
     aiType: 'melee',
     baseLength: 120, baseSpeed: 0.026, baseDamage: 1.3, baseKnockback: 8,

@@ -4097,6 +4097,15 @@ canvas#gameCanvas {
   border: 1px solid #ffd70055; border-radius: 4px;
   padding: 1px 5px; letter-spacing: 0.5px;
 }
+.fcard2-forbidden-tag {
+  font-size: 10px; font-weight: 700; color: #cc55ff;
+  border: 1px solid #cc55ff55; border-radius: 4px;
+  padding: 1px 5px; letter-spacing: 0.5px;
+}
+.fcard-wep-changed-tag {
+  font-size: 10px; font-weight: 700;
+  border-radius: 4px; padding: 1px 5px;
+}
 .fcard2-wep-canvas {
   display: block; background: #0d1025; border-radius: 8px;
   width: 100%; height: 70px;

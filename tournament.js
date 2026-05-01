@@ -99,12 +99,15 @@ function _fcardFighterHTML(f, uid) {
   const cs   = f.charStats ?? {};
   const base = f.baseStats ?? {};
 
-  const wepDef   = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[f.weaponId] : null;
-  const wep      = (typeof CG_WEAPONS !== 'undefined' ? CG_WEAPONS : []).find(w => w.id === f.weaponId);
-  const rawLabel = wep ? wep.label.replace(/^\S+\s*/, '') : (f.weaponId ?? '?');
-  const wLabel   = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
-  const wIcon    = wepDef?.icon ?? '⚔️';
-  const isUnique = wepDef?.unique === true;
+  const wepDef      = (typeof WEAPON_MAP !== 'undefined') ? WEAPON_MAP[f.weaponId] : null;
+  const wep         = (typeof CG_WEAPONS !== 'undefined' ? CG_WEAPONS : []).find(w => w.id === f.weaponId);
+  const rawLabel    = wep ? wep.label.replace(/^\S+\s*/, '') : (f.weaponId ?? '?');
+  const wLabel      = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
+  const wIcon       = wepDef?.icon ?? '⚔️';
+  const isUnique    = wepDef?.unique === true;
+  const isForbidden = wepDef?.forbidden === true;
+  // Weapon changed mid-tournament? (forbidden / unique reward)
+  const weaponChanged = !f.isBot && f.baseWeaponId && f.baseWeaponId !== f.weaponId;
 
   const raceName = cs.race ? (cs.race.charAt(0).toUpperCase() + cs.race.slice(1)) : '';
   const subName  = cs.subrace?.label ? ` · ${cs.subrace.label}` : '';
@@ -198,7 +201,9 @@ function _fcardFighterHTML(f, uid) {
     <div class="fcard2-weapon-section">
       <div class="fcard2-weapon-label">
         <span class="fcard2-wep-icon-name">${wIcon} ${wLabel}</span>
-        ${isUnique ? '<span class="fcard2-unique-tag">[Unique]</span>' : ''}
+        ${isUnique    ? '<span class="fcard2-unique-tag">[Unique]</span>'    : ''}
+        ${isForbidden ? '<span class="fcard2-forbidden-tag">[Forbidden]</span>' : ''}
+        ${weaponChanged ? `<span class="fcard-skill-new fcard-wep-changed-tag">🔀 Changed</span>` : ''}
       </div>
       <canvas id="fcard-wep-${uid}" class="fcard2-wep-canvas" width="220" height="70"></canvas>
     </div>
@@ -345,14 +350,15 @@ function closeFighterCard() {
 // Convert a cgRoster entry → fighter object (used by state.fighters / bracket)
 function rosterToFighter(ch) {
   return {
-    weaponId:   ch.weapon,
-    color:      ch.color,
-    charName:   ch.name,
-    charEmoji:  ch.raceEmoji ?? '',
-    charStats:  { ...ch.stats, race: ch.race ?? null, subrace: ch.subrace ?? null },
-    baseStats:  { ...ch.stats },          // snapshot for diff display in Fighter Card
-    skills:     [...(ch.skills ?? [])],
-    baseSkills: [...(ch.skills ?? [])],   // snapshot for diff display in Fighter Card
+    weaponId:     ch.weapon,
+    baseWeaponId: ch.weapon,              // snapshot for diff display in Fighter Card
+    color:        ch.color,
+    charName:     ch.name,
+    charEmoji:    ch.raceEmoji ?? '',
+    charStats:    { ...ch.stats, race: ch.race ?? null, subrace: ch.subrace ?? null },
+    baseStats:    { ...ch.stats },        // snapshot for diff display in Fighter Card
+    skills:       [...(ch.skills ?? [])],
+    baseSkills:   [...(ch.skills ?? [])], // snapshot for diff display in Fighter Card
   };
 }
 

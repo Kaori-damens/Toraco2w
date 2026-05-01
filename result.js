@@ -144,8 +144,9 @@ function showResult() {
       if (typeof showPVPRewardWheel === 'function' && (state.tournament || state.tournament2v2 || state.championship)) {
         const _pvpShow = () => showPVPRewardWheel(mw);
         if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-          // Pass _pvpShow so PVP reward wheel shows AFTER elemental wheel closes
-          setTimeout(() => showPrimordialElementalWheel(mw, _pvpShow), 500);
+          // Elemental Wheel là reward duy nhất cho Primordial — không chain sang PVP wheel.
+          // _csCommitAllPending được gọi bên trong _ewOnLand nên history vẫn commit đúng lúc.
+          setTimeout(() => showPrimordialElementalWheel(mw, null), 500);
         } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
           const _abCs = mw.charStats, _abSK = ['strength','speed','durability','iq','battleiq','ma'];
           const _abK = _abSK.reduce((a, b) => (_abCs[a]??0) < (_abCs[b]??0) ? a : b);
@@ -185,7 +186,7 @@ function showResult() {
         if (typeof showPVPRewardWheel === 'function') {
           const _pvpShowBO1 = () => showPVPRewardWheel(mw);
           if (mw?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-            setTimeout(() => showPrimordialElementalWheel(mw, _pvpShowBO1), 500);
+            setTimeout(() => showPrimordialElementalWheel(mw, null), 500);
           } else if (mw?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
             const _abCs2 = mw.charStats, _abSK2 = ['strength','speed','durability','iq','battleiq','ma'];
             const _abK2 = _abSK2.reduce((a, b) => (_abCs2[a]??0) < (_abCs2[b]??0) ? a : b);
@@ -220,7 +221,7 @@ function showResult() {
         if (typeof showPVPRewardWheel === 'function') {
           const _pvpShowFfa = () => showPVPRewardWheel(winnerFighter);
           if (winnerFighter?.charStats?.race === 'primordial' && typeof showPrimordialElementalWheel === 'function') {
-            setTimeout(() => showPrimordialElementalWheel(winnerFighter, _pvpShowFfa), 500);
+            setTimeout(() => showPrimordialElementalWheel(winnerFighter, null), 500);
           } else if (winnerFighter?.charStats?.subrace?.label === 'Principalities' && typeof showAngelBlessing === 'function') {
             const _abCs3 = winnerFighter.charStats, _abSK3 = ['strength','speed','durability','iq','battleiq','ma'];
             const _abK3 = _abSK3.reduce((a, b) => (_abCs3[a]??0) < (_abCs3[b]??0) ? a : b);
