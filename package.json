@@ -4,14 +4,14 @@
   "description": "Toraco — Ball Battle Arena",
   "main": "main.js",
   "scripts": {
-    "start":          "electron .",
-    "build":          "electron-builder --win --x64",
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
     "build:portable": "electron-builder --win portable --x64"
   },
   "build": {
-    "appId":       "com.toraco.app",
+    "appId": "com.toraco.app",
     "productName": "Toraco",
-    "copyright":   "Toraco",
+    "copyright": "Toraco",
     "files": [
       "**/*",
       "!*.md",
@@ -23,13 +23,23 @@
     ],
     "win": {
       "target": [
-        { "target": "nsis",     "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
-      "oneClick":      true,
-      "shortcutName":  "Toraco",
+      "oneClick": true,
+      "shortcutName": "Toraco",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
@@ -38,7 +48,19 @@
     }
   },
   "devDependencies": {
-    "electron":         "^30.0.0",
+    "electron": "^30.0.0",
     "electron-builder": "^24.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kaori-damens/Toraco2w.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Kaori-damens/Toraco2w/issues"
+  },
+  "homepage": "https://github.com/Kaori-damens/Toraco2w#readme"
 }
