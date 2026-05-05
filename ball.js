@@ -75,6 +75,7 @@ class Ball {
     this.speechText   = null;
     this.speechFrames = 0;
     this._speechColor = null;
+    this.charDevs     = [];   // Char Dev ids (populated by setup.js)
 
     // Skill system — populated by setup.js after construction
     this.skills          = [];
@@ -200,11 +201,12 @@ class Ball {
     const parryBoost   = this.weapon.spinBoostTimer  > 0 ? 2.0 : 1.0;  // +100% from Parry Master
     const lbExhausted  = this.rs_lbExhausted         ? window.RACE_FORMULAS.human.limitBreak.exhaustionMult : 1.0;
     const giantBoost   = (this.weapon.whirlTimer > 0 && this.weaponDef?.id === 'jingubang') ? 6.0 : 1.0;  // Jingubang whirl mode: 6x spin
+    const lbFlailBoost = (this.charRace === 'human' && this.rs_active && def.id === 'flail') ? 3.5 : 1.0; // Human LB: flail quay 3.5x nhanh
     const caliburnBoost = (this.weapon.caliburnSpeedTimer > 0) ? 1.4 : 1.0; // Caliburn: 3s speed boost
     const netDebuff    = this.netTrapped > 0 ? 0.70 : 1.0;              // -30% from Troll Net
     const stuckDebuff  = (this.rs_weaponStuck > 0 || this.stunTimer > 0) ? 0 : 1; // Void Grip / Smite stun
     const pt1Boost     = this.skills?.includes('parry_tech_1') ? 1 + (this.skillState?.pt1Stacks || 0) * 0.05 : 1; // +5% per stack
-    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff * lbExhausted * pt1Boost;
+    return (def.baseSpeed + this.weapon.spinBonus) * this.scale * this.weapon.spinDir * spearDebuff * hammerDebuff * parryBoost * giantBoost * caliburnBoost * netDebuff * stuckDebuff * lbExhausted * pt1Boost * lbFlailBoost;
   }
 
   // ─── Tính sát thương đầu ra của ball này ─────────────────────────────────
@@ -291,6 +293,10 @@ class Ball {
     if (this.skills.includes('heavy_momentum') && bwid === 'hammer' && (this.skillState?.hammerStacks || 0) > 0) {
       dmg *= (1 + this.skillState.hammerStacks * SKF.heavy_momentum.perStack);
     }
+    // One Piece: Armament Haki +10% out, Ryu Ryu melee +10%
+    if (typeof opGetDamageMods === 'function') dmg = opGetDamageMods(this, dmg);
+    // Summoner: −30% sát thương đổi lấy summons mạnh hơn
+    if (this.charDevs?.includes('summoner')) dmg *= 0.7;
     return dmg;
   }
 
@@ -300,7 +306,10 @@ class Ball {
   getKnockback() {
     const def = this.weaponDef;
     const rageMult = (state.matchTime >= 80 * 60) ? 1.5 : 1.0; // rage → knockback ×1.5
-    return (def.baseKnockback + this.weapon.bonusKnockback) * rageMult;
+    let kb = (def.baseKnockback + this.weapon.bonusKnockback) * rageMult;
+    // One Piece: Armament Haki +30% knockback delivered
+    if (typeof opArmamentKB === 'function') kb = opArmamentKB(this, kb);
+    return kb;
   }
 
   // ─── Tính chiều dài vũ khí ────────────────────────────────────────────────
@@ -332,6 +341,9 @@ class Ball {
   update(arena, opponent, projectiles, gravity) {
     if (!this.alive) return;
 
+    // The World (JoJo): ball bị đóng băng — zero velocity, skip physics
+    if (this._jojoFrozen) { this.vx = 0; this.vy = 0; return; }
+
     // Parry stun: skip position update — velocity preserved so balls naturally separate on stun end
     // (matches reference game: only block physics movement, not velocity itself)
     // _parryFrozen = true → ball bị đóng băng hoàn toàn (không di chuyển, không ma sát)
@@ -359,6 +371,8 @@ class Ball {
     }
     // Human Limit Break: speed cap boost while active
     if (this.charRace === 'human' && this.rs_active) effectiveMaxSpd *= window.RACE_FORMULAS.human.limitBreak.speedMult;
+    // Ryu Ryu no Mi: di chuyển chậm hơn khi biến hình khủng long
+    if (this._opRyuTransformed) effectiveMaxSpd *= 0.60;
     // Skeleton Bone Scatter: speed boost while shard timer active
     if (this.charRace === 'skeleton' && (this.rs_shardSpeedTimer || 0) > 0) effectiveMaxSpd *= (this.rs_shardSpeedMult || 1.30);
     const spd = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
@@ -385,7 +399,7 @@ class Ball {
       this.wallBoostFactor = 1.1;
 
       // Ground Pound (Hammer): wall bounce → lock nearest enemy weapon for 25 frames
-      if (this.skills.includes('ground_pound') && this.weaponDef?.id === 'hammer' && typeof state !== 'undefined') {
+      if (this.skills.includes('ground_pound') && (this.weaponDef?.id === 'hammer' || this.weaponDef?.baseWeapon === 'hammer') && typeof state !== 'undefined') {
         const enemies = state.players.filter(p => p !== this && p.alive);
         if (enemies.length > 0) {
           const target = enemies.reduce((a, b) =>
@@ -416,6 +430,14 @@ class Ball {
         }
         this.quakeSlamFrames = 0; // one slam per quake only
       }
+
+      // Patkinsion: 20% self-disarm on wall bounce
+      if (this.charDevs?.includes('patkinsion') && typeof _patkinsionSelfDisarm === 'function')
+        _patkinsionSelfDisarm(this);
+      // One Piece: Goro Goro lightning / Hito Hito shockwave / Pika Pika teleport
+      if (typeof opOnWallBounce === 'function') opOnWallBounce(this, wallHitX, wallHitY);
+      // JoJo: Gold Experience spawn rùa/rắn khi owner nảy tường
+      if (typeof jojoOnWallBounce === 'function') jojoOnWallBounce(this);
     }
     if (this.bounceCooldown > 0) this.bounceCooldown--;
 
@@ -463,7 +485,7 @@ class Ball {
     // Bow soft aim: gently nudge weapon angle toward opponent (MA scales tracking speed)
     // MA 1 → barely noticeable pull; MA 10 → clear but not snap-aim
     // Bow tự nhẹ nhàng xoay về phía đối thủ — không snap ngay, chỉ kéo từ từ
-    if (this.weaponDef.id === 'bow' && opponent && opponent.alive) {
+    if ((this.weaponDef.id === 'bow' || this.weaponDef.id === 'medusa_bow') && opponent && opponent.alive) {
       const dx = opponent.x - this.x, dy = opponent.y - this.y;
       let diff = Math.atan2(dy, dx) - this.weapon.angle;
       while (diff >  Math.PI) diff -= Math.PI * 2;
@@ -721,7 +743,7 @@ class Ball {
 
     // ── Weapon skill per-frame ticks ───────────────────────────
     // Shadow Strike (Dagger): 10s timer → guaranteed crit
-    if (this.skills.includes('shadow_strike') && this.weaponDef?.id === 'dagger' && this.skillState) {
+    if (this.skills.includes('shadow_strike') && (this.weaponDef?.id === 'dagger' || this.weaponDef?.baseWeapon === 'dagger') && this.skillState) {
       if (!this.skillState.shadowStrikeCrit) {
         this.skillState.sk_shadowTimer = (this.skillState.sk_shadowTimer || 0) + 1;
         if (this.skillState.sk_shadowTimer >= 600) {
@@ -1017,7 +1039,10 @@ class Ball {
   // Trả về: true nếu dame được áp dụng, false nếu bị block/né
   takeDamage(dmg, fromX, fromY, isCrit = false, attacker = null, isReactCounter = false, isProjectile = false) {
     // Projectile and melee use separate immunity counters
-    if (isProjectile ? this.projImmunityFrames > 0 : this.immunityFrames > 0) return false;
+    // The World time stop: frozen enemies bỏ qua immunity (có thể bị đánh liên tục)
+    if (!this._jojoFrozen) {
+      if (isProjectile ? this.projImmunityFrames > 0 : this.immunityFrames > 0) return false;
+    }
     // Lance: full immunity during dash
     if (this.weapon?.id === 'lance' && (this.weapon.lanceDashTimer || 0) > 0) return false;
 
@@ -1069,6 +1094,13 @@ class Ball {
       return false;
     }
 
+    // The World evade: owner của Stand the_world né hoàn toàn khi time stop
+    if (this._jojoWorldEvade) {
+      this.immunityFrames = 10;
+      spawnDamageNumber(this.x, this.y - this.radius, '⏸️ TIME STOP!', '#55cc88');
+      return false;
+    }
+
     // Skill: Thick Hide — reduce damage received
     const _SKF = window.SKILL_FORMULAS;
     if (this.skills.includes('thick_hide')) dmg *= (1 - _SKF.thick_hide.reduction);
@@ -1078,10 +1110,14 @@ class Ball {
       dmg *= (1 - adaptReduct);
     }
     // Guard Stance (Sword): during cooldown → BIQ-scaled dmg reduction
-    if (this.skills.includes('guard_stance') && this.weaponDef?.id === 'sword' && this.weapon.cooldown > 0) {
+    if (this.skills.includes('guard_stance') && (this.weaponDef?.id === 'sword' || this.weaponDef?.baseWeapon === 'sword') && this.weapon.cooldown > 0) {
       const reduction = Math.min(_SKF.guard_stance.maxReduction, (this.charBIQ || 0) * _SKF.guard_stance.perBIQ);
       dmg *= (1 - reduction);
     }
+    // Star Platinum (JoJo): −10% dmg khi Stand còn sống
+    if (typeof jojoStandDmgReduction === 'function') dmg = jojoStandDmgReduction(this, dmg);
+    // One Piece: Armament Haki −10% dmg nhận vào
+    if (typeof opArmamentDefense === 'function') dmg = opArmamentDefense(this, dmg);
 
     const hpBefore = this.hp;
     this.hp -= dmg;
@@ -1180,12 +1216,14 @@ class Ball {
     // Melee: 4 frame immunity (tránh hit nhiều lần trong 1 swing)
     // Projectile: 0 frame (mũi tên liên tiếp đều tính dame)
     // Extended Immunity skill: tăng lên 30 frame
-    // Immunity after hit — melee: 4 frames, projectile: 0 frames (no immunity between arrows)
+    // The World time stop: frozen enemies KHÔNG nhận immunity (bị đánh liên tục)
     const hasExtImmune = this.skills.includes('extended_immunity');
-    if (isProjectile) {
-      this.projImmunityFrames = 0;
-    } else {
-      this.immunityFrames = hasExtImmune ? 30 : 4;
+    if (!this._jojoFrozen) {
+      if (isProjectile) {
+        this.projImmunityFrames = 0;
+      } else {
+        this.immunityFrames = hasExtImmune ? 30 : 4;
+      }
     }
     this.hitFlash = 8;
     const angle = Math.atan2(this.y - fromY, this.x - fromX);
@@ -1201,11 +1239,11 @@ class Ball {
 
     // Weapon skill: chain resets on taking damage
     if (this.skillState) {
-      if (this.weaponDef?.id === 'fists') {
+      if (this.weaponDef?.id === 'fists' || this.weaponDef?.baseWeapon === 'fists') {
         this.skillState.brawlerChain = 0;
         this.skillState.brawlerReady = false;
       }
-      if (this.weaponDef?.id === 'dagger') {
+      if (this.weaponDef?.id === 'dagger' || this.weaponDef?.baseWeapon === 'dagger') {
         this.skillState.flurryChain = 0;
         this.skillState.flurryReady = false;
       }
@@ -1214,7 +1252,7 @@ class Ball {
     if (typeof skillOnTakeDamage === 'function') skillOnTakeDamage(this, attacker, dmg);
 
     // Combo Breaker (Fists): hit while chain ≥ 3 → auto counter-attack
-    if (!isReactCounter && this.skills.includes('combo_breaker') && this.weaponDef?.id === 'fists' && attacker?.alive) {
+    if (!isReactCounter && this.skills.includes('combo_breaker') && (this.weaponDef?.id === 'fists' || this.weaponDef?.baseWeapon === 'fists') && attacker?.alive) {
       const chain = this.skillState?.brawlerChain || 0;
       if (chain >= 3) {
         const str = this.charSTR ?? 5;
@@ -1235,8 +1273,11 @@ class Ball {
       }
     }
 
-    // Skill: Phoenix — survive lethal hit with 1 HP (once per round)
-    if (this.hp <= 0 && this.skills.includes('phoenix') && !this.skillState?.phoenixUsed) {
+    // One Piece: Tori Tori — revive at 30% HP (takes priority over Phoenix if Tori present)
+    if (this.hp <= 0 && typeof opToriRevive === 'function' && opToriRevive(this)) return true;
+
+    // Skill: Phoenix — survive lethal hit with 1 HP (once per round; disabled if Tori Tori took over)
+    if (this.hp <= 0 && this.skills.includes('phoenix') && !this.skillState?.phoenixUsed && !this._opPhoenixDisabled) {
       this.hp = 1;
       this.skillState.phoenixUsed = true;
       spawnDamageNumber(this.x, this.y - this.radius - 24, '🔥 PHOENIX!', '#ff9900');
@@ -1482,7 +1523,8 @@ class Ball {
     const NUM_NODES  = 5;
     const totalChain = def.baseLength + (w.bonusLength || 0);
     const segLen     = totalChain / (NUM_NODES - 1);
-    const DAMPING    = 0.93;
+    // Human Limit Break: chain cứng hơn (0.98) để mace head theo kịp khi quay nhanh
+    const DAMPING    = (this.charRace === 'human' && this.rs_active) ? 0.98 : 0.93;
 
     // Lazy init: tạo node lần đầu, trải dọc theo góc hiện tại
     if (!w.flailNodes) {

@@ -91,6 +91,23 @@ function getFullWeaponHitPoints(ball) {
 function collidePair(b1, b2) {
   if (!b1.alive || !b2.alive) return;
 
+  // ── Goro Goro: lightning pass-through ──────────────────────
+  // Nếu 1 trong 2 đang trong lightning mode: xuyên qua, gây 10 dmg, bỏ qua toàn bộ physics
+  const b1Goro = (b1._opGoroTimer || 0) > 0;
+  const b2Goro = (b2._opGoroTimer || 0) > 0;
+  if (b1Goro || b2Goro) {
+    const dist0 = Math.hypot(b2.x - b1.x, b2.y - b1.y);
+    if (dist0 < b1.radius + b2.radius) {
+      if (b1Goro && b2.alive && b2.takeDamage) b2.takeDamage(OP_GORO_DMG, b1.x, b1.y, false, b1);
+      if (b2Goro && b1.alive && b1.takeDamage) b1.takeDamage(OP_GORO_DMG, b2.x, b2.y, false, b2);
+    }
+    return;
+  }
+
+  // ── Pika Pika: beam pass-through ───────────────────────────
+  // Damage + enemy detection handled by opUpdateAll; skip ALL physics khi beam active
+  if (b1._opPikaBeam || b2._opPikaBeam) return;
+
   // ── Bước 1: Va chạm thân đàn hồi ───────────────────────────
   // 1. Body-body bounce — proper elastic collision
   const dx = b2.x - b1.x, dy = b2.y - b1.y;
@@ -108,7 +125,7 @@ function collidePair(b1, b2) {
     const dot = relVx*nx + relVy*ny;
     if (dot < 0) {
       const totalMass = b1.mass + b2.mass;
-      const e = 1.85;
+      const e = 2.0; // 2.0 = perfectly elastic (COR=1.0, không mất KE khi 2 ball đụng nhau)
       const impulse = (e * dot) / totalMass;
       b1.vx += impulse * b2.mass * nx;
       b1.vy += impulse * b2.mass * ny;
@@ -116,6 +133,11 @@ function collidePair(b1, b2) {
       b2.vy -= impulse * b1.mass * ny;
       b1.bounceCooldown = 20;
       b2.bounceCooldown = 20;
+      // Goro Goro: roll để kích hoạt lightning mode khi va chạm thân
+      if (typeof opOnBallContact === 'function') {
+        opOnBallContact(b1, b2);
+        opOnBallContact(b2, b1);
+      }
     }
   }
 
@@ -127,8 +149,11 @@ function collidePair(b1, b2) {
   const b1Stuck = (b1.rs_weaponStuck > 0);
   const b2Stuck = (b2.rs_weaponStuck > 0);
   if (b1.weapon.parryCooldown === 0 && b2.weapon.parryCooldown === 0 && !b1Stuck && !b2Stuck) {
-    const pts1 = b1.skills?.includes('parry_tech_3') ? getFullWeaponHitPoints(b1) : b1.weaponDef.getHitPoints(b1);
-    const pts2 = b2.skills?.includes('parry_tech_3') ? getFullWeaponHitPoints(b2) : b2.weaponDef.getHitPoints(b2);
+    const _rawPts1 = b1.skills?.includes('parry_tech_3') ? getFullWeaponHitPoints(b1) : b1.weaponDef.getHitPoints(b1);
+    const _rawPts2 = b2.skills?.includes('parry_tech_3') ? getFullWeaponHitPoints(b2) : b2.weaponDef.getHitPoints(b2);
+    // Lọc bỏ điểm có noParry (vd: đốt xích Flail) — chỉ mace head mới trigger parry
+    const pts1 = _rawPts1.filter(p => !p.noParry);
+    const pts2 = _rawPts2.filter(p => !p.noParry);
     let parryOccurred = false;
     const parryBonus1 = b1.rs_forgeParryBonus || 0;
     const parryBonus2 = b2.rs_forgeParryBonus || 0;
@@ -152,8 +177,8 @@ function collidePair(b1, b2) {
       spawnSparks(midX, midY, 14);
       sfxParry();
 
-      const b1Fists = b1.weaponDef.id === 'fists';
-      const b2Fists = b2.weaponDef.id === 'fists';
+      const b1Fists = b1.weaponDef.id === 'fists' || b1.weaponDef.baseWeapon === 'fists';
+      const b2Fists = b2.weaponDef.id === 'fists' || b2.weaponDef.baseWeapon === 'fists';
 
       if (b1Fists && b2Fists) {
         // Fists vs Fists: both take damage (parry_tech_3 = 50% reduction)
@@ -194,13 +219,18 @@ function collidePair(b1, b2) {
       b2.stats.parries++;
       // Spear parried by melee → extra spin debuff 60f (on top of stun)
       const applySpearParry = (spearBall, otherBall) => {
-        if (spearBall.weaponDef.id === 'spear' && otherBall.weaponDef.aiType === 'melee') {
+        if ((spearBall.weaponDef.id === 'spear' || spearBall.weaponDef.baseWeapon === 'spear') && otherBall.weaponDef.aiType === 'melee') {
           spearBall.weapon.spinDebuffTimer = 60;
         }
       };
       applySpearParry(b1, b2);
       applySpearParry(b2, b1);
       skillOnParry(b1, b2);
+      // Goro Goro: roll để kích hoạt lightning mode khi parry
+      if (typeof opOnBallContact === 'function') {
+        opOnBallContact(b1, b2);
+        opOnBallContact(b2, b1);
+      }
       return;
     }
   }
@@ -300,8 +330,8 @@ function resolveProjectiles(players, projectiles) {
           proj.owner = target; // đổi owner → đạn giờ thuộc target, có thể tự bắn người cũ
           // Fists: immuneFrames 20f (dài hơn) vì fists parry ranged tốn đến 50% HP
           // Weapon khác: 8f để tránh double-hit cùng frame
-          proj.immuneFrames = target.weaponDef.id === 'fists' ? 20 : 8;
-          if (target.weaponDef.id === 'fists') {
+          proj.immuneFrames = (target.weaponDef.id === 'fists' || target.weaponDef.baseWeapon === 'fists') ? 20 : 8;
+          if (target.weaponDef.id === 'fists' || target.weaponDef.baseWeapon === 'fists') {
             // Fists parry ranged: nhận 50% dame đạn (trừ Blessed by Shiva — Martial God miễn)
             const isGodMA = target.charRace === 'god' && target.charSubrace?.label === 'Blessed by Shiva' && target.rs_maTransformed;
             if (!isGodMA) {
@@ -466,7 +496,7 @@ function _checkWeaponHit(attacker, defender) {
         ? ((attacker.charIQ || 0) + (attacker.charBIQ || 0)) * window.SKILL_FORMULAS.exploit.chancePerCombinedStat : 0;
       const isExploit = exploitChance > 0 && Math.random() < exploitChance;
       // Reaper's Mark (Scythe): bonus dmg vs enemies below HP threshold
-      const reaperMult = (attacker.skills?.includes('reapers_mark') && def.id === 'scythe'
+      const reaperMult = (attacker.skills?.includes('reapers_mark') && (def.id === 'scythe' || def.baseWeapon === 'scythe')
         && defender.hp / defender.maxHp < window.SKILL_FORMULAS.reapers_mark.hpThreshold) ? window.SKILL_FORMULAS.reapers_mark.mult : 1.0;
       if (reaperMult > 1) {
         spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 18, '💀 EXECUTE! ×1.8', '#ff2222');
@@ -478,7 +508,7 @@ function _checkWeaponHit(attacker, defender) {
       if (hitResult) {
         const rageCDMult     = (state.matchTime >= 80 * 60) ? 0.7 : 1.0;
         // Rage Fists: below 50% HP → 35% faster attacks (cooldown × 0.65)
-        const rageFistsMult  = (attacker.skills?.includes('rage_fists') && def.id === 'fists'
+        const rageFistsMult  = (attacker.skills?.includes('rage_fists') && (def.id === 'fists' || def.baseWeapon === 'fists')
           && attacker.hp / attacker.maxHp < 0.50) ? 0.65 : 1.0;
         // Grim Presence: within 80px of a scythe-grim-presence user → 12% longer cooldown
         const grimSlowMult   = (attacker.sk_grimAura || 0) > 0 ? 1.12 : 1.0;
@@ -610,7 +640,7 @@ function resolveMeleeVsMinions(players) {
       attacker.stats.damageDone += dmg;
       sfxHit(def?.id);
       spawnDamageNumber(m.x, m.y - m.r - 10, `-${dmg.toFixed(1)}`, '#ffddaa');
-      if (m.hp <= 0) {
+      if (m.hp <= 0 || m.killOnHit) {
         m.alive = false;
         spawnDamageNumber(m.x, m.y - m.r - 20, '💀', '#aaffaa');
       }

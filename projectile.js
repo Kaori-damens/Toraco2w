@@ -61,6 +61,7 @@ class Projectile {
            : type === 'spirit_orb' ? 6
            : type === 'fire_fist' ? 9
            : type === 'chakram' ? 8
+           : type === 'blood_bolt' ? 6
            : 8; // shuriken / fuma_shuriken
   }
 
@@ -74,6 +75,18 @@ class Projectile {
     this.y += this.vy;
     if (this.immuneFrames > 0) this.immuneFrames--;
     if (this.lifetimer > 0) { this.lifetimer--; if (this.lifetimer === 0) { this.alive = false; return; } }
+
+    // ── Blood bolt: lưu trail vị trí mỗi 3 frame ─────────────
+    if (this.type === 'blood_bolt') {
+      this._trailTimer = (this._trailTimer || 0) + 1;
+      if (this._trailTimer >= 3) {
+        this._trailTimer = 0;
+        this._trail = this._trail || [];
+        this._trail.push({ x: this.x, y: this.y, age: 0 });
+        if (this._trail.length > 9) this._trail.shift();
+      }
+      for (const p of (this._trail || [])) p.age++;
+    }
 
     // ── Homing logic ─────────────────────────────────────────
     // Cơ chế: thêm vector nhỏ hướng về target mỗi frame,
@@ -200,6 +213,31 @@ class Projectile {
   // Điều này giúp mỗi type chỉ cần vẽ relative to (0,0), không cần tính tọa độ tuyệt đối.
   draw(ctx) {
     if (!this.alive) return;
+
+    // ── Blood bolt: vẽ rune trail trong world space ───────────
+    if (this.type === 'blood_bolt' && this._trail?.length) {
+      const MAX_AGE = 22; // frame trước khi trail point biến mất hoàn toàn
+      // Các ký tự rune máu xoay vòng
+      const RUNES = ['ᚱ', 'ᚢ', 'ᛏ', 'ᚦ', 'ᛉ', 'ᚲ', 'ᛒ', 'ᚹ', 'ᚾ'];
+      for (let i = 0; i < this._trail.length; i++) {
+        const pt = this._trail[i];
+        const frac  = i / (this._trail.length - 1 || 1); // 0 = cũ nhất, 1 = mới nhất
+        const alpha = (1 - pt.age / MAX_AGE) * (0.3 + frac * 0.55);
+        if (alpha <= 0.02) continue;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(pt.x, pt.y);
+        ctx.shadowColor = '#ff0033';
+        ctx.shadowBlur  = 8;
+        ctx.fillStyle   = `hsl(350,100%,${50 + frac * 20}%)`;
+        ctx.font        = `${Math.round(7 + frac * 5)}px serif`;
+        ctx.textAlign   = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(RUNES[i % RUNES.length], 0, 0);
+        ctx.restore();
+      }
+    }
+
     const ownerCol = this.owner?.color || '#ffffff'; // màu owner để tint projectile
 
     ctx.save();
@@ -329,6 +367,15 @@ class Projectile {
       ctx.beginPath(); ctx.moveTo(-14, 0); ctx.quadraticCurveTo(-3, -11, 14, 0); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(14, 0); ctx.quadraticCurveTo(3, 11, -14, 0); ctx.stroke();
       ctx.restore();
+    } else if (this.type === 'blood_bolt') {
+      // Blood pierce bolt — đỏ thẫm, nhanh, nhọn
+      ctx.shadowColor = '#cc0033'; ctx.shadowBlur = 14;
+      ctx.fillStyle   = '#dd0022';
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(-10, -4); ctx.lineTo(-6, 0); ctx.lineTo(-10, 4);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#ff4466'; ctx.lineWidth = 1; ctx.stroke();
     } else if (this.type === 'spirit_orb') {
       // Spirit orb — teal translucent orb with ring
       ctx.shadowColor = '#44ffcc'; ctx.shadowBlur = 12;

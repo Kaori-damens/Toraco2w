@@ -208,10 +208,12 @@ function step() {
     updateRaceSkillProjectiles(state);
   }
 
-  // Update projectiles
+  // Update projectiles (skip if frozen by The World)
   for (let i = state.projectiles.length - 1; i >= 0; i--) {
-    state.projectiles[i].update(state.arena);
-    if (!state.projectiles[i].alive) state.projectiles.splice(i, 1);
+    const _proj = state.projectiles[i];
+    if (_proj._jojoFrozen) continue; // The World: projectile đứng yên
+    _proj.update(state.arena);
+    if (!_proj.alive) state.projectiles.splice(i, 1);
   }
 
   // All-pairs body/weapon collision
@@ -283,8 +285,15 @@ function step() {
 
   updateParticles();
 
-  // Skill minions (necromancer_pact, horde_call, mirror_clone)
+  // Skill minions (necromancer_pact, horde_call, mirror_clone, chimera shikigami)
   if (typeof updateSkillMinions === 'function') updateSkillMinions();
+
+  // JJK — domain ticks + curse technique per-frame logic
+  if (state.phase === 'playing' && typeof jjkUpdateAll === 'function') jjkUpdateAll(state);
+  // JoJo — stand update (movement, attacks, The World freeze, KQ bombs, GE minions)
+  if (state.phase === 'playing' && typeof jojoUpdateAll === 'function') jojoUpdateAll(state);
+  // One Piece — Haki ticks, shockwaves, Tori regen, Mera burns, Ryu transform, Goro CD
+  if (state.phase === 'playing' && typeof opUpdateAll === 'function') opUpdateAll(state);
   // Per-frame skill timers (war_banner, horde_call, plague)
   if (state.phase === 'playing') {
     for (const b of players) { if (b.alive && typeof skillPerFrameUpdate === 'function') skillPerFrameUpdate(b); }
@@ -440,6 +449,11 @@ function render() {
     drawTraps(ctx, state.trapObjects, state.frame);
   }
 
+  // JJK domain backgrounds (drawn below balls)
+  if (typeof jjkDrawDomains === 'function') jjkDrawDomains(ctx, state);
+  // JoJo Stands (drawn below balls — body + tether + range circle)
+  if (typeof jojoDrawStands === 'function') jojoDrawStands(ctx, state);
+
   // PVE terrain — solid objects below balls (pillars, walls, crates)
   if (state.pveMode && state.terrainObjects?.length) {
     drawTerrainBelow(ctx, state.terrainObjects);
@@ -453,6 +467,13 @@ function render() {
 
   // Draw balls
   for (const b of state.players) b.draw(ctx);
+
+  // JJK domain overlays (drawn above balls — Chimera shadow effect)
+  if (typeof jjkDrawOverlays === 'function') jjkDrawOverlays(ctx, state);
+  // JoJo overlays (The World freeze overlay, KQ bombs)
+  if (typeof jojoDrawOverlays === 'function') jojoDrawOverlays(ctx, state);
+  // One Piece effects (shockwave rings, Ryu glow, Tori aura, Mera burn, Armament outline)
+  if (typeof opDrawEffects === 'function') opDrawEffects(ctx, state);
 
   // Draw heal orbs (PVE)
   if (state.pveMode) drawHealOrbs(ctx);

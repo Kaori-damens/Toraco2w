@@ -103,6 +103,7 @@ function initGame() {
     ball._entrySpawnY = entrySpawnY;
     ball.charName  = fighter.charName  || null;
     ball.charEmoji = fighter.charEmoji || '';
+    ball.charDevs  = fighter.charDevs  || [];
 
     // Skills — copy from fighter data, apply passives
     ball.skills = fighter.skills || [];
@@ -151,6 +152,10 @@ function initGame() {
   state.boneShards      = [];
   state.skillMinions    = [];
   state.droppedWeapons  = [];
+  state.jjkDomains      = [];   // active JJK domains (jjk.js)
+  state.jjkChains       = [];   // Kính Kình pending chain explosions
+  state.jojoStands      = [];   // active JoJo stands (jojo.js)
+  state.opShockwaves    = [];   // expanding shockwave rings (onepiece.js)
   state.trapObjects  = (typeof initTrapObjects === 'function' && arenaConfig.traps)
     ? initTrapObjects(arenaConfig) : [];
   state.frame = 0;

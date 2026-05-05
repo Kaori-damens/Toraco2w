@@ -23,7 +23,7 @@
 //   quickCreateMode — tạo nhanh với tên preset, skip màn name
 //   cgDraftMode     — tạo cho championship draft, lọc demon sins đã claim
 
-const CHARGEN_STEPS = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','weapon','skillcount','skillpick','done'];
+const CHARGEN_STEPS = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','weapon','skillcount','skillpick','chardev','done'];
 let cgState = null;
 let cgRoster = JSON.parse(localStorage.getItem('cgRoster') || '[]'); // persist qua localStorage
 let quickCreateMode = false;
@@ -66,6 +66,10 @@ function initChargen() {
     weapon: null,
     skillCount: 0,    // how many skills to roll
     skills: [],       // array of SKILL_DEF objects picked
+    // Char Dev step
+    charDevs:           [],  // ids of char devs received
+    charDevRemaining:   1,   // spins left (Blessed by Chaos adds 2)
+    charDevExtraSkills: 0,   // extra skill spins granted by No More Family
   };
   showScreen('chargen');
   renderCgDots();
@@ -77,7 +81,7 @@ function initChargen() {
 
 function renderCgDots() {
   const row = document.getElementById('cgDots');
-  const steps = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','weapon','skillcount','skillpick','done'];
+  const steps = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','weapon','skillcount','skillpick','chardev','done'];
   const cur = steps.indexOf(cgState.step);
   row.innerHTML = steps.map((s,i) =>
     `<div class="cg-dot ${i < cur ? 'done' : i === cur ? 'active' : ''}"></div>`
@@ -512,11 +516,12 @@ function renderCgStep() {
     return;
   }
   if (s === 'skillpick') { cgRenderSkillPick(box); return; }
+  if (s === 'chardev')   { cgRenderCharDev(box);   return; }
   if (s === 'done') { cgRenderDone(box); }
 }
 
 function advanceCg() {
-  const order = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','uniqueweapon','weapon','skillcount','skillpick','done'];
+  const order = ['name','race','subrace','str','spd','dur','iq','biq','ma','hasweapon','uniqueweapon','weapon','skillcount','skillpick','chardev','done'];
   let next = order.indexOf(cgState.step) + 1;
   // Skip uniqueweapon if not in championship draft OR not armed
   if (order[next] === 'uniqueweapon' && (!cgDraftMode || cgState.hasWeapon === false)) next++;
@@ -524,6 +529,10 @@ function advanceCg() {
   if (order[next] === 'weapon' && cgState.hasWeapon === false) next++;
   // If 0 skills rolled, skip the skill-pick wheel
   if (order[next] === 'skillpick' && cgState.skillCount === 0) next++;
+  // Skip chardev in quickCreateMode (no spins for auto-create)
+  if (order[next] === 'chardev' && quickCreateMode) next++;
+  // Skip chardev if already fully resolved (returning from extra-skill re-entry)
+  if (order[next] === 'chardev' && cgState.charDevRemaining === 0) next++;
   cgState.step = order[Math.min(next, order.length - 1)];
   renderCgStep();
   cgUpdatePreview();
@@ -616,6 +625,19 @@ function cgUpdatePreview() {
       const descAttr = sk.desc ? ` data-desc="${sk.desc.replace(/"/g,'&quot;')}"` : '';
       const typeAttr = sk.type ? ` data-type="${sk.type}"` : '';
       html += `<div class="cgp-skill-badge fcard-skill-tip${sk.unique ? ' cgp-skill-unique' : ''}"${descAttr}${typeAttr}>${sk.name}${sk.unique ? ' <span style="font-size:10px">★</span>' : ''}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Char Devs ────────────────────────────────────────────────
+  if (s.charDevs?.length > 0 && typeof CHARDEV_POOL !== 'undefined') {
+    html += `<div class="cgp-section-label">🌀 Char Dev</div><div class="cgp-skills">`;
+    s.charDevs.forEach(id => {
+      const cd = CHARDEV_POOL.find(c => c.id === id);
+      if (cd) {
+        const descAttr = ` data-desc="${cd.desc.replace(/"/g,'&quot;')}"`;
+        html += `<div class="cgp-skill-badge fcard-skill-tip"${descAttr}>${cd.icon} ${cd.label}</div>`;
+      }
     });
     html += `</div>`;
   }
@@ -891,7 +913,7 @@ function cgRenderSkillPick(box) {
 
   const items = available.map((s, i) => ({
     label: s.name,
-    weight: 1,
+    weight: s.weight ?? 1,  // dùng weight từ SKILL_DEFS nếu có, fallback về 1
     color: wColor(i),
   }));
 
@@ -991,8 +1013,14 @@ function cgRenderDone(box) {
       color: generateRadoserColor(cgDraftMode
         ? (state.championship?.draftRoster?.length ?? 0)
         : cgRoster.length),
-      skills: (cgState.skills || []).map(s => s.id),
+      skills:   (cgState.skills || []).map(s => s.id),
+      charDevs: [...(cgState.charDevs || [])],
     };
+    // Finality (championship only): mark race as extinct
+    if (cgDraftMode && char.charDevs.includes('finality') && typeof CG_RACES !== 'undefined') {
+      const raceEntry = CG_RACES.find(r => r.id === char.race);
+      if (raceEntry) raceEntry.weight = 0;
+    }
     quickCreateMode = false;
     if (cgDraftMode) {
       // Tag with championship identity
@@ -1014,6 +1042,584 @@ function cgRenderDone(box) {
   if (quickCreateMode) setTimeout(saveChar, 800);
 }
 
+
+// ============================================================
+// CHARDEV STEP — spin wheel sau skillpick
+// ============================================================
+function cgRenderCharDev(box) {
+  if (typeof CHARDEV_POOL === 'undefined') { advanceCg(); return; }
+
+  const spinNum   = (cgState.charDevs?.length ?? 0) + 1;
+  const spinTotal = (cgState.charDevs?.length ?? 0) + (cgState.charDevRemaining ?? 1);
+
+  const items = CHARDEV_POOL.map(cd => ({
+    label:  cd.label,
+    weight: cd.weight,
+    color:  cd.color,
+  }));
+
+  // Show previously received char devs
+  const pickedHtml = cgState.charDevs?.length > 0
+    ? `<div class="cg-skills-picked">${cgState.charDevs.map(id => {
+        const cd = CHARDEV_POOL.find(c => c.id === id) || { icon: '?', label: id };
+        return `<span class="cg-skill-tag">${cd.icon} ${cd.label}</span>`;
+      }).join('')}</div>`
+    : '';
+
+  box.innerHTML = `
+    <div class="cg-card">
+      <div class="cg-label">🌀 Character Development${spinTotal > 1 ? ` (${spinNum} / ${spinTotal})` : ''}</div>
+      ${pickedHtml}
+      <div class="spin-wrap">
+        <canvas id="spinCanvas" width="360" height="360"></canvas>
+        <div class="spin-ptr"></div>
+      </div>
+      <div id="cgResultBox"></div>
+      <div class="cg-nav">
+        <button class="spin-btn" id="cgSpinBtn">${t('chargen_spin_btn')}</button>
+      </div>
+    </div>`;
+
+  const wheelOpts = !quickCreateMode
+    ? { mysteryCategory: 'chardev', mysteryKeys: CHARDEV_POOL.map(cd => cd.id) }
+    : {};
+  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items, wheelOpts);
+
+  const _doCharDevAdvance = (picked) => {
+    // Apply to cgState
+    const result = applyCharDevToCgState(picked.id, cgState);
+    if (!cgState.charDevs) cgState.charDevs = [];
+    cgState.charDevs.push(picked.id);
+    cgState.charDevRemaining = Math.max(0, (cgState.charDevRemaining ?? 1) - 1);
+    if (result.extraDevs)   cgState.charDevRemaining   += result.extraDevs;
+    if (result.extraSkills) cgState.charDevExtraSkills  = (cgState.charDevExtraSkills || 0) + result.extraSkills;
+    cgUpdatePreview();
+
+    // Show result card
+    const resEl = document.getElementById('cgResultBox');
+    if (resEl) resEl.innerHTML =
+      `<div class="cg-result-box">
+        ${picked.icon} <b>${picked.label}</b>
+        <br><span style="color:#aaa;font-size:12px">${picked.desc}</span>
+      </div>`;
+
+    playTone(660, 'sine', 0.4, 0.15, 0.5);
+
+    // Isekai
+    if (result.isekai) {
+      const btn = document.getElementById('cgSpinBtn');
+      if (btn) {
+        btn.textContent = '🌀 Isekai!';
+        btn.className   = 'cg-btn primary';
+        btn.disabled    = false;
+        let _adv = false;
+        btn.onclick = () => { if (_adv) return; _adv = true; _doIsekai(); };
+        if (quickCreateMode) setTimeout(() => { if (!_adv) { _adv = true; _doIsekai(); } }, 700);
+      }
+      return;
+    }
+
+    // One Piece sub-wheel
+    if (result.onepiecePick) {
+      const moreDevsOp   = cgState.charDevRemaining > 0;
+      const moreSkillsOp = (cgState.charDevExtraSkills || 0) > 0;
+      const btnOp = document.getElementById('cgSpinBtn');
+      if (btnOp) {
+        btnOp.textContent = '🏴‍☠️ Spin One Piece Wheel';
+        btnOp.className   = 'cg-btn primary';
+        btnOp.disabled    = false;
+        let _opAdv = false;
+        const _openOp = () => {
+          if (_opAdv) return; _opAdv = true;
+          _cgShowOpSubWheel(box, () => {
+            if (moreDevsOp) { renderCgStep(); cgUpdatePreview(); }
+            else if (moreSkillsOp) {
+              cgState.skillCount += cgState.charDevExtraSkills;
+              cgState.charDevExtraSkills = 0;
+              cgState.step = 'skillpick';
+              renderCgStep(); cgUpdatePreview();
+            } else { advanceCg(); }
+          });
+        };
+        btnOp.onclick = _openOp;
+        if (quickCreateMode) setTimeout(_openOp, 700);
+      }
+      return;
+    }
+
+    // JoJo sub-wheel
+    if (result.jojoPick) {
+      const moreDevsJojo   = cgState.charDevRemaining > 0;
+      const moreSkillsJojo = (cgState.charDevExtraSkills || 0) > 0;
+      const btnJojo = document.getElementById('cgSpinBtn');
+      if (btnJojo) {
+        btnJojo.textContent = '🎭 Spin JoJo Wheel';
+        btnJojo.className   = 'cg-btn primary';
+        btnJojo.disabled    = false;
+        let _jojoAdv = false;
+        const _openJojo = () => {
+          if (_jojoAdv) return; _jojoAdv = true;
+          _cgShowJojoSubWheel(box, () => {
+            if (moreDevsJojo) { renderCgStep(); cgUpdatePreview(); }
+            else if (moreSkillsJojo) {
+              cgState.skillCount += cgState.charDevExtraSkills;
+              cgState.charDevExtraSkills = 0;
+              cgState.step = 'skillpick';
+              renderCgStep(); cgUpdatePreview();
+            } else { advanceCg(); }
+          });
+        };
+        btnJojo.onclick = _openJojo;
+        if (quickCreateMode) setTimeout(_openJojo, 700);
+      }
+      return;
+    }
+
+    // JJK sub-wheel
+    if (result.jjkPick) {
+      const moreDevsJjk   = cgState.charDevRemaining > 0;
+      const moreSkillsJjk = (cgState.charDevExtraSkills || 0) > 0;
+      const btnJjk = document.getElementById('cgSpinBtn');
+      if (btnJjk) {
+        btnJjk.textContent = '👁️ Spin JJK Wheel';
+        btnJjk.className   = 'cg-btn primary';
+        btnJjk.disabled    = false;
+        let _jjkAdv = false;
+        const _openJjk = () => {
+          if (_jjkAdv) return; _jjkAdv = true;
+          _cgShowJjkSubWheel(box, () => {
+            if (moreDevsJjk) { renderCgStep(); cgUpdatePreview(); }
+            else if (moreSkillsJjk) {
+              cgState.skillCount += cgState.charDevExtraSkills;
+              cgState.charDevExtraSkills = 0;
+              cgState.step = 'skillpick';
+              renderCgStep(); cgUpdatePreview();
+            } else { advanceCg(); }
+          });
+        };
+        btnJjk.onclick = _openJjk;
+        if (quickCreateMode) setTimeout(_openJjk, 700);
+      }
+      return;
+    }
+
+    // Summoner sub-wheel
+    if (result.summonerPick) {
+      const moreDevsSm   = cgState.charDevRemaining > 0;
+      const moreSkillsSm = (cgState.charDevExtraSkills || 0) > 0;
+      const btnSm = document.getElementById('cgSpinBtn');
+      if (btnSm) {
+        btnSm.textContent = '🧿 Spin Summoner Wheel';
+        btnSm.className   = 'cg-btn primary';
+        btnSm.disabled    = false;
+        let _smAdv = false;
+        const _openSm = () => {
+          if (_smAdv) return; _smAdv = true;
+          _cgShowSummonerSubWheel(box, () => {
+            if (moreDevsSm) { renderCgStep(); cgUpdatePreview(); }
+            else if (moreSkillsSm) {
+              cgState.skillCount += cgState.charDevExtraSkills;
+              cgState.charDevExtraSkills = 0;
+              cgState.step = 'skillpick';
+              renderCgStep(); cgUpdatePreview();
+            } else { advanceCg(); }
+          });
+        };
+        btnSm.onclick = _openSm;
+        if (quickCreateMode) setTimeout(_openSm, 700);
+      }
+      return;
+    }
+
+    // Determine next action
+    const moreDevs   = cgState.charDevRemaining > 0;
+    const moreSkills = (cgState.charDevExtraSkills || 0) > 0;
+    const btn = document.getElementById('cgSpinBtn');
+    if (!btn) return;
+    btn.className = 'cg-btn primary';
+    btn.disabled  = false;
+    let _adv = false;
+
+    if (moreDevs) {
+      btn.textContent = `🎲 Next Dev (${cgState.charDevRemaining} remaining)`;
+      btn.onclick = () => { if (_adv) return; _adv = true; renderCgStep(); cgUpdatePreview(); };
+      if (quickCreateMode) setTimeout(() => { if (!_adv) { _adv = true; renderCgStep(); cgUpdatePreview(); } }, 700);
+    } else if (moreSkills) {
+      const n = cgState.charDevExtraSkills;
+      btn.textContent = `✨ Pick ${n} More Skill${n > 1 ? 's' : ''}`;
+      btn.onclick = () => {
+        if (_adv) return; _adv = true;
+        cgState.skillCount += cgState.charDevExtraSkills;
+        cgState.charDevExtraSkills = 0;
+        cgState.step = 'skillpick';
+        renderCgStep(); cgUpdatePreview();
+      };
+      if (quickCreateMode) setTimeout(() => {
+        if (_adv) return; _adv = true;
+        cgState.skillCount += cgState.charDevExtraSkills;
+        cgState.charDevExtraSkills = 0;
+        cgState.step = 'skillpick';
+        renderCgStep(); cgUpdatePreview();
+      }, 700);
+    } else {
+      btn.textContent = t('chargen_btn_next');
+      btn.onclick = () => { if (_adv) return; _adv = true; advanceCg(); };
+      if (quickCreateMode) setTimeout(() => { if (!_adv) { _adv = true; advanceCg(); } }, 700);
+    }
+  };
+
+  const doSpin = () => {
+    const btn = document.getElementById('cgSpinBtn');
+    if (btn) btn.disabled = true;
+    wheel.spin((_winner, idx) => _doCharDevAdvance(CHARDEV_POOL[idx]));
+  };
+
+  document.getElementById('cgSpinBtn').onclick = doSpin;
+  if (quickCreateMode) setTimeout(doSpin, 300);
+
+  // Debug quick-pick
+  _cgDebug(box, 'Char Dev', CHARDEV_POOL.map(cd => ({
+    label: `${cd.icon} ${cd.label}`,
+    onClick: () => _doCharDevAdvance(cd),
+  })));
+}
+
+// ─── _cgShowJjkSubWheel ──────────────────────────────────────
+// Hiện vòng quay JJK thứ cấp sau khi chardev 'jjk' được roll.
+// onDone() được gọi sau khi user chọn xong 1 JJK skill.
+function _cgShowJjkSubWheel(box, onDone) {
+  const JJK_IDS = [
+    'jjk_domain_malevolent', 'jjk_domain_unlimited', 'jjk_domain_chimera',
+    'jjk_ct_command', 'jjk_ct_blackflash', 'jjk_ct_swap', 'jjk_ct_blood',
+  ];
+  // Lọc domain unique đã bị claim (championship mode)
+  const available = JJK_IDS.filter(id => {
+    const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null;
+    if (!def) return false;
+    if (def.category === 'jjk_domain' && cgDraftMode) {
+      return typeof isUniqueAvailable === 'function' ? isUniqueAvailable(id) : true;
+    }
+    return true;
+  });
+
+  if (available.length === 0) { onDone(); return; }
+
+  const items = available.map(id => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { name: id, icon: '?' };
+    return { label: `${def.icon} ${def.name}`, weight: 1, color: '#1a0033' };
+  });
+
+  box.innerHTML = `
+    <div class="cg-card">
+      <div class="cg-label">👁️ JJK — Domain / Curse Technique</div>
+      <div style="color:#aaa;font-size:12px;margin-bottom:8px;">Chọn 1 skill từ hệ thống JJK (Domain là unique)</div>
+      <div class="spin-wrap">
+        <canvas id="spinCanvas" width="360" height="360"></canvas>
+        <div class="spin-ptr"></div>
+      </div>
+      <div id="cgResultBox"></div>
+      <div class="cg-nav">
+        <button class="spin-btn" id="cgSpinBtn">${t('chargen_spin_btn')}</button>
+      </div>
+    </div>`;
+
+  const wheelOpts = !quickCreateMode
+    ? { mysteryCategory: 'skill', mysteryKeys: available }
+    : {};
+  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items, wheelOpts);
+
+  const _onPick = (idx) => {
+    const pickedId = available[idx];
+    const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === pickedId) : null;
+    if (def) {
+      cgState.skills = cgState.skills || [];
+      if (!cgState.skills.find(s => s.id === def.id)) cgState.skills.push(def);
+      // Claim unique domain (championship)
+      if (def.category === 'jjk_domain' && cgDraftMode && typeof claimUniqueItem === 'function')
+        claimUniqueItem(pickedId);
+      // Kính Kình: đổi sang fists + +1 MA
+      if (pickedId === 'jjk_ct_blackflash' && cgState.weapon !== 'fists') {
+        cgState.weapon   = 'fists';
+        cgState.hasWeapon = false;
+        if (cgState.stats) cgState.stats.ma = (cgState.stats.ma || 0) + 1;
+      }
+    }
+    const resEl = document.getElementById('cgResultBox');
+    if (resEl && def) resEl.innerHTML = `<div class="cg-result-box">${def.icon} <b>${def.name}</b><br><span style="color:#aaa;font-size:12px">${def.desc}</span></div>`;
+    playTone(660, 'sine', 0.4, 0.15, 0.5);
+    cgUpdatePreview();
+
+    const btn = document.getElementById('cgSpinBtn');
+    if (btn) {
+      btn.textContent = t('chargen_btn_next');
+      btn.className   = 'cg-btn primary';
+      btn.disabled    = false;
+      let _adv = false;
+      btn.onclick = () => { if (_adv) return; _adv = true; onDone(); };
+      if (quickCreateMode) setTimeout(() => { if (!_adv) { _adv = true; onDone(); } }, 700);
+    }
+  };
+
+  const doSpin = () => {
+    document.getElementById('cgSpinBtn').disabled = true;
+    wheel.spin((_w, idx) => _onPick(idx));
+  };
+  document.getElementById('cgSpinBtn').onclick = doSpin;
+  if (quickCreateMode) setTimeout(doSpin, 300);
+
+  // Debug quick-pick
+  _cgDebug(box, 'JJK Skill', available.map((id, i) => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { icon: '?', name: id };
+    return { label: `${def.icon} ${def.name}`, onClick: () => _onPick(i) };
+  }));
+}
+
+// ─── _cgShowJojoSubWheel ─────────────────────────────────────
+// Hiện vòng quay JoJo thứ cấp sau khi chardev 'jojo' được roll.
+// 4 Stand (unique) + 3 Support (không unique). onDone() sau khi chọn xong.
+function _cgShowJojoSubWheel(box, onDone) {
+  const JOJO_STAND_IDS   = ['jojo_stand_star','jojo_stand_world','jojo_stand_kq','jojo_stand_ge'];
+  const JOJO_SUPPORT_IDS = ['jojo_support_remote','jojo_support_senses','jojo_support_evolution'];
+  const ALL_IDS = [...JOJO_STAND_IDS, ...JOJO_SUPPORT_IDS];
+
+  // Lọc stands unique đã claim (championship)
+  const available = ALL_IDS.filter(id => {
+    const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null;
+    if (!def) return false;
+    if (def.category === 'jojo_stand' && cgDraftMode) {
+      return typeof isUniqueAvailable === 'function' ? isUniqueAvailable(id) : true;
+    }
+    return true;
+  });
+
+  if (available.length === 0) { onDone(); return; }
+
+  const STAND_COLOR = '#331a00';
+  const items = available.map(id => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { name: id, icon: '?' };
+    const isSupport = JOJO_SUPPORT_IDS.includes(id);
+    return { label: `${def.icon} ${def.name}`, weight: 1, color: isSupport ? '#2a1a00' : STAND_COLOR };
+  });
+
+  box.innerHTML = `
+    <div class="cg-card">
+      <div class="cg-label">🎭 JoJo — Stand / Support</div>
+      <div style="color:#aaa;font-size:12px;margin-bottom:8px;">Chọn 1 skill từ hệ thống JoJo (Stand là unique)</div>
+      <div class="spin-wrap">
+        <canvas id="spinCanvas" width="360" height="360"></canvas>
+        <div class="spin-ptr"></div>
+      </div>
+      <div id="cgResultBox"></div>
+      <div class="cg-nav">
+        <button class="spin-btn" id="cgSpinBtn">${t('chargen_spin_btn')}</button>
+      </div>
+    </div>`;
+
+  const wheelOpts = !quickCreateMode
+    ? { mysteryCategory: 'skill', mysteryKeys: available }
+    : {};
+  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items, wheelOpts);
+
+  const _onPick = (idx) => {
+    const pickedId = available[idx];
+    const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === pickedId) : null;
+    if (def) {
+      cgState.skills = cgState.skills || [];
+      if (!cgState.skills.find(s => s.id === def.id)) cgState.skills.push(def);
+      // Claim unique stand (championship)
+      if (def.category === 'jojo_stand' && cgDraftMode && typeof claimUniqueItem === 'function')
+        claimUniqueItem(pickedId);
+    }
+    const resEl = document.getElementById('cgResultBox');
+    if (resEl && def) resEl.innerHTML = `<div class="cg-result-box">${def.icon} <b>${def.name}</b><br><span style="color:#aaa;font-size:12px">${def.desc}</span></div>`;
+    playTone(660, 'sine', 0.4, 0.15, 0.5);
+    cgUpdatePreview();
+
+    const btn = document.getElementById('cgSpinBtn');
+    if (btn) {
+      btn.textContent = t('chargen_btn_next');
+      btn.className   = 'cg-btn primary';
+      btn.disabled    = false;
+      let _adv = false;
+      btn.onclick = () => { if (_adv) return; _adv = true; onDone(); };
+      if (quickCreateMode) setTimeout(() => { if (!_adv) { _adv = true; onDone(); } }, 700);
+    }
+  };
+
+  const doSpin = () => {
+    document.getElementById('cgSpinBtn').disabled = true;
+    wheel.spin((_w, idx) => _onPick(idx));
+  };
+  document.getElementById('cgSpinBtn').onclick = doSpin;
+  if (quickCreateMode) setTimeout(doSpin, 300);
+
+  // Debug quick-pick
+  _cgDebug(box, 'JoJo Skill', available.map((id, i) => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { icon: '?', name: id };
+    return { label: `${def.icon} ${def.name}`, onClick: () => _onPick(i) };
+  }));
+}
+
+// ─── _cgShowOpSubWheel ───────────────────────────────────────
+// Hiện vòng quay One Piece thứ cấp sau khi chardev 'onepiece' được roll.
+// 3 Haki (không unique) + 7 Trái Ác Quỷ (unique). onDone() sau khi chọn xong.
+function _cgShowOpSubWheel(box, onDone) {
+  const OP_HAKI_IDS  = ['op_haki_obs', 'op_haki_arm', 'op_haki_conq'];
+  const OP_FRUIT_IDS = ['op_fruit_goro','op_fruit_tori','op_fruit_mera','op_fruit_ryu',
+                         'op_fruit_hito','op_fruit_neko','op_fruit_pika'];
+  const ALL_IDS = [...OP_HAKI_IDS, ...OP_FRUIT_IDS];
+
+  // Lọc fruits unique đã claim (championship)
+  const available = ALL_IDS.filter(id => {
+    const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null;
+    if (!def) return false;
+    if (def.category === 'op_fruit' && cgDraftMode) {
+      return typeof isUniqueAvailable === 'function' ? isUniqueAvailable(id) : true;
+    }
+    return true;
+  });
+
+  if (available.length === 0) { onDone(); return; }
+
+  const HAKI_COLOR  = '#001a33';
+  const FRUIT_COLOR = '#003366';
+  const items = available.map(id => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { name: id, icon: '?' };
+    const isFruit = OP_FRUIT_IDS.includes(id);
+    return { label: `${def.icon} ${def.name}`, weight: 1, color: isFruit ? FRUIT_COLOR : HAKI_COLOR };
+  });
+
+  box.innerHTML = `
+    <div class="cg-card">
+      <div class="cg-label">🏴‍☠️ One Piece — Haki / Trái Ác Quỷ</div>
+      <div style="color:#aaa;font-size:12px;margin-bottom:8px;">Chọn 1 skill (Trái Ác Quỷ là unique)</div>
+      <div class="spin-wrap">
+        <canvas id="spinCanvas" width="360" height="360"></canvas>
+        <div class="spin-ptr"></div>
+      </div>
+      <div id="cgResultBox"></div>
+      <div class="cg-nav">
+        <button class="spin-btn" id="cgSpinBtn">${t('chargen_spin_btn')}</button>
+      </div>
+    </div>`;
+
+  const wheelOpts = !quickCreateMode
+    ? { mysteryCategory: 'skill', mysteryKeys: available }
+    : {};
+  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items, wheelOpts);
+
+  const _onPick = (idx) => {
+    const pickedId = available[idx];
+    const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === pickedId) : null;
+    if (def) {
+      cgState.skills = cgState.skills || [];
+      if (!cgState.skills.find(s => s.id === def.id)) cgState.skills.push(def);
+      // Claim unique fruit (championship)
+      if (def.category === 'op_fruit' && cgDraftMode && typeof claimUniqueItem === 'function')
+        claimUniqueItem(pickedId);
+    }
+    const resEl = document.getElementById('cgResultBox');
+    if (resEl && def) resEl.innerHTML = `<div class="cg-result-box">${def.icon} <b>${def.name}</b><br><span style="color:#aaa;font-size:12px">${def.desc}</span></div>`;
+    playTone(660, 'sine', 0.4, 0.15, 0.5);
+    cgUpdatePreview();
+
+    const btn = document.getElementById('cgSpinBtn');
+    if (btn) {
+      btn.textContent = t('chargen_btn_next');
+      btn.className   = 'cg-btn primary';
+      btn.disabled    = false;
+      let _adv = false;
+      btn.onclick = () => { if (_adv) return; _adv = true; onDone(); };
+      if (quickCreateMode) setTimeout(() => { if (!_adv) { _adv = true; onDone(); } }, 700);
+    }
+  };
+
+  const doSpin = () => {
+    document.getElementById('cgSpinBtn').disabled = true;
+    wheel.spin((_w, idx) => _onPick(idx));
+  };
+  document.getElementById('cgSpinBtn').onclick = doSpin;
+  if (quickCreateMode) setTimeout(doSpin, 300);
+
+  // Debug quick-pick
+  _cgDebug(box, 'One Piece Skill', available.map((id, i) => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { icon: '?', name: id };
+    return { label: `${def.icon} ${def.name}`, onClick: () => _onPick(i) };
+  }));
+}
+
+// ─── _cgShowSummonerSubWheel ──────────────────────────────────
+// Hiện vòng quay Summoner thứ cấp sau khi chardev 'summoner' được roll.
+// 3 skill triệu hồi: Necromancer's Pact, Horde Call, Mirror Clone.
+function _cgShowSummonerSubWheel(box, onDone) {
+  // Tự động lấy tất cả skill có category: 'summon' — không cần hardcode IDs
+  const available = (typeof SKILL_DEFS !== 'undefined'
+    ? SKILL_DEFS.filter(s => s.category === 'summon').map(s => s.id)
+    : []);
+
+  if (available.length === 0) { onDone(); return; }
+
+  const SUMMON_COLOR = '#2e1a4a';
+  const items = available.map(id => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { name: id, icon: '🧿' };
+    return { label: `${def.icon} ${def.name}`, weight: 1, color: SUMMON_COLOR };
+  });
+
+  box.innerHTML = `
+    <div class="cg-card">
+      <div class="cg-label">🧿 Summoner — Chọn Skill Triệu Hồi</div>
+      <div style="color:#aaa;font-size:12px;margin-bottom:8px;">Summons của bạn sẽ có 20 HP và tồn tại lâu hơn ×1.5 — nhưng bản thân −30% sát thương</div>
+      <div class="spin-wrap">
+        <canvas id="spinCanvas" width="360" height="360"></canvas>
+        <div class="spin-ptr"></div>
+      </div>
+      <div id="cgResultBox"></div>
+      <div class="cg-nav">
+        <button class="spin-btn" id="cgSpinBtn">${t('chargen_spin_btn')}</button>
+      </div>
+    </div>`;
+
+  const wheelOpts = !quickCreateMode
+    ? { mysteryCategory: 'skill', mysteryKeys: available }
+    : {};
+  const wheel = new SpinWheel(document.getElementById('spinCanvas'), items, wheelOpts);
+
+  const _onPick = (idx) => {
+    const pickedId = available[idx];
+    const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === pickedId) : null;
+    if (def) {
+      cgState.skills = cgState.skills || [];
+      if (!cgState.skills.find(s => s.id === def.id)) cgState.skills.push(def);
+    }
+    const resEl = document.getElementById('cgResultBox');
+    if (resEl && def) resEl.innerHTML = `<div class="cg-result-box">${def.icon} <b>${def.name}</b><br><span style="color:#aaa;font-size:12px">${def.desc}</span></div>`;
+    playTone(660, 'sine', 0.4, 0.15, 0.5);
+    cgUpdatePreview();
+
+    const btn = document.getElementById('cgSpinBtn');
+    if (btn) {
+      btn.textContent = t('chargen_btn_next');
+      btn.className   = 'cg-btn primary';
+      btn.disabled    = false;
+      let _adv = false;
+      btn.onclick = () => { if (_adv) return; _adv = true; onDone(); };
+      if (quickCreateMode) setTimeout(() => { if (!_adv) { _adv = true; onDone(); } }, 700);
+    }
+  };
+
+  const doSpin = () => {
+    document.getElementById('cgSpinBtn').disabled = true;
+    wheel.spin((_w, idx) => _onPick(idx));
+  };
+  document.getElementById('cgSpinBtn').onclick = doSpin;
+  if (quickCreateMode) setTimeout(doSpin, 300);
+
+  // Debug quick-pick
+  _cgDebug(box, 'Summon Skill', available.map((id, i) => {
+    const def = (typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null) || { icon: '🧿', name: id };
+    return { label: `${def.icon} ${def.name}`, onClick: () => _onPick(i) };
+  }));
+}
 
 // ============================================================
 // DEBUG RADOSER — instant creation without spin wheels

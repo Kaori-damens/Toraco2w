@@ -789,10 +789,11 @@ const WEAPON_DEFS = [
         const totalLen = ball.radius + this.baseLength + (ball.weapon.bonusLength || 0);
         return [{ x: ball.x + Math.cos(ball.weapon.angle) * totalLen, y: ball.y + Math.sin(ball.weapon.angle) * totalLen, r: headR, damageMult: 1.0 }];
       }
-      // Trả về: 3 đốt xích giữa (gây 30% dame) + đầu mace tip (gây 100% dame)
+      // Trả về: 3 đốt xích giữa (gây 30% dame, noParry) + đầu mace tip (gây 100% dame)
+      // noParry: true → đốt xích KHÔNG trigger parry (chỉ mace head mới có thể parry)
       const pts = [];
       for (let i = 1; i <= 3; i++) {
-        pts.push({ x: nodes[i].x, y: nodes[i].y, r: 5, damageMult: 0.3 });
+        pts.push({ x: nodes[i].x, y: nodes[i].y, r: 5, damageMult: 0.3, noParry: true });
       }
       const tip = nodes[nodes.length - 1];
       pts.push({ x: tip.x, y: tip.y, r: headR, damageMult: 1.0 });
@@ -1237,21 +1238,22 @@ const WEAPON_DEFS = [
       // Rune glow on shaft
       ctx.strokeStyle = '#ffe070'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
-      // Tip
+      // Tip — offset theo bonusLen để đầu mũi luôn nằm ở cuối shaft
       const ga = w.angle, gcos = Math.cos(ga), gsin = Math.sin(ga);
       const gwx = (x,y) => ball.x + gcos*x - gsin*y;
       const gwy = (x,y) => ball.y + gsin*x + gcos*y;
+      const bl = bonusLen; // shorthand
       ctx.fillStyle = '#fffacc';
       ctx.shadowColor = '#ffe84c'; ctx.shadowBlur = 16;
       ctx.beginPath();
-      ctx.moveTo(gwx(94.4,0), gwy(94.4,0));
-      ctx.lineTo(gwx(84.4,7), gwy(84.4,7));
-      ctx.lineTo(gwx(84.4,-7), gwy(84.4,-7));
+      ctx.moveTo(gwx(94.4+bl,0),    gwy(94.4+bl,0));
+      ctx.lineTo(gwx(84.4+bl,7),    gwy(84.4+bl,7));
+      ctx.lineTo(gwx(84.4+bl,-7),   gwy(84.4+bl,-7));
       ctx.closePath(); ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(gwx(80.6,-0.3), gwy(80.6,-0.3));
-      ctx.lineTo(gwx(84.7,7), gwy(84.7,7));
-      ctx.lineTo(gwx(84.7,-7), gwy(84.7,-7));
+      ctx.moveTo(gwx(80.6+bl,-0.3), gwy(80.6+bl,-0.3));
+      ctx.lineTo(gwx(84.7+bl,7),    gwy(84.7+bl,7));
+      ctx.lineTo(gwx(84.7+bl,-7),   gwy(84.7+bl,-7));
       ctx.closePath(); ctx.fill();
       // Rune symbols floating along shaft
       const t = Date.now() * 0.002;

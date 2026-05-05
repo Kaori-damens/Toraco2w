@@ -117,6 +117,7 @@ function updateTraps(traps, players, frame) {
 function _updatePillar(p, players) {
   for (const ball of players) {
     if (!ball.alive) continue;
+    if (ball._opPikaBeam) continue;
     const dx = ball.x - p.x, dy = ball.y - p.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const minDist = p.r + ball.radius;
@@ -163,10 +164,12 @@ function _updateScythe(s, players) {
   const tipY = s.cy + Math.sin(s.angle) * s.armLen;
   for (const ball of players) {
     if (!ball.alive) continue;
+    if (ball._opPikaBeam) continue;
     if (!ball._scytheCooldown) ball._scytheCooldown = 0;
     if (ball._scytheCooldown > 0) { ball._scytheCooldown--; continue; }
     const dx = ball.x - tipX, dy = ball.y - tipY;
     if (Math.hypot(dx, dy) < s.bladeR + ball.radius) {
+      if (ball.charDevs?.includes('dungeon_crawler')) { ball._scytheCooldown = 20; continue; }
       ball.takeDamage(8, null);
       ball._scytheCooldown = 20;
       spawnDamageNumber(ball.x, ball.y - ball.radius - 10, '⚔️ 8', '#ff8844');
@@ -194,7 +197,9 @@ function _updateLightning(lt, players) {
       lt.strikeTimer = 20;
       for (const ball of players) {
         if (!ball.alive) continue;
+        if (ball._opPikaBeam) continue;
         if (Math.hypot(ball.x - lt.targetX, ball.y - lt.targetY) < lt.strikeR + ball.radius) {
+          if (ball.charDevs?.includes('dungeon_crawler')) continue;
           ball.takeDamage(10, null);
           spawnDamageNumber(ball.x, ball.y - ball.radius - 10, '⚡ 10', '#ffff44');
           if (typeof spawnSparks === 'function') spawnSparks(ball.x, ball.y, 14);
@@ -223,6 +228,7 @@ function _updateBomb(bomb, players) {
           if (d < bomb.explodeR + b.radius) {
             const falloff = 1 - (d / bomb.explodeR) * 0.5;
             const dmg = Math.round(bomb.damage * Math.max(0.5, falloff));
+            if (b.charDevs?.includes('dungeon_crawler')) continue;
             b.takeDamage(dmg, null);
             spawnDamageNumber(b.x, b.y - b.radius - 10, `💥 ${dmg}`, '#ff6600');
             const n = d || 1;

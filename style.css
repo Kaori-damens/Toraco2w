@@ -228,6 +228,7 @@ body {
   background: #0e0e28;
   transform: translateY(-1px);
 }
+.fpm-chardev-badge { font-size: 13px; opacity: 0.85; cursor: default; }
 .fpm-dot {
   width: 22px; height: 22px;
   border-radius: 50%;
@@ -1282,6 +1283,7 @@ canvas#gameCanvas {
 .rc-total-val { font-weight: 900; font-size: 14px; color: #ffd700; }
 .rc-title-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: #0e0e22; border: 1px solid currentColor; margin-top: 1px; }
 .rc-guild-tag { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #0a0a1e; border: 1px solid #3355aa; color: #6688cc; letter-spacing: 2px; font-family: monospace; margin-top: 1px; cursor: default; }
+.rc-chardev-icon { font-size: 13px; cursor: default; opacity: 0.85; margin-top: 1px; }
 .cs-tag-form { padding: 20px 8px; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
 .cs-tag-form-title { font-size: 15px; font-weight: 700; color: #88aaff; margin-bottom: 4px; }
 .cs-tag-form-row { display: flex; flex-direction: column; gap: 5px; }
@@ -1419,6 +1421,8 @@ canvas#gameCanvas {
 .sc-stat-val { font-size: 20px; font-weight: 900; line-height: 1; }
 
 .sc-divider { height: 1px; background: #1a1a3a; margin: 0 22px; }
+.sc-chardev-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 22px 10px; }
+.sc-chardev-badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 12px; border: 1px solid currentColor; background: #0d101e; cursor: default; opacity: 0.9; }
 
 .sc-weapon-row {
   padding: 10px 22px;
@@ -4059,6 +4063,7 @@ canvas#gameCanvas {
   font-size: 11px; color: #99aacc;
 }
 .fcard-no-skills { font-size: 11px; color: #3a4055; font-style: italic; }
+.fcard-chardev-badge { background: #0d101e !important; border-width: 1px; border-style: solid; font-weight: 600; }
 .fcard-divider { border: none; border-top: 1px solid #1e2240; margin: 14px 0; }
 .bracket-player.clickable { cursor: pointer; border-radius: 4px; }
 .bracket-player.clickable:hover { background: rgba(255,255,255,0.06); }

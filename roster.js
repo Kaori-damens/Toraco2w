@@ -182,6 +182,10 @@ function renderRoster() {
         <div class="rc-weapon">${wepLabel(ch.weapon)}</div>
         ${t ? `<span class="rc-title-badge" style="color:${t.color};border-color:${t.color}44">${t.title}</span>` : ''}
         ${ch.championshipTag ? `<span class="rc-guild-tag" title="${ch.championshipName||''}">[${ch.championshipTag}]</span>` : ''}
+        ${(ch.charDevs ?? []).map(id => {
+          const cd = typeof CHARDEV_POOL !== 'undefined' ? CHARDEV_POOL.find(c => c.id === id) : null;
+          return cd ? `<span class="rc-chardev-icon" title="${cd.label}: ${cd.desc}" style="color:${cd.color}">${cd.icon}</span>` : '';
+        }).join('')}
       </div>
       <div class="rc-total">
         <span>Total Stats</span>
@@ -198,7 +202,7 @@ function renderRoster() {
     btn.onclick = () => {
       const ch = cgRoster[+btn.dataset.idx];
       if (state.fighters.length >= 12) { alert('Max 12 fighters!'); return; }
-      state.fighters.push({ weaponId: ch.weapon, color: ch.color, charName: ch.name, charEmoji: ch.raceEmoji, charStats: { ...ch.stats, race: ch.race ?? null, subrace: ch.subrace ?? null }, skills: ch.skills ?? [] });
+      state.fighters.push({ weaponId: ch.weapon, color: ch.color, charName: ch.name, charEmoji: ch.raceEmoji, charStats: { ...ch.stats, race: ch.race ?? null, subrace: ch.subrace ?? null }, skills: ch.skills ?? [], charDevs: ch.charDevs ?? [] });
       switchToBattleTab();
       sfxShoot();
     };
@@ -336,6 +340,39 @@ function showCharStats(idx) {
     }
   }
 
+  // ── Char Devs section ──
+  const charDevsEl = document.getElementById('smo-chardevs');
+  if (charDevsEl) {
+    const devIds = ch.charDevs ?? [];
+    if (devIds.length > 0 && typeof CHARDEV_POOL !== 'undefined') {
+      const cardsHtml = devIds.map(id => {
+        const cd = CHARDEV_POOL.find(c => c.id === id);
+        if (!cd) return '';
+        return `<div class="smo-skill-card" style="--sc:${cd.color}">
+          <div class="smo-skill-top">
+            <span class="smo-skill-name">${cd.icon} ${cd.label}</span>
+          </div>
+          ${cd.desc ? `<div class="smo-skill-desc">${cd.desc}</div>` : ''}
+        </div>`;
+      }).join('');
+      charDevsEl.innerHTML = `
+        <div class="smo-collapse-header smo-chardevs-toggle">
+          🌀 Char Dev (${devIds.length}) <span class="smo-arrow">▾</span>
+        </div>
+        <div class="smo-chardevs-body">${cardsHtml}</div>`;
+      charDevsEl.style.display = '';
+      const toggle = charDevsEl.querySelector('.smo-chardevs-toggle');
+      const body   = charDevsEl.querySelector('.smo-chardevs-body');
+      toggle.onclick = () => {
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        toggle.querySelector('.smo-arrow').textContent = open ? '▸' : '▾';
+      };
+    } else {
+      charDevsEl.style.display = 'none';
+    }
+  }
+
   document.getElementById('statsModal').classList.add('open');
 }
 
@@ -363,6 +400,13 @@ document.getElementById('exportRosterBtn').addEventListener('click', () => {
   a.download = `radosers_${payload.exported}.json`;
   a.click();
   URL.revokeObjectURL(url);
+
+  // Clear roster sau khi export
+  cgRoster.length = 0;
+  localStorage.setItem('cgRoster', JSON.stringify(cgRoster));
+  _heroIdx = 0;
+  renderRoster();
+  renderHeroShowcase();
 });
 
 // ── Import ──────────────────────────────────────────────────
@@ -586,6 +630,20 @@ function renderHeroShowcase() {
           ${drow('🌀 Evade',        evadeRate,          '#44eebb')}
         </div>
       </div>
+      ${(() => {
+        const devIds = ch.charDevs ?? [];
+        if (!devIds.length || typeof CHARDEV_POOL === 'undefined') return '';
+        const badges = devIds.map(id => {
+          const cd = CHARDEV_POOL.find(c => c.id === id);
+          if (!cd) return '';
+          return `<span class="sc-chardev-badge" style="border-color:${cd.color}88;color:${cd.color}" title="${cd.desc}">${cd.icon} ${cd.label}</span>`;
+        }).join('');
+        return `<div class="sc-divider"></div>
+          <div class="sc-derived-section">
+            <div class="sc-section-lbl">🌀 Char Dev</div>
+            <div class="sc-chardev-wrap">${badges}</div>
+          </div>`;
+      })()}
     </div>`;
 
   // Nav dots
@@ -707,10 +765,14 @@ function showFighterPicker() {
       const card = document.createElement('div');
       card.className = 'fpm-radoser-card';
       card.style.borderColor = ch.color + '55';
+      const fpmDevBadges = (ch.charDevs ?? []).map(id => {
+        const cd = typeof CHARDEV_POOL !== 'undefined' ? CHARDEV_POOL.find(c => c.id === id) : null;
+        return cd ? `<span class="fpm-chardev-badge" style="color:${cd.color}" title="${cd.desc}">${cd.icon}</span>` : '';
+      }).join('');
       card.innerHTML = `
         <div class="fpm-dot" style="background:${ch.color};box-shadow:0 0 8px ${ch.color}77"></div>
         <div class="fpm-info">
-          <div class="fpm-name" style="color:${ch.color}">${ch.raceEmoji ?? ''} ${ch.name}</div>
+          <div class="fpm-name" style="color:${ch.color}">${ch.raceEmoji ?? ''} ${ch.name}${fpmDevBadges ? ' ' + fpmDevBadges : ''}</div>
           <div class="fpm-meta">${ch.raceName ?? ''}${ch.subrace ? ' · ' + ch.subrace.label : ''} &nbsp;·&nbsp; ${wepLabel}</div>
         </div>
         <span class="fpm-add-tag">ADD</span>`;
@@ -1041,10 +1103,198 @@ function bulkCreateOne() {
   // Demon Beelzebub: always 0 skills
   if (raceId === 'demon'      && srLabel === 'Beelzebub') skillCount = 0;
 
+  // 8.5 Char Dev — mỗi fill character nhận 1 chardev spin (giống normal chargen)
+  // blessed_chaos cho thêm 2 devs; isekai bị loại hoàn toàn
+  const pickedDevIds  = [];   // ids sẽ lưu vào charDevs[]
+  const specialSkills = [];   // skills từ jjk/jojo/onepiece/summoner
+  let extraSkillsFromDev = 0;
+  let madnessActive      = false;
+
+  const _bulkApplyDev = (devPool) => {
+    const filtered = devPool.filter(d => d.id !== 'isekai');
+    if (!filtered.length) return;
+    const picked = filtered[_wcRandIdx(filtered.map(d => d.weight))];
+    pickedDevIds.push(picked.id);
+
+    const _SK  = ['strength','speed','durability','iq','battleiq','ma'];
+    const _get = k => stats[k] ?? 5;
+    const _set = (k, v) => { stats[k] = Math.max(0, v); };
+
+    switch (picked.id) {
+      case 'inversion':
+        for (const k of _SK) stats[k] = Math.max(1, Math.min(10, 11 - stats[k]));
+        break;
+
+      case 'blessed_chaos': {
+        const maxKey = _SK.reduce((a, b) => _get(a) >= _get(b) ? a : b);
+        _set(maxKey, _get(maxKey) - 1);
+        // +2 extra devs — exclude blessed_chaos itself to avoid loop
+        const poolNoBC = devPool.filter(d => d.id !== 'isekai' && d.id !== 'blessed_chaos');
+        _bulkApplyDev(poolNoBC);
+        _bulkApplyDev(poolNoBC);
+        break;
+      }
+
+      case 'braindead':
+        _set('iq',       _get('iq')       - 2);
+        _set('battleiq', _get('battleiq') + 2);
+        break;
+
+      case 'madness':
+        madnessActive = true;
+        _set('strength', _get('strength') + 2);
+        _set('speed',    _get('speed')    + 2);
+        _set('ma',       _get('ma')       + 2);
+        break;
+
+      case 'too_horny':
+        _set('strength',   _get('strength')   + 3);
+        _set('durability', _get('durability') + 2);
+        stats.iq = 0;
+        break;
+
+      case 'kungfu':
+        _set('durability', _get('durability') + 2);
+        _set('ma',         _get('ma')         + 2);
+        break;
+
+      case 'lost_arm':  _set('ma',    _get('ma')    - 4); break;
+      case 'lost_leg':  _set('speed', _get('speed') - 4); break;
+
+      case 'cultivation':
+        _set('battleiq', _get('battleiq') + 2);
+        _set('ma',       _get('ma')       + 3);
+        break;
+
+      case 'become_woke':
+        _set('iq',         _get('iq')         - 3);
+        _set('strength',   _get('strength')   + 1);
+        _set('durability', _get('durability') + 1);
+        break;
+
+      case 'old_age':
+        _set('iq',         _get('iq')         + 2);
+        _set('battleiq',   _get('battleiq')   + 1);
+        _set('durability', _get('durability') - 1);
+        break;
+
+      case 'no_family':
+        extraSkillsFromDev += 2;
+        break;
+
+      case 'fates_trick': {
+        const minKey = _SK.reduce((a, b) => _get(a) <= _get(b) ? a : b);
+        const maxKey = _SK.reduce((a, b) => _get(a) >= _get(b) ? a : b);
+        if (Math.random() < 0.5) _set(minKey, _get(minKey) * 2);
+        else                     _set(maxKey, Math.ceil(_get(maxKey) / 2));
+        break;
+      }
+
+      case 'patkinsion':
+      case 'dungeon_crawler':
+        // Handled at runtime via ball.charDevs — no stat effect
+        break;
+
+      case 'finality':
+        if (typeof CG_RACES !== 'undefined') {
+          const raceEntry = CG_RACES.find(r => r.id === raceId);
+          if (raceEntry) raceEntry.weight = 0;
+        }
+        break;
+
+      case 'jjk': {
+        const JJK_IDS = [
+          'jjk_domain_malevolent', 'jjk_domain_unlimited', 'jjk_domain_chimera',
+          'jjk_ct_command', 'jjk_ct_blackflash', 'jjk_ct_swap', 'jjk_ct_blood',
+        ];
+        const avail = JJK_IDS.filter(id => {
+          const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null;
+          if (!def) return false;
+          if (def.category === 'jjk_domain')
+            return typeof isUniqueAvailable === 'function' ? isUniqueAvailable(id) : true;
+          return true;
+        });
+        if (avail.length > 0) {
+          const pickedId = avail[Math.floor(Math.random() * avail.length)];
+          const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === pickedId) : null;
+          if (def) {
+            specialSkills.push(pickedId);
+            if (def.category === 'jjk_domain' && typeof claimUniqueItem === 'function')
+              claimUniqueItem(pickedId);
+            // Blackflash forces fists + +1 MA
+            if (pickedId === 'jjk_ct_blackflash') {
+              weapon = 'fists';
+              _set('ma', _get('ma') + 1);
+            }
+          }
+        }
+        break;
+      }
+
+      case 'jojo': {
+        const JOJO_STANDS   = ['jojo_stand_star','jojo_stand_world','jojo_stand_kq','jojo_stand_ge'];
+        const JOJO_SUPPORTS = ['jojo_support_remote','jojo_support_senses','jojo_support_evolution'];
+        const avail = [...JOJO_STANDS, ...JOJO_SUPPORTS].filter(id => {
+          const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null;
+          if (!def) return false;
+          if (def.category === 'jojo_stand')
+            return typeof isUniqueAvailable === 'function' ? isUniqueAvailable(id) : true;
+          return true;
+        });
+        if (avail.length > 0) {
+          const pickedId = avail[Math.floor(Math.random() * avail.length)];
+          const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === pickedId) : null;
+          if (def) {
+            specialSkills.push(pickedId);
+            if (def.category === 'jojo_stand' && typeof claimUniqueItem === 'function')
+              claimUniqueItem(pickedId);
+          }
+        }
+        break;
+      }
+
+      case 'onepiece': {
+        const OP_HAKIS  = ['op_haki_obs', 'op_haki_arm', 'op_haki_conq'];
+        const OP_FRUITS = ['op_fruit_goro','op_fruit_tori','op_fruit_mera','op_fruit_ryu',
+                           'op_fruit_hito','op_fruit_neko','op_fruit_pika'];
+        const avail = [...OP_HAKIS, ...OP_FRUITS].filter(id => {
+          const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === id) : null;
+          if (!def) return false;
+          if (def.category === 'op_fruit')
+            return typeof isUniqueAvailable === 'function' ? isUniqueAvailable(id) : true;
+          return true;
+        });
+        if (avail.length > 0) {
+          const pickedId = avail[Math.floor(Math.random() * avail.length)];
+          const def = typeof SKILL_DEFS !== 'undefined' ? SKILL_DEFS.find(s => s.id === pickedId) : null;
+          if (def) {
+            specialSkills.push(pickedId);
+            if (def.category === 'op_fruit' && typeof claimUniqueItem === 'function')
+              claimUniqueItem(pickedId);
+          }
+        }
+        break;
+      }
+
+      case 'summoner': {
+        const avail = typeof SKILL_DEFS !== 'undefined'
+          ? SKILL_DEFS.filter(s => s.category === 'summon').map(s => s.id)
+          : [];
+        if (avail.length > 0)
+          specialSkills.push(avail[Math.floor(Math.random() * avail.length)]);
+        break;
+      }
+    }
+  };
+
+  // 1 chardev spin per fill character (mirrors normal chargen)
+  _bulkApplyDev(CHARDEV_POOL);
+
+  // Apply chardev effects on skill count
+  if (madnessActive) skillCount = 0;
+  else               skillCount += extraSkillsFromDev;
+
   // 9. Pick skills (Fisher-Yates shuffle, no replacement)
-  // Filter: must match weapon type (or be universal), never include unique skills
-  // (fill players bypass the unique pool — claimUnique is never called, so unique pool
-  //  would never decrement; and cs.uniquePool is null during fill anyway)
   const skills = [];
   if (skillCount > 0 && typeof SKILL_DEFS !== 'undefined') {
     const effectiveWeapon = (typeof WEAPON_MAP !== 'undefined' && WEAPON_MAP[weapon]?.baseWeapon) || weapon;
@@ -1058,12 +1308,18 @@ function bulkCreateOne() {
     for (let i = 0; i < Math.min(skillCount, pool.length); i++) skills.push(pool[i]);
   }
 
+  // Merge special skills from chardev (jjk/jojo/onepiece/summoner) — no duplicates
+  for (const sid of specialSkills) {
+    if (!skills.includes(sid)) skills.push(sid);
+  }
+
   return {
     id: Date.now() + Math.random(),
     name, race: race.id, raceName: race.name, raceEmoji: race.emoji,
     subrace, stats, weapon,
     color: generateRadoserColor(cgRoster.length),
     skills,
+    charDevs: pickedDevIds,
   };
 }
 

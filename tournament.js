@@ -161,6 +161,18 @@ function _fcardFighterHTML(f, uid) {
 
   const hasSkills = curSkills.length > 0 || lostSkills.length > 0;
 
+  // ── Char Devs ──
+  const charDevIds = f.charDevs ?? [];
+  const charDevsHTML = charDevIds.length > 0 && typeof CHARDEV_POOL !== 'undefined'
+    ? charDevIds.map(id => {
+        const cd = CHARDEV_POOL.find(c => c.id === id);
+        if (!cd) return '';
+        const descAttr = ` data-desc="${cd.desc.replace(/"/g, '&quot;')}"`;
+        return `<span class="fcard-skill fcard-skill-tip fcard-chardev-badge"${descAttr} style="border-color:${cd.color}88;color:${cd.color}">${cd.icon} ${cd.label}</span>`;
+      }).join('')
+    : '';
+  const hasCharDevs = charDevsHTML.trim() !== '';
+
   // ── Match history ──
   const history = f.matchHistory ?? [];
   const historyHTML = history.length === 0 ? '' : `
@@ -213,6 +225,12 @@ function _fcardFighterHTML(f, uid) {
            <div class="fcard-skills-wrap">${skillsHTML}</div>
          </div>`
       : `<div class="fcard-no-skills">${t('fighter_card_no_skills')}</div>`}
+    ${hasCharDevs
+      ? `<div class="fcard2-skills-section">
+           <div class="fcard2-skills-label">🌀 Char Dev</div>
+           <div class="fcard-skills-wrap">${charDevsHTML}</div>
+         </div>`
+      : ''}
     ${historyHTML}
   `;
 }
@@ -359,6 +377,7 @@ function rosterToFighter(ch) {
     baseStats:    { ...ch.stats },        // snapshot for diff display in Fighter Card
     skills:       [...(ch.skills ?? [])],
     baseSkills:   [...(ch.skills ?? [])], // snapshot for diff display in Fighter Card
+    charDevs:     [...(ch.charDevs ?? [])],
   };
 }
 

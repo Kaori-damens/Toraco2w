@@ -215,18 +215,20 @@ function clampToBall(ball, arena) {
     if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
     if (ball.y - r < arena.y)           { ball.y = arena.y + r;           ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
     if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
-    const hdx = ball.x - arena.holeCx, hdy = ball.y - arena.holeCy;
-    const hdist = Math.sqrt(hdx*hdx + hdy*hdy);
-    const minHoleDist = arena.holeR + r;
-    if (hdist < minHoleDist && hdist > 0) {
-      const hnx = hdx/hdist, hny = hdy/hdist;
-      ball.x = arena.holeCx + hnx * minHoleDist;
-      ball.y = arena.holeCy + hny * minHoleDist;
-      const dot = ball.vx*hnx + ball.vy*hny;
-      if (dot < 0) {
-        ball.vx -= dot * hnx * (1 + WALL_BOUNCE);
-        ball.vy -= dot * hny * (1 + WALL_BOUNCE);
-        bounced = true;
+    if (!ball._opPikaBeam) {
+      const hdx = ball.x - arena.holeCx, hdy = ball.y - arena.holeCy;
+      const hdist = Math.sqrt(hdx*hdx + hdy*hdy);
+      const minHoleDist = arena.holeR + r;
+      if (hdist < minHoleDist && hdist > 0) {
+        const hnx = hdx/hdist, hny = hdy/hdist;
+        ball.x = arena.holeCx + hnx * minHoleDist;
+        ball.y = arena.holeCy + hny * minHoleDist;
+        const dot = ball.vx*hnx + ball.vy*hny;
+        if (dot < 0) {
+          ball.vx -= dot * hnx * (1 + WALL_BOUNCE);
+          ball.vy -= dot * hny * (1 + WALL_BOUNCE);
+          bounced = true;
+        }
       }
     }
   } else if (arena.type === 'hole_sq' || arena.type === 'hole_re') {
@@ -234,26 +236,28 @@ function clampToBall(ball, arena) {
     if (ball.x + r > arena.x + arena.w) { ball.x = arena.x + arena.w - r; ball.vx = -Math.abs(ball.vx) * WALL_BOUNCE; bounced = true; }
     if (ball.y - r < arena.y)           { ball.y = arena.y + r;           ball.vy =  Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
     if (ball.y + r > arena.y + arena.h) { ball.y = arena.y + arena.h - r; ball.vy = -Math.abs(ball.vy) * WALL_BOUNCE; bounced = true; }
-    for (const h of (arena.holes || [])) {
-      if (h.shape === 'circle') {
-        const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
-        const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + r;
-        if (hd < minD && hd > 0) {
-          const hn = 1/hd;
-          ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
-          const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
-          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); bounced = true; }
-        }
-      } else if (h.shape === 'square') {
-        const hx1 = h.x - r, hy1 = h.y - r, hx2 = h.x + h.w + r, hy2 = h.y + h.h + r;
-        if (ball.x > hx1 && ball.x < hx2 && ball.y > hy1 && ball.y < hy2) {
-          const dL = ball.x-hx1, dR = hx2-ball.x, dT = ball.y-hy1, dB = hy2-ball.y;
-          const m = Math.min(dL, dR, dT, dB);
-          if (m===dL) { ball.x=hx1; ball.vx=-Math.abs(ball.vx)*WALL_BOUNCE; }
-          else if (m===dR) { ball.x=hx2; ball.vx= Math.abs(ball.vx)*WALL_BOUNCE; }
-          else if (m===dT) { ball.y=hy1; ball.vy=-Math.abs(ball.vy)*WALL_BOUNCE; }
-          else             { ball.y=hy2; ball.vy= Math.abs(ball.vy)*WALL_BOUNCE; }
-          bounced = true;
+    if (!ball._opPikaBeam) {
+      for (const h of (arena.holes || [])) {
+        if (h.shape === 'circle') {
+          const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
+          const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + r;
+          if (hd < minD && hd > 0) {
+            const hn = 1/hd;
+            ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
+            const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
+            if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); bounced = true; }
+          }
+        } else if (h.shape === 'square') {
+          const hx1 = h.x - r, hy1 = h.y - r, hx2 = h.x + h.w + r, hy2 = h.y + h.h + r;
+          if (ball.x > hx1 && ball.x < hx2 && ball.y > hy1 && ball.y < hy2) {
+            const dL = ball.x-hx1, dR = hx2-ball.x, dT = ball.y-hy1, dB = hy2-ball.y;
+            const m = Math.min(dL, dR, dT, dB);
+            if (m===dL) { ball.x=hx1; ball.vx=-Math.abs(ball.vx)*WALL_BOUNCE; }
+            else if (m===dR) { ball.x=hx2; ball.vx= Math.abs(ball.vx)*WALL_BOUNCE; }
+            else if (m===dT) { ball.y=hy1; ball.vy=-Math.abs(ball.vy)*WALL_BOUNCE; }
+            else             { ball.y=hy2; ball.vy= Math.abs(ball.vy)*WALL_BOUNCE; }
+            bounced = true;
+          }
         }
       }
     }
@@ -266,15 +270,17 @@ function clampToBall(ball, arena) {
       const dot = ball.vx*nx + ball.vy*ny;
       if (dot > 0) { ball.vx -= dot*nx*(1+WALL_BOUNCE); ball.vy -= dot*ny*(1+WALL_BOUNCE); bounced = true; }
     }
-    for (const h of (arena.holes || [])) {
-      if (h.shape === 'circle') {
-        const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
-        const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + r;
-        if (hd < minD && hd > 0) {
-          const hn = 1/hd;
-          ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
-          const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
-          if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); bounced = true; }
+    if (!ball._opPikaBeam) {
+      for (const h of (arena.holes || [])) {
+        if (h.shape === 'circle') {
+          const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
+          const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + r;
+          if (hd < minD && hd > 0) {
+            const hn = 1/hd;
+            ball.x = h.cx + hdx*hn*minD; ball.y = h.cy + hdy*hn*minD;
+            const dot = ball.vx*hdx*hn + ball.vy*hdy*hn;
+            if (dot < 0) { ball.vx -= dot*hdx*hn*(1+WALL_BOUNCE); ball.vy -= dot*hdy*hn*(1+WALL_BOUNCE); bounced = true; }
+          }
         }
       }
     }
@@ -315,7 +321,7 @@ function clampToBall(ball, arena) {
   }
 
   // ── Dynamic holes (diamond_rift runtime holes) — push ball away from hole edge ──
-  if (arena.dynamicHoles?.length) {
+  if (!ball._opPikaBeam && arena.dynamicHoles?.length) {
     for (const h of arena.dynamicHoles) {
       const hdx = ball.x - h.cx, hdy = ball.y - h.cy;
       const hd = Math.sqrt(hdx*hdx + hdy*hdy), minD = h.r + ball.radius;

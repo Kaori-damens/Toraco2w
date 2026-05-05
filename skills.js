@@ -17,138 +17,223 @@
 //   weapon   (string)  — nếu có, skill chỉ hoạt động khi ball đang dùng vũ khí tương ứng
 const SKILL_DEFS = [
   // ── PASSIVE (always active) ──────────────────────────────
-  { id: 'iron_body',          name: 'Iron Body',          icon: '', type: 'passive',    desc: '+20 max HP' },
-  { id: 'thick_hide',         name: 'Thick Hide',         icon: '', type: 'passive',    desc: 'Take 10% less damage from all sources' },
-  { id: 'swift',              name: 'Swift',              icon: '', type: 'passive',    desc: 'Move 15% faster' },
-  { id: 'sharp_eye',          name: 'Sharp Eye',          icon: '', type: 'passive',    desc: 'Critical hit chance +10%' },
-  { id: 'extended_immunity',  name: 'Extended Immunity',  icon: '', type: 'passive',    desc: 'Invincibility window after being hit lasts much longer' },
-  { id: 'heavy_mass',         name: 'Heavy Mass',         icon: '', type: 'passive',    desc: 'Much harder to knock back' },
+  // weight: xác suất xuất hiện trong spin wheel (cao = dễ lấy, thấp = hiếm)
+  { id: 'iron_body',          name: 'Iron Body',          icon: '', weight: 1.8, type: 'passive',    desc: '+20 max HP' },
+  { id: 'thick_hide',         name: 'Thick Hide',         icon: '', weight: 1.8, type: 'passive',    desc: 'Take 10% less damage from all sources' },
+  { id: 'swift',              name: 'Swift',              icon: '', weight: 1.8, type: 'passive',    desc: 'Move 15% faster' },
+  { id: 'sharp_eye',          name: 'Sharp Eye',          icon: '', weight: 1.8, type: 'passive',    desc: 'Critical hit chance +10%' },
+  { id: 'extended_immunity',  name: 'Extended Immunity',  icon: '', weight: 1.5, type: 'passive',    desc: 'Invincibility window after being hit lasts much longer' },
+  { id: 'heavy_mass',         name: 'Heavy Mass',         icon: '', weight: 1.5, type: 'passive',    desc: 'Much harder to knock back' },
   // ── PRE-COMBAT (triggers once at round start) ────────────
-  { id: 'war_cry',    name: 'War Cry',    icon: '', type: 'pre_combat', desc: 'First hit of the round deals ×(1.5 + IQ×0.05) damage. [IQ=1: ×1.55 / IQ=10: ×2.0]' },
-  { id: 'fortify',    name: 'Fortify',    icon: '', type: 'pre_combat', desc: 'Begin each round with a shield absorbing (10 + BIQ×2) damage. Excess passes through. [BIQ=1: 12 / BIQ=10: 30]' },
-  { id: 'adrenaline', name: 'Adrenaline', icon: '', type: 'pre_combat', desc: 'Move 50% faster for the first 5 seconds of each round' },
-  { id: 'predator',   name: 'Predator',   icon: '', type: 'pre_combat', desc: 'Deal 15% more damage when the enemy has less HP than you' },
-  { id: 'first_blood',name: 'First Blood',icon: '', type: 'pre_combat', desc: 'First hit of the round stuns the opponent for (20 + BIQ×4) frames. [BIQ=1: 0.4s / BIQ=10: 1.0s]' },
+  { id: 'war_cry',    name: 'War Cry',    icon: '', weight: 1.8, type: 'pre_combat', desc: 'First hit of the round deals ×(1.5 + IQ×0.05) damage. [IQ=1: ×1.55 / IQ=10: ×2.0]' },
+  { id: 'fortify',    name: 'Fortify',    icon: '', weight: 1.8, type: 'pre_combat', desc: 'Begin each round with a shield absorbing (10 + BIQ×2) damage. Excess passes through. [BIQ=1: 12 / BIQ=10: 30]' },
+  { id: 'adrenaline', name: 'Adrenaline', icon: '', weight: 1.8, type: 'pre_combat', desc: 'Move 50% faster for the first 5 seconds of each round' },
+  { id: 'predator',   name: 'Predator',   icon: '', weight: 1.8, type: 'pre_combat', desc: 'Deal 15% more damage when the enemy has less HP than you' },
+  { id: 'first_blood',name: 'First Blood',icon: '', weight: 1.0, type: 'pre_combat', desc: 'First hit of the round stuns the opponent for (20 + BIQ×4) frames. [BIQ=1: 0.4s / BIQ=10: 1.0s]' },
   // ── IN-COMBAT (reactive event hooks) ────────────────────
-  { id: 'berserker',   name: 'Berserker',   icon: '', type: 'in_combat',  desc: 'Below 30% HP: deal ×(1.2 + IQ×0.03) damage. [IQ=1: ×1.23 / IQ=10: ×1.5]' },
-  { id: 'phoenix',     name: 'Phoenix',     icon: '', type: 'in_combat',  desc: 'Once per round, survive a killing blow with 1 HP remaining' },
-  { id: 'counter',     name: 'Counter',     icon: '', type: 'in_combat',  desc: 'After your attack is parried, next hit deals ×(1.5 + BIQ×0.05) damage. [BIQ=1: ×1.55 / BIQ=10: ×2.0]' },
-  { id: 'vampiric',    name: 'Vampiric',    icon: '', type: 'in_combat',  desc: 'Each hit heals you for 5% of the damage you deal' },
-  { id: 'parry_tech_1', name: 'Parry Technique I',   icon: '', type: 'in_combat',  desc: 'On parry: instantly reverse weapon spin. Each reverse stacks +5% spin speed (max 3 stacks = +15%).' },
-  { id: 'parry_tech_2', name: 'Parry Technique II',  icon: '', type: 'in_combat',  desc: 'On parry: no knockback + spin boost (60+BIQ×6 frames) + counter window (BIQ×4 frames). [BIQ=5: 90f spin / 20f counter | BIQ=10: 120f spin / 40f counter]' },
-  { id: 'parry_tech_3', name: 'Parry Technique III', icon: '', type: 'passive',    desc: 'Your entire weapon body can parry (not just the tip). Fists users: take 50% damage on parry clashes.' },
-  { id: 'momentum',    name: 'Momentum',    icon: '', type: 'in_combat',  desc: 'Each kill in FFA increases your speed by 10%, up to 5 kills' },
-  { id: 'shadow_step', name: 'Shadow Step', icon: '', type: 'in_combat',  desc: 'When you dodge a hit, instantly teleport to a random safe position' },
-  { id: 'blood_frenzy',name: 'Blood Frenzy',icon: '', type: 'in_combat',  desc: 'Restore 25 HP each time you defeat an opponent' },
-  { id: 'flow_state',  name: 'Flow State',  icon: '', type: 'in_combat',  desc: 'Each hit builds speed (+MA×1% per stack). Taking damage resets all stacks' },
-  { id: 'read_react',  name: 'Read & React',icon: '', type: 'in_combat',  desc: 'When hit, BIQ×3.5% chance to counter for ×(1 + BIQ×0.1) damage. [BIQ=5: 17.5% / ×1.5 / BIQ=10: 35% / ×2.0]' },
-  { id: 'exploit',     name: 'Exploit',     icon: '', type: 'in_combat',  desc: 'Each hit: (IQ+BIQ)×1% chance to deal ×(1.5 + IQ×0.05) damage. [IQ+BIQ=10: 10% / IQ=10: ×2.0]' },
-  { id: 'deflection',  name: 'Deflection',  icon: '', type: 'passive',    desc: 'MA×2% chance to completely negate an incoming hit. [MA=5: 10% / MA=10: 20%]' },
-  { id: 'mind_break',  name: 'Mind Break',  icon: '', type: 'pre_combat', desc: 'If IQ > enemy IQ: reduce their damage by (gap × (2 + IQ×0.5))%. Scales with both IQ and the gap.' },
+  { id: 'berserker',   name: 'Berserker',   icon: '', weight: 1.2, type: 'in_combat',  desc: 'Below 30% HP: deal ×(1.2 + IQ×0.03) damage. [IQ=1: ×1.23 / IQ=10: ×1.5]' },
+  { id: 'phoenix',     name: 'Phoenix',     icon: '', weight: 0.6, type: 'in_combat',  desc: 'Once per round, survive a killing blow with 1 HP remaining' },
+  { id: 'counter',     name: 'Counter',     icon: '', weight: 1.2, type: 'in_combat',  desc: 'After your attack is parried, next hit deals ×(1.5 + BIQ×0.05) damage. [BIQ=1: ×1.55 / BIQ=10: ×2.0]' },
+  { id: 'vampiric',    name: 'Vampiric',    icon: '', weight: 1.2, type: 'in_combat',  desc: 'Each hit heals you for 5% of the damage you deal' },
+  { id: 'parry_tech_1', name: 'Parry Technique I',   icon: '', weight: 1.5, type: 'in_combat',  desc: 'On parry: instantly reverse weapon spin. Each reverse stacks +5% spin speed (max 3 stacks = +15%).' },
+  { id: 'parry_tech_2', name: 'Parry Technique II',  icon: '', weight: 1.0, type: 'in_combat',  desc: 'On parry: no knockback + spin boost (60+BIQ×6 frames) + counter window (BIQ×4 frames). [BIQ=5: 90f spin / 20f counter | BIQ=10: 120f spin / 40f counter]' },
+  { id: 'parry_tech_3', name: 'Parry Technique III', icon: '', weight: 0.8, type: 'passive',    desc: 'Your entire weapon body can parry (not just the tip). Fists users: take 50% damage on parry clashes.' },
+  { id: 'momentum',    name: 'Momentum',    icon: '', weight: 1.2, type: 'in_combat',  desc: 'Each kill in FFA increases your speed by 10%, up to 5 kills' },
+  { id: 'shadow_step', name: 'Shadow Step', icon: '', weight: 0.7, type: 'in_combat',  desc: 'When you dodge a hit, instantly teleport to a random safe position' },
+  { id: 'blood_frenzy',name: 'Blood Frenzy',icon: '', weight: 1.2, type: 'in_combat',  desc: 'Restore 25 HP each time you defeat an opponent' },
+  { id: 'flow_state',  name: 'Flow State',  icon: '', weight: 1.2, type: 'in_combat',  desc: 'Each hit builds speed (+MA×1% per stack). Taking damage resets all stacks' },
+  { id: 'read_react',  name: 'Read & React',icon: '', weight: 1.2, type: 'in_combat',  desc: 'When hit, BIQ×3.5% chance to counter for ×(1 + BIQ×0.1) damage. [BIQ=5: 17.5% / ×1.5 / BIQ=10: 35% / ×2.0]' },
+  { id: 'exploit',     name: 'Exploit',     icon: '', weight: 1.2, type: 'in_combat',  desc: 'Each hit: (IQ+BIQ)×1% chance to deal ×(1.5 + IQ×0.05) damage. [IQ+BIQ=10: 10% / IQ=10: ×2.0]' },
+  { id: 'deflection',  name: 'Deflection',  icon: '', weight: 0.8, type: 'passive',    desc: 'MA×2% chance to completely negate an incoming hit. [MA=5: 10% / MA=10: 20%]' },
+  { id: 'mind_break',  name: 'Mind Break',  icon: '', weight: 1.0, type: 'pre_combat', desc: 'If IQ > enemy IQ: reduce their damage by (gap × (2 + IQ×0.5))%. Scales with both IQ and the gap.' },
   // ── POST-COMBAT (triggers after round ends) ──────────────
-  { id: 'learning',      name: 'Learning',      icon: '', type: 'post_combat', desc: 'On loss: deal 5% more damage next round (stacks each loss)' },
-  { id: 'adaptation',    name: 'Adaptation',    icon: '', type: 'post_combat', desc: 'On loss: take (15 + BIQ×2)% less damage from the weapon type that killed you. [BIQ=5: 25% / BIQ=10: 35%]' },
-  { id: 'survivor',      name: 'Survivor',      icon: '', type: 'post_combat', desc: 'Win at very low HP: permanently gain +10 max HP' },
-  { id: 'veteran',       name: 'Veteran',       icon: '', type: 'post_combat', desc: 'On win: permanently gain +1 to a random stat' },
-  { id: 'mastery',       name: 'Mastery',       icon: '', type: 'post_combat', desc: 'Win while injured: MA×3% chance to permanently boost weapon base damage' },
-  { id: 'perfectionist', name: 'Perfectionist', icon: '', type: 'post_combat', desc: 'Win at high HP: +15% damage next round. Win while injured: -10% damage instead' },
-  { id: 'blood_mark',    name: 'Blood Mark',    icon: '', type: 'post_combat', desc: 'On loss: curse the winner — They start their next match at only 80% HP' },
-  { id: 'copycat',       name: 'Copycat',       icon: '', type: 'post_combat', desc: 'On win: BIQ×5% chance to copy a random skill from the opponent' },
+  { id: 'learning',      name: 'Learning',      icon: '', weight: 1.8, type: 'post_combat', desc: 'On loss: deal 5% more damage next round (stacks each loss)' },
+  { id: 'adaptation',    name: 'Adaptation',    icon: '', weight: 1.8, type: 'post_combat', desc: 'On loss: take (15 + BIQ×2)% less damage from the weapon type that killed you. [BIQ=5: 25% / BIQ=10: 35%]' },
+  { id: 'survivor',      name: 'Survivor',      icon: '', weight: 1.2, type: 'post_combat', desc: 'Win at very low HP: permanently gain +10 max HP' },
+  { id: 'veteran',       name: 'Veteran',       icon: '', weight: 1.2, type: 'post_combat', desc: 'On win: permanently gain +1 to a random stat' },
+  { id: 'mastery',       name: 'Mastery',       icon: '', weight: 1.0, type: 'post_combat', desc: 'Win while injured: MA×3% chance to permanently boost weapon base damage' },
+  { id: 'perfectionist', name: 'Perfectionist', icon: '', weight: 1.2, type: 'post_combat', desc: 'Win at high HP: +15% damage next round. Win while injured: -10% damage instead' },
+  { id: 'blood_mark',    name: 'Blood Mark',    icon: '', weight: 0.8, type: 'post_combat', desc: 'On loss: curse the winner — They start their next match at only 80% HP' },
+  { id: 'copycat',       name: 'Copycat',       icon: '', weight: 0.8, type: 'post_combat', desc: 'On win: BIQ×5% chance to copy a random skill from the opponent' },
 
   // ── UNIQUE SKILLS (Championship only — removed from pool once rolled) ──────
-  { id: 'usurp',        name: 'Cướp Đoạt',    icon: '', type: 'pre_combat',  unique: true,
+  { id: 'usurp',        name: 'Cướp Đoạt',    icon: '', weight: 0.8, type: 'pre_combat',  unique: true,
     desc: 'At round start, steal the opponent\'s weapon. They fight with Fists for the rest of the round.' },
-  { id: 'shadow_clone', name: 'Shadow Clone',  icon: '', type: 'pre_combat',  unique: true,
+  { id: 'shadow_clone', name: 'Shadow Clone',  icon: '', weight: 0.8, type: 'pre_combat',  unique: true,
     desc: 'Begin each round with a shadow clone. The first 2 hits against you are absorbed by the clone before it vanishes.' },
-  { id: 'disarm', name: 'Disarm', icon: '⚔️', type: 'in_combat',
+  { id: 'disarm', name: 'Disarm', icon: '⚔️',  weight: 0.8, type: 'in_combat',
     desc: 'On hit or on parry: disarm the enemy (30s cooldown). They drop their weapon on the floor and fight with Fists at −50% damage. Retrieve the weapon by touching it. Other fighters can kick it further away.' },
 
   // ── WEAPON SKILLS (only available if ball has matching weapon) ──
   // 🥊 Fists
-  { id: 'iron_knuckles',   name: 'Iron Knuckles',    icon: '', type: 'in_combat',  weapon: 'fists',
+  { id: 'iron_knuckles',   name: 'Iron Knuckles',    icon: '', weight: 1.0, type: 'in_combat',  weapon: 'fists',
     desc: 'Each hit permanently stacks +0.1 base damage for this round (cap scales with STR)' },
-  { id: 'brawler_rhythm',  name: "Brawler's Rhythm",  icon: '', type: 'in_combat',  weapon: 'fists',
+  { id: 'brawler_rhythm',  name: "Brawler's Rhythm",  icon: '', weight: 1.0, type: 'in_combat',  weapon: 'fists',
     desc: 'Every 5th hit deals ×2.5 damage. Being hit resets the chain' },
-  { id: 'combo_breaker',   name: 'Combo Breaker',     icon: '', type: 'in_combat',  weapon: 'fists',
+  { id: 'combo_breaker',   name: 'Combo Breaker',     icon: '', weight: 1.0, type: 'in_combat',  weapon: 'fists',
     desc: 'When hit while you have 3+ combo stacks, automatically counter-attack for free (scales with STR)' },
-  { id: 'rage_fists',      name: 'Rage Fists',        icon: '', type: 'in_combat',  weapon: 'fists',
+  { id: 'rage_fists',      name: 'Rage Fists',        icon: '', weight: 1.0, type: 'in_combat',  weapon: 'fists',
     desc: 'Below 50% HP: attack 35% faster' },
 
   // ⚔️ Sword
-  { id: 'guard_stance',    name: 'Guard Stance',      icon: '', type: 'passive',    weapon: 'sword',
+  { id: 'guard_stance',    name: 'Guard Stance',      icon: '', weight: 1.0, type: 'passive',    weapon: 'sword',
     desc: 'While your sword is on cooldown, take less damage (scales with BIQ, up to 30% reduction)' },
-  { id: 'duel_instinct',   name: 'Duel Instinct',     icon: '', type: 'passive',    weapon: 'sword',
+  { id: 'duel_instinct',   name: 'Duel Instinct',     icon: '', weight: 1.0, type: 'passive',    weapon: 'sword',
     desc: 'When only one enemy remains, deal 30% more damage' },
-  { id: 'parry_punish',    name: 'Parry Punish',      icon: '', type: 'in_combat',  weapon: 'sword',
+  { id: 'parry_punish',    name: 'Parry Punish',      icon: '', weight: 1.0, type: 'in_combat',  weapon: 'sword',
     desc: 'After a successful parry, deal ×2 dmg for (2 + IQ×0.2)s. [IQ=1: 2.2s / IQ=5: 3.0s / IQ=10: 4.0s]' },
 
   // 🗡️ Dagger
-  { id: 'poison_blade',    name: 'Poison Blade',      icon: '', type: 'in_combat',  weapon: 'dagger',
+  { id: 'poison_blade',    name: 'Poison Blade',      icon: '', weight: 1.0, type: 'in_combat',  weapon: 'dagger',
     desc: 'Every 5th hit applies poison: 1.5 damage every 3 seconds for 12 seconds' },
-  { id: 'flurry_finisher', name: 'Flurry Finisher',   icon: '', type: 'in_combat',  weapon: 'dagger',
+  { id: 'flurry_finisher', name: 'Flurry Finisher',   icon: '', weight: 1.0, type: 'in_combat',  weapon: 'dagger',
     desc: 'Every 5th consecutive hit deals ×2.5 damage. Being hit resets the chain' },
-  { id: 'shadow_strike',   name: 'Shadow Strike',     icon: '', type: 'in_combat',  weapon: 'dagger',
+  { id: 'shadow_strike',   name: 'Shadow Strike',     icon: '', weight: 1.0, type: 'in_combat',  weapon: 'dagger',
     desc: 'Every 10 seconds, your next hit is a guaranteed critical strike' },
 
   // 🔱 Spear
-  { id: 'long_reach',      name: 'Long Reach',        icon: '', type: 'passive',    weapon: 'spear',
+  { id: 'long_reach',      name: 'Long Reach',        icon: '', weight: 1.0, type: 'passive',    weapon: 'spear',
     desc: 'Start every round with +20px extra spear reach' },
-  { id: 'skewer',          name: 'Skewer',            icon: '', type: 'in_combat',  weapon: 'spear',
+  { id: 'skewer',          name: 'Skewer',            icon: '', weight: 1.0, type: 'in_combat',  weapon: 'spear',
     desc: "On hit: pin the enemy's weapon for (20 + BIQ×4) frames. [BIQ=1: 0.4s / BIQ=5: 0.67s / BIQ=10: 1.0s]" },
-  { id: 'zone_control',    name: 'Zone Control',      icon: '', type: 'passive',    weapon: 'spear',
+  { id: 'zone_control',    name: 'Zone Control',      icon: '', weight: 1.0, type: 'passive',    weapon: 'spear',
     desc: 'Enemies that stay within 150px of your spear tip take 0.5 damage per second' },
 
   // 🌙 Scythe
-  { id: 'reapers_mark',    name: "Reaper's Mark",     icon: '', type: 'in_combat',  weapon: 'scythe',
+  { id: 'reapers_mark',    name: "Reaper's Mark",     icon: '', weight: 1.0, type: 'in_combat',  weapon: 'scythe',
     desc: 'Deal 80% more damage to enemies below 30% HP — Execute the wounded' },
-  { id: 'soul_harvest',    name: 'Soul Harvest',      icon: '', type: 'in_combat',  weapon: 'scythe',
+  { id: 'soul_harvest',    name: 'Soul Harvest',      icon: '', weight: 1.0, type: 'in_combat',  weapon: 'scythe',
     desc: 'Each kill restores 10 HP (stacks freely in FFA)' },
-  { id: 'grim_presence',   name: 'Grim Presence',     icon: '', type: 'passive',    weapon: 'scythe',
+  { id: 'grim_presence',   name: 'Grim Presence',     icon: '', weight: 1.0, type: 'passive',    weapon: 'scythe',
     desc: 'Enemies within 80px of you swing 12% slower (passive aura)' },
 
   // 🔨 Hammer
-  { id: 'seismic_slam',    name: 'Seismic Slam',      icon: '', type: 'in_combat',  weapon: 'hammer',
+  { id: 'seismic_slam',    name: 'Seismic Slam',      icon: '', weight: 1.0, type: 'in_combat',  weapon: 'hammer',
     desc: 'On hit: release a shockwave that slows all enemies within 120px for 30 frames' },
-  { id: 'heavy_momentum',  name: 'Heavy Momentum',    icon: '', type: 'in_combat',  weapon: 'hammer',
+  { id: 'heavy_momentum',  name: 'Heavy Momentum',    icon: '', weight: 1.0, type: 'in_combat',  weapon: 'hammer',
     desc: 'Each consecutive hit on the same enemy adds 20% damage (max 3 stacks). Switching target resets stacks' },
-  { id: 'ground_pound',    name: 'Ground Pound',      icon: '', type: 'in_combat',  weapon: 'hammer',
+  { id: 'ground_pound',    name: 'Ground Pound',      icon: '', weight: 1.0, type: 'in_combat',  weapon: 'hammer',
     desc: "Every time you bounce off a wall, the nearest enemy's weapon locks for 25 frames" },
 
   // 🏹 Bow
-  { id: 'sniper',          name: 'Sniper',            icon: '', type: 'in_combat',  weapon: 'bow',
+  { id: 'sniper',          name: 'Sniper',            icon: '', weight: 1.0, type: 'in_combat',  weapon: 'bow',
     desc: 'Arrows shot at targets over 300px away deal ×(1.4 + IQ×0.03) damage. [IQ=1: ×1.43 / IQ=10: ×1.70]' },
-  { id: 'volley',          name: 'Volley',            icon: '', type: 'pre_combat', weapon: 'bow',
+  { id: 'volley',          name: 'Volley',            icon: '', weight: 1.0, type: 'pre_combat', weapon: 'bow',
     desc: 'First 3 arrows of the round deal ×(1.5 + IQ×0.05) damage. [IQ=1: ×1.55 / IQ=10: ×2.0]' },
-  { id: 'piercing_shot',   name: 'Piercing Shot',     icon: '', type: 'in_combat',  weapon: 'bow',
+  { id: 'piercing_shot',   name: 'Piercing Shot',     icon: '', weight: 1.0, type: 'in_combat',  weapon: 'bow',
     desc: 'Every 8th arrow pierces through the target and can hit enemies behind them' },
 
   // 🌟 Shuriken
-  { id: 'bounce_damage',   name: 'Bounce Damage',     icon: '', type: 'passive',    weapon: 'shuriken',
+  { id: 'bounce_damage',   name: 'Bounce Damage',     icon: '', weight: 1.0, type: 'passive',    weapon: 'shuriken',
     desc: 'Each wall bounce charges your shuriken with +15% damage (up to 3 bounces = +45%)' },
-  { id: 'ricochet_kill',   name: 'Ricochet Kill',     icon: '', type: 'passive',    weapon: 'shuriken',
+  { id: 'ricochet_kill',   name: 'Ricochet Kill',     icon: '', weight: 1.0, type: 'passive',    weapon: 'shuriken',
     desc: 'Shurikens that hit after 2 or more wall bounces deal +100% damage' },
-  { id: 'fan_throw',       name: 'Fan Throw',         icon: '', type: 'in_combat',  weapon: 'shuriken',
+  { id: 'fan_throw',       name: 'Fan Throw',         icon: '', weight: 1.0, type: 'in_combat',  weapon: 'shuriken',
     desc: 'Every 5th throw fires 3 shurikens in a fan spread instead of 1' },
 
   // ── SPAWN MECHANIC — Tier 1 ──────────────────────────────
-  { id: 'soul_puppet',      name: 'Soul Puppet',       icon: '👻', type: 'in_combat',
+  { id: 'soul_puppet',      name: 'Soul Puppet',       icon: '👻', weight: 1.0, type: 'in_combat',
     desc: 'On kill: launch 3 homing soul orbs toward random enemies (STR-scaled damage each).' },
-  { id: 'bone_wall',        name: 'Bone Wall',          icon: '🦴', type: 'in_combat',
+  { id: 'bone_wall',        name: 'Bone Wall',          icon: '🦴', weight: 1.0, type: 'in_combat',
     desc: 'On being hit: scatter 5 bone shards outward, each dealing (STR×1.2) damage.' },
-  { id: 'war_banner',       name: 'War Banner',         icon: '🚩', type: 'pre_combat',
+  { id: 'war_banner',       name: 'War Banner',         icon: '🚩', weight: 1.2, type: 'pre_combat',
     desc: 'Begin each round with +30% damage for 10 seconds.' },
-  { id: 'necromancer_pact', name: "Necromancer's Pact", icon: '💀', type: 'pre_combat',
+  { id: 'necromancer_pact', name: "Necromancer's Pact", icon: '💀', weight: 0.8, type: 'pre_combat', category: 'summon',
     desc: 'Spawn 2 skeleton minions at round start. They seek enemies and deal (STR×0.8) damage per hit.' },
 
   // ── SPAWN MECHANIC — Tier 2 ──────────────────────────────
-  { id: 'spirit_echo',      name: 'Spirit Echo',        icon: '🌀', type: 'in_combat',
+  { id: 'spirit_echo',      name: 'Spirit Echo',        icon: '🌀', weight: 1.2, type: 'in_combat',
     desc: 'Each hit has 40% chance to fire a spirit orb that deals (BIQ×0.6 + STR×0.4) extra damage.' },
-  { id: 'horde_call',       name: 'Horde Call',         icon: '⚔️', type: 'in_combat',
+  { id: 'horde_call',       name: 'Horde Call',         icon: '⚔️', weight: 0.8, type: 'in_combat',  category: 'summon',
     desc: 'Every 15 seconds, summon a wave of 3 skeleton minions.' },
-  { id: 'mirror_clone',     name: 'Mirror Clone',       icon: '🪞', type: 'pre_combat',
+  { id: 'mirror_clone',     name: 'Mirror Clone',       icon: '🪞', weight: 0.6, type: 'pre_combat', category: 'summon',
     desc: 'Spawn a mirror clone at round start with 50% of your stats. Clone fights independently and does not count toward the win.' },
-  { id: 'plague_bearer',    name: 'Plague Bearer',      icon: '🦠', type: 'in_combat',
+  { id: 'plague_bearer',    name: 'Plague Bearer',      icon: '🦠', weight: 1.2, type: 'in_combat',
     desc: 'Hits apply plague: 2 damage every 2 seconds for 10 seconds. Stacks up to 3 times.' },
+
+  // ── JJK DOMAINS (unique per match — 1 người 1 loại) ─────────
+  { id: 'jjk_domain_malevolent', name: 'Phục ma Ngự trù tử', icon: '🩸', weight: 1.0, type: 'in_combat',
+    category: 'jjk_domain', unique: true,
+    desc: 'Giây 20: mở domain đỏ 10s. Mỗi giây, mưa chém gây 5 dmg (số chém tăng dần). Đối thủ bên trong −50% evade.' },
+  { id: 'jjk_domain_unlimited',  name: 'Vô Lượng Không Xứ',  icon: '💜', weight: 1.0, type: 'in_combat',
+    category: 'jjk_domain', unique: true,
+    desc: 'Giây 20: mở domain tím 8s. Đối thủ bên trong: −70% speed, −50% evade. Parry stun của bạn nhân đôi.' },
+  { id: 'jjk_domain_chimera',    name: 'Khảm Hợp Ám Đình',   icon: '🌑', weight: 1.0, type: 'in_combat',
+    category: 'jjk_domain', unique: true,
+    desc: 'Giây 20: mở domain bóng tối 15s. Bạn +20% evade, visual đổi thành bóng tối. Mỗi 5s triệu hồi 1 Shikigami (chết sau 1 đòn nhận / 2 đòn đánh).' },
+
+  // ── JJK CURSE TECHNIQUES (không unique, có điều kiện trigger) ─
+  { id: 'jjk_ct_command',    name: 'Chú Ngôn',        icon: '🛑', weight: 1.0, type: 'in_combat',
+    category: 'jjk_ct',
+    desc: 'Khi đối thủ vào tầm ~80px: hét "Dừng lại!" — đóng băng họ 1.5s. Cooldown 20s.' },
+  { id: 'jjk_ct_blackflash', name: 'Kính Kình',       icon: '⚡', weight: 1.0, type: 'in_combat',
+    category: 'jjk_ct', weapon: 'fists',
+    desc: 'Fists only (+1 MA khi chọn). Sau mỗi đòn đánh: 80% nổ chú lực (90% dmg, 0.3s delay). Mỗi nổ có thể chain tiếp với xác suất giảm đôi.' },
+  { id: 'jjk_ct_swap',       name: 'Bất Nghĩa Du Hí', icon: '🔀', weight: 1.0, type: 'in_combat',
+    category: 'jjk_ct',
+    desc: 'Khi Parry hoặc Evade: đổi vị trí tức thì với enemy gần nhất. Họ bị stun 0.5s. Bạn phóng về phía vị trí cũ của họ. Cooldown 15s.' },
+  { id: 'jjk_ct_blood',      name: 'Xuyên Huyết',     icon: '💉', weight: 1.0, type: 'in_combat',
+    category: 'jjk_ct',
+    desc: 'Sau 4 đòn đánh: bắn tia máu xuyên thấu (tốc độ cực cao, piercing, aim thẳng enemy gần nhất). Cooldown 11s.' },
+
+  // ── JOJO STANDS (unique per championship) ─────────────────
+  { id: 'jojo_stand_star',  name: 'Star Platinum',  icon: '⭐', weight: 1.0, type: 'in_combat',
+    category: 'jojo_stand', unique: true,
+    desc: 'Triệu hồi Star Platinum cạnh bạn. Soul Link: Stand chia sẻ HP. 25% khi chạm enemy: ORA ORA ORA (10 đòn × 3 dmg, knockback ngẫu nhiên). Bạn nhận −10% dmg khi Stand còn sống.' },
+  { id: 'jojo_stand_world', name: 'The World',       icon: '🌍', weight: 1.0, type: 'in_combat',
+    category: 'jojo_stand', unique: true,
+    desc: 'Triệu hồi The World. Khi Stand/chủ nhân gần enemy: ZA WARUDO — đóng băng thời gian 10s, chỉ bạn và Stand di chuyển. Cooldown 50s, tối đa 3 lần/trận.' },
+  { id: 'jojo_stand_kq',    name: 'Killer Queen',    icon: '💀', weight: 1.0, type: 'in_combat',
+    category: 'jojo_stand', unique: true,
+    desc: 'Triệu hồi Killer Queen. Stand đặt bom khi chạm enemy (theo người) hoặc tường (tĩnh). Bom nổ khi: bearer chạm tường / đạn / ball khác — 20 dmg + knockback mạnh.' },
+  { id: 'jojo_stand_ge',    name: 'Gold Experience', icon: '🌿', weight: 1.0, type: 'in_combat',
+    category: 'jojo_stand', unique: true,
+    desc: 'Triệu hồi Gold Experience. Khi chủ nhân nảy tường: spawn Rùa (melee) hoặc Rắn (ranged) — 4 dmg/đòn, tồn tại 10s. Cooldown 10s giữa mỗi lần spawn.' },
+
+  // ── JOJO SUPPORT (không unique) ────────────────────────────
+  { id: 'jojo_support_remote',    name: 'Remote Control', icon: '📡', weight: 1.0, type: 'passive',
+    category: 'jojo_support',
+    desc: 'Tăng gấp đôi bán kính hoạt động của Stand (150px → 300px). Stand truy đuổi được enemy ở xa hơn.' },
+  { id: 'jojo_support_senses',    name: 'Shared Senses',  icon: '👁️', weight: 1.0, type: 'passive',
+    category: 'jojo_support',
+    desc: 'Stand thừa hưởng 100% Crit Chance và Evade Chance từ chủ nhân thay vì mức mặc định 5%.' },
+  { id: 'jojo_support_evolution', name: 'Evolution',       icon: '📈', weight: 1.0, type: 'post_combat',
+    category: 'jojo_support',
+    desc: 'Sau mỗi trận thắng: Stand +10% kích thước, +5% dmg, −10% dmg nhận vào. Cộng dồn tối đa 5 lần.' },
+
+  // ── ONE PIECE — Haki (không unique) ────────────────────────
+  { id: 'op_haki_obs',  name: 'Observation Haki', icon: '👁', weight: 1.0, type: 'pre_combat',
+    category: 'op_haki',
+    desc: '+10% evade chance. Khi enemy trong 200px: vũ khí quay nhanh hơn (bonus spin mỗi frame).' },
+  { id: 'op_haki_arm',  name: 'Armament Haki',    icon: '⚫', weight: 1.0, type: 'passive',
+    category: 'op_haki',
+    desc: '+10% dmg ra, −10% dmg nhận vào, +30% knockback delivered. Haki phủ lên vũ khí.' },
+  { id: 'op_haki_conq', name: "Conqueror's Haki",  icon: '👑', weight: 0.8, type: 'in_combat',
+    category: 'op_haki',
+    desc: 'Khi enemy tiếp cận 220px: phóng Conqueror burst — stun 3s + shockwave thị giác. Cooldown 15s.' },
+
+  // ── ONE PIECE — Devil Fruits (unique per championship) ──────
+  { id: 'op_fruit_goro', name: 'Goro Goro no Mi', icon: '⚡', weight: 1.0, type: 'in_combat',
+    category: 'op_fruit', unique: true,
+    desc: 'Khi va chạm thân hoặc parry với enemy: 50% tỉ lệ biến thành tia sét — xuyên qua kẻ thù (10 dmg cố định, không nảy ngược), kéo dài 1.5s.' },
+  { id: 'op_fruit_tori', name: 'Tori Tori no Mi', icon: '🐦', weight: 1.0, type: 'in_combat',
+    category: 'op_fruit', unique: true,
+    desc: 'Trước khi hoá phượng hoàng: −10% sát thương gây ra. Hồi 1 HP mỗi 2s. Khi HP ≤ 0: revive 1 lần tại 30% HP, +30% speed, −10% evade, giải debuff −10% DMG.' },
+  { id: 'op_fruit_mera', name: 'Mera Mera no Mi', icon: '🔥', weight: 1.0, type: 'in_combat',
+    category: 'op_fruit', unique: true,
+    desc: 'Mỗi đòn đánh trúng: bén lửa lên enemy (2 dmg mỗi 2s, 5s). Không giới hạn stack.' },
+  { id: 'op_fruit_ryu',  name: 'Ryu Ryu no Mi',   icon: '🦕', weight: 1.0, type: 'in_combat',
+    category: 'op_fruit', unique: true,
+    desc: 'Giây 20 (frame 1200): hoá khủng long — +20% kích thước, +10% melee dmg, tốc độ di chuyển giảm 40%.' },
+  { id: 'op_fruit_hito', name: 'Hito Hito no Mi',  icon: '🌊', weight: 1.0, type: 'in_combat',
+    category: 'op_fruit', unique: true,
+    desc: 'Mỗi lần nảy tường: phát sóng chấn động mở rộng (tốc 4px/f, tối đa 160px) — enemies trong sóng nhận dmg.' },
+  { id: 'op_fruit_neko', name: 'Neko Neko no Mi',  icon: '🐆', weight: 1.0, type: 'pre_combat',
+    category: 'op_fruit', unique: true,
+    desc: '+30% speed, +10% crit chance. Tấn công từ phía sau enemy (>110°): +50% bonus crit dmg (backstab).' },
+  { id: 'op_fruit_pika', name: 'Pika Pika no Mi',  icon: '✨', weight: 1.0, type: 'in_combat',
+    category: 'op_fruit', unique: true,
+    desc: 'Mỗi lần nảy tường: hoá thành chùm sáng bay nhanh đến tường đối diện — trail vàng theo sau. Nếu chạm enemy trên đường bay: 70% dmg + hoá lại thành ball ngay lập tức. Cooldown 2s.' },
 ];
 
 // ─── SKILL_MAP — tra cứu nhanh theo id ───────────────────────
@@ -173,7 +258,7 @@ function applySkillPassives(ball, fighter) {
   if (sk.includes('sharp_eye'))   { ball.critChance += SKF.sharp_eye.critBonus; }
   if (sk.includes('heavy_mass'))  { ball.mass *= SKF.heavy_mass.massMult; }
   // Weapon passives applied at match start
-  if (sk.includes('long_reach') && ball.weaponDef?.id === 'spear') {
+  if (sk.includes('long_reach') && (ball.weaponDef?.id === 'spear' || ball.weaponDef?.baseWeapon === 'spear')) {
     ball.weapon.bonusLength = (ball.weapon.bonusLength || 0) + 20;
   }
 
@@ -421,6 +506,11 @@ function skillOnPreCombat(ball) {
   // Demon subrace effects fire regardless of own skill count
   if (ball.charRace === 'demon' && typeof state !== 'undefined') _demonPreCombat(ball);
 
+  // JoJo Stand: spawn stand at round start
+  if (typeof jojoOnPreCombat === 'function') jojoOnPreCombat(ball);
+  // One Piece: pre-combat setup (Haki evade, Neko speed/crit, Tori regen init…)
+  if (typeof opOnPreCombat === 'function') opOnPreCombat(ball);
+
   if (!ball.skills || ball.skills.length === 0) return;
 
   // Passive skills: handled by .always-active CSS class set in buildHUD() — no flash needed here.
@@ -563,7 +653,7 @@ function skillOnPreCombat(ball) {
 function _doDisarm(attacker, defender) {
   if (!attacker.skills?.includes('disarm')) return;
   if (!defender?.alive) return;
-  if (defender.weaponDef?.id === 'fists') return;   // can't disarm fists
+  if (defender.weaponDef?.id === 'fists' || defender.weaponDef?.baseWeapon === 'fists') return;   // can't disarm fists (or iron_fist)
   if (defender.disarmedDebuff) return;               // already disarmed
 
   const cooldown = 1800; // 30s
@@ -607,6 +697,52 @@ function _doDisarm(attacker, defender) {
     text: `⚔️ Disarm → ${getBallLabel(defender)} dropped ${defender._disarmedOrigDef?.name}!` });
   flashSkillHUD(attacker, SKILL_MAP['disarm']);
   if (typeof audienceReact === 'function') audienceReact('disarm_react');
+}
+
+// ── Patkinsion self-disarm helper ──────────────────────────────
+// Trigger: 20% chance on parry / successful hit / wall bounce (5s cooldown)
+function _patkinsionSelfDisarm(ball) {
+  if (!ball.charDevs?.includes('patkinsion')) return;
+  if (!ball.alive) return;
+  if (ball.weaponDef?.id === 'fists' || ball.weaponDef?.baseWeapon === 'fists') return;
+  if (ball.disarmedDebuff) return;
+
+  const now = typeof state !== 'undefined' ? state.matchTime : 0;
+  ball._patkinsionCd = ball._patkinsionCd || -9999;
+  if (now - ball._patkinsionCd < 300) return; // 5s cooldown (300 frames)
+  if (Math.random() > 0.20) return;           // 20% chance
+  ball._patkinsionCd = now;
+
+  // Fling weapon in random direction
+  const ang = Math.random() * Math.PI * 2;
+  const spd = 8 + Math.random() * 5;
+  if (typeof state !== 'undefined') {
+    state.droppedWeapons = state.droppedWeapons || [];
+    state.droppedWeapons.push({
+      x: ball.x, y: ball.y,
+      vx: Math.cos(ang) * spd,
+      vy: Math.sin(ang) * spd,
+      owner:       ball,
+      weaponDef:   ball.weaponDef,
+      weaponState: ball.weapon,
+      r: 20,
+      angle: Math.random() * Math.PI * 2,
+      life: 1800, maxLife: 1800,
+      kickCooldown: 0,
+      spawnGrace: 45,
+    });
+  }
+
+  ball._disarmedOrigDef    = ball.weaponDef;
+  ball._disarmedOrigWeapon = ball.weapon;
+  ball.weaponDef   = WEAPON_MAP['fists'];
+  ball.weapon      = ball._initWeapon('fists');
+  ball.disarmedDebuff = true;
+
+  spawnDamageNumber(ball.x, ball.y - ball.radius - 26, '🤲 DROPPED!', '#cc88ff');
+  if (typeof ball.shout === 'function') ball.shout('🤲 oops...', 180, '#cc88ff');
+  addBattleLog('char_dev', { attacker: getBallLabel(ball), aColor: ball.color,
+    text: `🤲 Patkinsion — ${getBallLabel(ball)} dropped their own weapon!` });
 }
 
 // ─── skillOnHit ──────────────────────────────────────────────
@@ -695,7 +831,7 @@ function skillOnHit(attacker, defender, dmg) {
   // ── Race: Orc Blood Price burst consume ──────────────────────
   if (attacker.charRace === 'orc' && attacker.raceSkillDef && attacker.rs_burstReady) {
     attacker.rs_burstReady = false;
-    const healAmt = Math.round((attacker.charDUR ?? 5) * 1.2);
+    const healAmt = Math.round((attacker.charDUR ?? 5) * 0.96); // DUR×1.2 × 0.8 (−20%)
     attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
     spawnDamageNumber(attacker.x, attacker.y - attacker.radius - 26, `🩸 BURST! +${healAmt}HP`, '#ff3333');
     spawnSparks(attacker.x, attacker.y, 10);
@@ -732,6 +868,8 @@ function skillOnHit(attacker, defender, dmg) {
 
   // ── Race: Primordial Void Grip ────────────────────────────────
   if (typeof raceSkillOnHitDefending === 'function') raceSkillOnHitDefending(attacker, defender);
+  // One Piece: Mera Mera burn on hit + Neko backstab bonus
+  if (typeof opOnHit === 'function') opOnHit(attacker, defender, dmg);
   // ── Weapon-specific skills ────────────────────────────────────
   weaponSkillOnHit(attacker, defender, dmg);
 }
@@ -846,6 +984,12 @@ function weaponSkillOnHit(attacker, defender, dmg) {
       `⚡ MOMENTUM ×${sk.hammerStacks}`, '#ffdd44');
     if (typeof flashSkillHUD === 'function') flashSkillHUD(attacker, SKILL_MAP['heavy_momentum']);
   }
+
+  // Patkinsion: 20% self-disarm when landing a hit
+  _patkinsionSelfDisarm(attacker);
+
+  // JJK Curse Techniques: Kính Kình + Xuyên Huyết
+  if (typeof jjkOnHit === 'function') jjkOnHit(attacker, defender, dmg);
 }
 
 // ─── skillOnParry ────────────────────────────────────────────
@@ -927,7 +1071,13 @@ function skillOnParry(b1, b2) {
 
     // Disarm: trigger on parry (ball parried, opp gets disarmed)
     _doDisarm(ball, opp);
+
+    // Patkinsion: 20% self-disarm when parrying
+    _patkinsionSelfDisarm(ball);
   }
+
+  // JJK Curse Techniques: Bất Nghĩa Du Hí + Unlimited Void parry boost
+  if (typeof jjkOnParry === 'function') jjkOnParry(b1, b2);
 }
 
 // ─── skillOnEvade ────────────────────────────────────────────
@@ -936,6 +1086,9 @@ function skillOnParry(b1, b2) {
 // Tham số: ball (Ball) — ball vừa evade
 // Trả về: không có
 function skillOnEvade(ball) {
+  // JJK Curse Techniques: Bất Nghĩa Du Hí position swap
+  if (typeof jjkOnEvade === 'function') jjkOnEvade(ball);
+
   if (!ball.skills?.includes('shadow_step')) return;
   const a = state.arena;
   let cx, cy, r;
@@ -1030,6 +1183,11 @@ function skillOnKill(killer, victim) {
 //          fighter (object) — dữ liệu fighter xuyên round
 // Trả về: không có
 function skillOnPostCombat(ball, won, fighter) {
+  // JoJo Evolution: track after each win
+  if (typeof jojoOnPostCombat === 'function') jojoOnPostCombat(ball, won);
+  // One Piece: reset per-round flags (obs evade, neko, tori)
+  if (typeof opOnPostCombat === 'function') opOnPostCombat(ball, won);
+
   if (!ball.skills || ball.skills.length === 0) return;
 
   // ── LOSER skills ───────────────────────────────────────
@@ -1239,18 +1397,23 @@ function skillPerFrameUpdate(ball) {
 function _spawnSkillMinions(owner, type, count) {
   if (typeof state === 'undefined') return;
   state.skillMinions = state.skillMinions || [];
-  const str = owner.charSTR ?? 5;
+  const str        = owner.charSTR ?? 5;
+  const isSummoner = owner.charDevs?.includes('summoner');
   for (let i = 0; i < count; i++) {
     const a   = (i / count) * Math.PI * 2 + Math.random() * 0.5;
     const off = 30 + Math.random() * 20;
+    // Base lifetime 15s (900f); Summoner ×1.5 → 22.5s (1350f)
+    const lifetime = isSummoner ? 1350 : 900;
     state.skillMinions.push({
       x:         owner.x + Math.cos(a) * off,
       y:         owner.y + Math.sin(a) * off,
       vx: 0, vy: 0,
-      hp:    type === 'skeleton' ? 20 : 30,
-      maxHp: type === 'skeleton' ? 20 : 30,
-      r:     type === 'skeleton' ? 15  : 18,
-      color: type === 'skeleton' ? '#aaffaa' : '#88ccff',
+      hp:        type === 'skeleton' ? 20 : 30,
+      maxHp:     type === 'skeleton' ? 20 : 30,
+      r:         type === 'skeleton' ? 15  : 18,
+      // Skeleton onehit trừ khi owner là Summoner
+      killOnHit: type === 'skeleton' && !isSummoner,
+      color:     type === 'skeleton' ? '#aaffaa' : '#88ccff',
       owner,
       teamId:      owner.teamId,
       damage:      str * 0.8,
@@ -1259,8 +1422,7 @@ function _spawnSkillMinions(owner, type, count) {
       attackCdMax: 70,
       alive:    true,
       type,
-      lifetime: (owner.skills.includes('necromancer_pact') && type === 'skeleton') ? 3600 : 900,
-      lifetime: type === 'skeleton' ? 900 : 900,
+      lifetime,
       _age:     0,
     });
   }
@@ -1337,6 +1499,11 @@ function updateSkillMinions() {
       if (nearestD < m.r + (nearest.radius || 16) + 4 && m.attackCd === 0) {
         m.attackCd = m.attackCdMax;
         if (nearest.takeDamage) nearest.takeDamage(m.damage, m.x, m.y, false, null, false, false);
+        // Shikigami: biến mất sau 2 đòn đánh trúng
+        if (m.hitsDealt !== undefined) {
+          m.hitsDealt++;
+          if (m.hitsDealt >= 2) { m.alive = false; continue; }
+        }
       }
     } else {
       m.attackCd = Math.max(0, m.attackCd - 1);
@@ -1365,7 +1532,8 @@ function updateSkillMinions() {
       if (Math.hypot(proj.x - m.x, proj.y - m.y) < m.r + proj.r) {
         m.hp -= proj.damage;
         if (!proj.piercing) proj.alive = false;
-        if (m.hp <= 0) { m.alive = false; break; }
+        // Shikigami: 1 hit = biến mất
+        if (m.killOnHit || m.hp <= 0) { m.alive = false; break; }
       }
     }
   }
@@ -1510,7 +1678,7 @@ function initRaceSkillState(ball) {
   if (race === 'angel') {
     ball.rs_maxCooldown = Math.max(600, 900 - spd * 40);
     ball.rs_cooldown    = ball.rs_maxCooldown; // start on full cooldown
-    ball.rs_smiteDmg    = 8 + iq * 2;
+    ball.rs_smiteDmg    = Math.round((8 + iq * 2) * 0.7); // −30%
     ball.rs_smiteStun   = 60 + ma * 12;
   }
   if (race === 'orc') {
@@ -1523,7 +1691,7 @@ function initRaceSkillState(ball) {
     ball.rs_maxCooldown  = Math.max(1200, 1800 - str * 50 - (ball.charDUR ?? 5) * 30);
     ball.rs_cooldown     = ball.rs_maxCooldown; // starts on full cooldown
     ball.rs_quakeForce   = 6 + str * 1.5;      // STR5→13.5, STR10→21
-    ball.rs_quakeDmg     = Math.round(str * 2); // close-range damage
+    ball.rs_quakeDmg     = Math.round(str * 2 * 0.7); // close-range damage (−30%)
     ball.rs_quakeActive  = false;
     ball.rs_quakeTimer   = 0;
     ball.rs_quakeWaveR   = 0;
@@ -1781,7 +1949,7 @@ function updateRaceSkills(ball, players, rstate) {
 
       // Gây dame mỗi 20f (~0.33s/tick), dùng flameImmunity riêng (không block weapon hit)
       if (ball.rs_flameTick % 20 === 0) {
-        const flameDmg = (ball.charSTR ?? 5) * 3;   // STR5 → 15/tick, STR10 → 30/tick
+        const flameDmg = (ball.charSTR ?? 5) * 2.1;  // STR5 → 10.5/tick, STR10 → 21/tick (−30%)
         for (const en of enemies) {
           if (!en.alive) continue;
           if ((en.flameImmunity || 0) > 0) continue; // separate from weapon immunityFrames
@@ -1861,7 +2029,8 @@ function updateRaceSkills(ball, players, rstate) {
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx   = dx / dist;
     const ny   = dy / dist;
-    const isRanged = ball.weaponDef?.id === 'bow' || ball.weaponDef?.id === 'shuriken';
+    // Dùng aiType để cover tất cả ranged (bow, shuriken, chakram, medusa_bow...)
+    const isRanged = ball.weaponDef?.aiType === 'ranged';
 
     if (!isRanged) {
       // Decrement backoff timer
@@ -1871,19 +2040,21 @@ function updateRaceSkills(ball, players, rstate) {
         // Backoff phase: dash AWAY from enemy after landing a hit
         ball.vx = -nx * ball.maxSpd * 1.8;
         ball.vy = -ny * ball.maxSpd * 1.8;
+        // Soft-aim trong backoff
+        const targetAngle = Math.atan2(dy, dx);
+        let aimDiff = targetAngle - ball.weapon.angle;
+        while (aimDiff >  Math.PI) aimDiff -= Math.PI * 2;
+        while (aimDiff < -Math.PI) aimDiff += Math.PI * 2;
+        ball.weapon.angle += Math.sign(aimDiff) * Math.min(Math.abs(aimDiff), 0.09);
       } else {
-        // Charge phase: full-speed lunge at enemy
+        // Charge phase: snap weapon thẳng vào enemy mỗi frame
+        // (tránh behavior buồn cười: vũ khí chưa hướng đúng đã lao vào bị chém liên tục)
+        ball.weapon.angle = Math.atan2(dy, dx);
         ball.vx = nx * ball.maxSpd * 2.5;
         ball.vy = ny * ball.maxSpd * 2.5;
       }
-      // Soft-aim: nudge weapon toward enemy in both phases
-      const targetAngle = Math.atan2(dy, dx);
-      let aimDiff = targetAngle - ball.weapon.angle;
-      while (aimDiff >  Math.PI) aimDiff -= Math.PI * 2;
-      while (aimDiff < -Math.PI) aimDiff += Math.PI * 2;
-      ball.weapon.angle += Math.sign(aimDiff) * Math.min(Math.abs(aimDiff), 0.09);
     } else {
-      // Ranged: kite at ideal 250px, snap aim on target
+      // Ranged (bow / shuriken / chakram / ...): kite at ideal 250px, snap aim on target
       const idealDist = 250, deadZone = 60;
       const kiteSpd   = ball.maxSpd * 1.2;
       let targetVx = 0, targetVy = 0;

@@ -63,6 +63,7 @@
     <div class="smo-collapse-header" id="smo-derived-toggle">✦ Stats <span class="smo-arrow">▾</span></div>
     <div class="stats-modal-derived" id="smo-derived"></div>
     <div class="stats-modal-skills" id="smo-skills" style="display:none"></div>
+    <div class="stats-modal-skills" id="smo-chardevs" style="display:none"></div>
   </div>
 </div>
 
@@ -818,6 +819,294 @@
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 May 2026</span>
+          <span class="changelog-badge">Patch 154</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🔱 <b>Gungnir — Fix đầu mũi thương không di chuyển theo shaft</b>: Spearhead được vẽ tại offset cứng, không tính <code>bonusLength</code> — khi shaft dài ra do scaling, đầu mũi bị kẹt giữa thân. Fix: cộng <code>bonusLen</code> vào tất cả tọa độ x của spearhead.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 May 2026</span>
+          <span class="changelog-badge">Patch 153</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🎲 <b>Championship Fill — Chardev đầy đủ</b>: Fill character giờ nhận 1 chardev spin (giống normal chargen). Toàn bộ 20 chardev được hỗ trợ trừ Isekai: stat modifier (inversion, braindead, madness, too_horny, kungfu, lost_arm, lost_leg, cultivation, become_woke, old_age, fates_trick), skill modifier (no_family +2 skills, blessed_chaos +2 extra devs), combat flag (patkinsion, dungeon_crawler), championship (finality mark race extinct), và đặc biệt — <b>JJK</b> (auto-pick domain/CT, claim unique domain), <b>JoJo</b> (auto-pick stand/support, claim unique stand), <b>One Piece</b> (auto-pick haki/fruit, claim unique fruit), <b>Summoner</b> (auto-pick summon skill).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 May 2026</span>
+          <span class="changelog-badge">Patch 152</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚡ <b>Goro Goro — Giảm dmg trạng thái sét</b>: <code>OP_GORO_DMG</code> 10 → 5. Trạng thái lightning mode xuyên qua enemy nhiều lần trong 1.5s nên mỗi tick gây quá nhiều tổng sát thương.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">4 May 2026</span>
+          <span class="changelog-badge">Patch 151</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🐛 <b>Unique weapon — baseWeapon skill fix (15 chỗ)</b>: Toàn bộ weapon-specific skill check đã được cập nhật để nhận diện unique weapon qua <code>baseWeapon</code>. Chi tiết: <b>ball.js</b> — ground_pound (mjolnir ✓), bow soft-aim (medusa_bow ✓), shadow_strike timer (shadowfang ✓), guard_stance (excalibur ✓), brawler/flurry chain reset (iron_fist/shadowfang ✓), combo_breaker (iron_fist ✓); <b>skills.js</b> — long_reach passive (gungnir ✓), disarm immunity (iron_fist ✓), patkinsion self-disarm immunity (iron_fist ✓); <b>collision.js</b> — fists body clash (iron_fist ✓), spear parry spin debuff (gungnir ✓), proj parry immuneFrames + 50% dmg (iron_fist ✓), reapers_mark (harvester ✓), rage_fists cooldown (iron_fist ✓).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 150</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>💥 <b>Killer Queen — Bom pillar đặt đúng vị trí</b>: Bom không còn đặt ở tâm cột (bên trong, không thể trigger). Thay vào đó bom đặt tại mép ngoài pillar, hướng về phía enemy gần nhất — enemy tiếp cận cột sẽ kích nổ ngay.</li>
+              <li>⛓️ <b>Human + Flail — Limit Break orbit</b>: Khi Limit Break kích hoạt, flail quay nhanh gấp 3.5× (từ 0.026→0.091 rad/frame) và chain cứng hơn (damping 0.93→0.98) — đầu mace giờ thực sự quét vòng quanh ball, có thể đánh trúng enemy khi di chuyển.</li>
+              <li>🌍 <b>The World — Max speed & no friction</b>: Trong lúc ngưng động thời gian, radoser ZA WARUDO lập tức đạt max speed (tự động đẩy lên theo hướng đang di chuyển, hoặc random nếu đứng yên) và không bị friction — tốc độ giữ nguyên suốt 10s.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 149</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚡ <b>Pika Pika — Xuyên hole, trap, cột</b>: Khi đang trong beam phase, ball không bị đẩy bởi hole (vòng tròn, hình vuông, dynamic), không bị scythe blade hay lightning strike gây sát thương, và không bị cột (pillar) phản lại — beam bay thẳng xuyên qua tất cả.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 148</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚡ <b>Goro Goro no Mi — Rework hoàn toàn</b>: Bỏ mechanic "bắn lightning bolt khi nảy tường". Mechanic mới: khi va chạm thân hoặc parry với enemy, 50% tỉ lệ biến thành tia sét — ball xuyên qua kẻ thù (không nảy ngược), gây 10 dmg cố định, kéo dài 1.5s. Hiệu ứng aura sét vàng/xanh khi đang trong lightning mode.</li>
+              <li>🌿 <b>Gold Experience — Sửa bug không spawn minion</b>: Stand bị giới hạn tether 150px quanh owner nên không tự chạm tường được. Đổi trigger thành khi <b>chủ nhân</b> nảy tường thay vì stand gần tường — Rùa/Rắn giờ spawn đúng mỗi khi owner bounce.</li>
+              <li>🦕 <b>Ryu Ryu no Mi — Sửa đứng yên sau biến hình</b>: Bỏ friction 0.97/frame và mass tăng cực lớn (nguyên nhân ball đứng yên). Thay bằng speed cap giảm 40% — ball vẫn di chuyển bình thường nhưng chậm hơn, phù hợp với khủng long nặng nề.</li>
+              <li>🔀 <b>Bất Nghĩa Du Hí — Giảm cooldown</b>: 15s → 7s ban đầu (vẫn giảm 1s mỗi lần kích hoạt, tối thiểu 1s).</li>
+              <li>✨ <b>Pika Pika no Mi — Rework thành beam phase</b>: Bỏ instant teleport. Mechanic mới: nảy tường → hoá thành chùm sáng bay 30px/frame đến tường đối diện, trail vàng fading theo sau + đường dẫn đứt nét mờ. Nếu chạm enemy trên đường bay → 70% dmg + hoá lại thành ball ngay. Cooldown 2s.</li>
+              <li>⏱️ <b>Domain & Stand — Startup cooldown ẩn 2s</b>: Khi domain được kích hoạt hoặc stand được triệu hồi, có 2s cooldown ẩn trước khi bắt đầu trigger ability. Stand vẫn di chuyển bình thường trong thời gian chờ.</li>
+              <li>💀 <b>Killer Queen — Sửa bug không đặt bom</b>: Cùng root cause với Gold Experience (stand bị tether). Fix: đặt bom tĩnh khi <b>chủ nhân nảy tường</b>, đặt bom khi stand chạm <b>cột (pillar)</b> hoặc <b>scythe blade</b>. Bom tường/cột tồn tại 6s, enemy bước vào kích hoạt nổ.</li>
+              <li>🐦 <b>Tori Tori no Mi — Pre-phoenix debuff</b>: Trước khi hồi sinh: −10% sát thương gây ra (chưa hoá phượng hoàng thì còn yếu). Sau khi revive kích hoạt: debuff tự động giải, thông báo "Debuff cleared!" hiện lên.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 147</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⛓️ <b>Flail — Sửa parry không công bằng</b>: 3 đốt xích (chain nodes) nay mang flag <code>noParry: true</code> — chỉ đầu mace (mace head) mới có thể trigger parry. Trước đây đốt xích vật lý di chuyển liên tục va vào vũ khí đối thủ gây parry liên tục dù chỉ đánh 30% dame.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 146</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚡ <b>Human Limit Break — Weapon snap (melee)</b>: Khi bước vào charge phase, vũ khí snap ngay vào đối thủ thay vì xoay từ từ — tránh trường hợp lao vào với vũ khí chưa hướng đúng rồi bị chém ngược.</li>
+              <li>🥏 <b>Human Limit Break — Ranged mở rộng</b>: LB ranged AI (kite + snap aim) nay áp dụng cho tất cả weapon có <code>aiType: 'ranged'</code> — bao gồm Chakram, Medusa Bow, thay vì chỉ Bow và Shuriken.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 145</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🧿 <b>Chardev mới — Summoner</b>: Mở vòng quay Summoner thứ cấp với 3 skill: Necromancer's Pact, Horde Call, Mirror Clone.</li>
+              <li>💪 <b>Summoner — Summons mạnh hơn</b>: Skeleton minions của Summoner có 20 HP thật (không bị onehit), tồn tại 22.5s (×1.5 so với 15s bình thường).</li>
+              <li>⚔️ <b>Summoner — Trade-off</b>: Bản thân Summoner chịu −30% sát thương đầu ra vĩnh viễn trong trận.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 144</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🌍 <b>Giant Quake — Nerf −30%</b>: Sát thương gần (Quake close-range) giảm từ <code>STR×2</code> xuống còn <code>STR×1.4</code>.</li>
+              <li>🔥 <b>Dragon Flame Breath — Nerf −30%</b>: Sát thương mỗi tick giảm từ <code>STR×3</code> xuống còn <code>STR×2.1</code> (STR5: 15→10.5 / tick, STR10: 30→21 / tick).</li>
+              <li>✨ <b>Angel Smite — Nerf −30%</b>: Sát thương Smite giảm từ <code>8+IQ×2</code> xuống còn <code>round((8+IQ×2)×0.7)</code>.</li>
+              <li>🩸 <b>Orc Blood Price Heal — Nerf −20%</b>: Lượng hồi máu burst giảm từ <code>DUR×1.2</code> xuống còn <code>DUR×0.96</code>.</li>
+              <li>💀 <b>Skeleton Minions — One-hit kill</b>: Skeleton minion từ Necromancer's Pact và Horde Call nay chết ngay khi bị bất kỳ đòn nào (melee hoặc projectile) — không còn có 20 HP nữa.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 143</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🔮 <b>Malevolent Shrine — Không giới hạn nhát chém</b>: Bỏ cap 10 nhát; waves 1–9 tăng 1 nhát mỗi wave; từ nhát thứ 10 trở đi tăng thêm 1 nhát mỗi 2 giây (120 frames) độc lập với wave timer.</li>
+              <li>🛡 <b>Malevolent Shrine — Bypass immunity</b>: Mỗi nhát chém domain reset <code>immunityFrames</code> về 0 trước khi gây damage — đảm bảo tất cả nhát trong cùng một wave đều hit (phép thuật, không phải melee thường).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 May 2026</span>
+          <span class="changelog-badge">Patch 142</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🏴‍☠️ <b>One Piece Skill System (onepiece.js)</b>: Phase 3 mới — Chardev "One Piece" mở vòng quay thứ cấp với 3 Haki + 7 Trái Ác Quỷ unique.</li>
+              <li>👁 <b>Observation Haki</b>: +10% evade chance. Khi enemy trong 200px: bonus spin mỗi frame.</li>
+              <li>⚫ <b>Armament Haki</b>: +10% dmg ra, −10% dmg nhận, +30% knockback gây ra. Aura thép tối trên vũ khí.</li>
+              <li>👑 <b>Conqueror's Haki</b>: Khi enemy tiếp cận 220px — stun 3s + shockwave thị giác. Cooldown 15s.</li>
+              <li>⚡ <b>Goro Goro no Mi</b>: Nảy tường → bắn lightning bolt thẳng về enemy gần nhất (STR×1.8 dmg, cd 6s).</li>
+              <li>🐦 <b>Tori Tori no Mi</b>: Hồi 1 HP/2s (1s nếu có Phoenix). Revive 1 lần tại 30% HP, +30% speed. Thay Phoenix nếu cùng tồn tại.</li>
+              <li>🔥 <b>Mera Mera no Mi</b>: Mỗi đòn trúng — bén lửa enemy (2 dmg/2s, 5s, không giới hạn stack).</li>
+              <li>🦕 <b>Ryu Ryu no Mi</b>: Giây 20 hoá khủng long — +20% kích thước, +10% melee dmg, mass nặng hơn. Reset sau round.</li>
+              <li>🌊 <b>Hito Hito no Mi</b>: Nảy tường → sóng chấn động mở rộng (4px/f, tối đa 160px) gây dmg enemies bên trong.</li>
+              <li>🐆 <b>Neko Neko no Mi</b>: +30% speed, +10% crit. Tấn công phía sau enemy (>110°) → +50% bonus backstab dmg.</li>
+              <li>✨ <b>Pika Pika no Mi</b>: Nảy tường → tele sang tường đối diện, line-check enemy trên đường — 70% weapon dmg.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">3 May 2026</span>
+          <span class="changelog-badge">Patch 141</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🎭 <b>JoJo Stand System (jojo.js)</b>: Phase 4 mới — Chardev "JoJo" mở vòng quay thứ cấp với 4 Stand unique + 3 Support skill.</li>
+              <li>⭐ <b>Star Platinum</b>: Stand triệu hồi, Soul Link chia sẻ HP. 25% trigger ORA ORA (10 đòn × 3 dmg, knockback ngẫu nhiên). Chủ nhân nhận −10% dmg khi Stand còn sống.</li>
+              <li>🌍 <b>The World</b>: Stand kích hoạt khi gần enemy — ZA WARUDO đóng băng thời gian 10s. Chỉ chủ nhân và Stand di chuyển được. Cooldown 50s, tối đa 3 lần/trận.</li>
+              <li>💀 <b>Killer Queen</b>: Stand đặt bom khi chạm enemy (theo người) hoặc tường (tĩnh). Bom nổ khi carrier chạm tường / đạn / ball khác — 20 dmg + knockback mạnh.</li>
+              <li>🌿 <b>Gold Experience</b>: Stand chạm tường spawn Rùa (melee) hoặc Rắn (ranged) — 4 dmg/đòn, tồn tại 10s, cooldown 10s.</li>
+              <li>📡 <b>Remote Control</b>: Support — tăng gấp đôi range Stand (150 → 300px).</li>
+              <li>👁️ <b>Shared Senses</b>: Support — Stand thừa hưởng 100% Crit/Evade Chance từ chủ nhân.</li>
+              <li>📈 <b>Evolution</b>: Support — Sau mỗi win: Stand +10% size, +5% dmg, −10% dmg nhận vào (max 5 stacks).</li>
+              <li>⚙️ <b>Soul Link</b>: Projectile địch trúng Stand → chủ nhân mất HP. Stand evade check riêng.</li>
+              <li>⏸️ <b>The World freeze</b>: ball._jojoFrozen skip toàn bộ physics, projectile frozen bỏ qua update mỗi frame.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 May 2026</span>
+          <span class="changelog-badge">Patch 140</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>👁️ <b>JJK System</b>: Thêm hệ thống Jujutsu Kaisen với 3 Domain và 4 Curse Technique vào game. Nhận qua Char Dev "JJK" (weight 1.2).</li>
+              <li>🩸 <b>Phục ma Ngự trù tử</b>: Domain đỏ 10s — mưa chém gây 5 dmg mỗi giây (số chém tăng dần). Đối thủ bên trong −50% evade.</li>
+              <li>💜 <b>Vô Lượng Không Xứ</b>: Domain tím 8s — đối thủ bên trong −70% speed, −50% evade. Parry stun của chủ nhân nhân đôi.</li>
+              <li>🌑 <b>Khảm Hợp Ám Đình</b>: Domain bóng tối 15s — chủ nhân +20% evade + visual bóng tối/mắt phát sáng. Cứ 5s triệu hồi 1 Shikigami (chết sau 1 đòn nhận hoặc 2 đòn đánh).</li>
+              <li>🛑 <b>Chú Ngôn</b>: Khi đối thủ vào tầm 80px — hét "Dừng lại!", đóng băng 1.5s. Cooldown 20s.</li>
+              <li>⚡ <b>Kính Kình</b>: Fists only (+1 MA khi chọn). Sau mỗi đòn đánh: 80% nổ chú lực (90% dmg, 0.3s delay), chain tiếp với xác suất giảm đôi.</li>
+              <li>🔀 <b>Bất Nghĩa Du Hí</b>: Khi Parry hoặc Evade — đổi vị trí tức thì với enemy gần nhất, stun họ 0.5s. Cooldown 15s.</li>
+              <li>💉 <b>Xuyên Huyết</b>: Sau 4 đòn đánh — bắn tia máu xuyên thấu tốc độ cao (piercing, aim thẳng enemy). Cooldown 11s.</li>
+              <li>📦 <b>jjk.js</b>: File mới — domain engine, curse tech hooks, Shikigami spawn, blood_bolt projectile.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">2 May 2026</span>
+          <span class="changelog-badge">Patch 139</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>🎴 <b>Char Dev — in-combat effects</b>: Hoàn thiện phase 1 — các hiệu ứng chiến đấu của Char Dev đã được đưa vào game.</li>
+              <li>🤲 <b>Patkinsion</b>: Khi parry, đánh trúng, hoặc nảy tường — 20% cơ hội tự làm rơi vũ khí của mình (cooldown 5s). Kèm speech bubble <i>"🤲 oops..."</i>.</li>
+              <li>🏰 <b>Dungeon Crawler</b>: Miễn toàn bộ sát thương từ bẫy (scythe, lightning, bomb). Không cần làm gì — chỉ đứng đó hứng đạn.</li>
+              <li>📦 <b>chardev.js</b>: File mới chứa CHARDEV_POOL, applyCharDevToCgState, Isekai logic — load sau chargen.js.</li>
+              <li>⚙️ <b>setup.js + ball.js</b>: ball.charDevs được sao chép từ fighter.charDevs khi init mỗi round.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">1 May 2026</span>
           <span class="changelog-badge">Patch 138</span>
@@ -2388,6 +2677,10 @@
 <script src="discovery.js"></script>
 <script src="spin-wheel.js"></script>
 <script src="chargen.js"></script>
+<script src="chardev.js"></script>
+<script src="jjk.js"></script>
+<script src="jojo.js"></script>
+<script src="onepiece.js"></script>
 <script src="roster.js"></script>
 <script src="audience.js"></script>
 <script src="asset-editor.js"></script>
@@ -2624,7 +2917,7 @@
 <script>
 // ── Debugger Mode ──────────────────────────────────────────
 (function () {
-  window.debugMode = false;
+  window.debugMode = true;
 
   const DEBUG_SELECTORS = [
     '[data-tab="tab-wiki"]',

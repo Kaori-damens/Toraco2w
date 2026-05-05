@@ -56,11 +56,16 @@ function _pvpAddPowers(fighter, count) {
     !s.unique &&
     !(s.weapon && s.weapon !== fighter.weaponId)  // lọc skill weapon-specific không phù hợp
   );
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  // Weighted pick — skill có weight cao hơn sẽ được chọn nhiều hơn
+  const toAdd = [];
+  for (let n = 0; n < count && pool.length > 0; n++) {
+    const total = pool.reduce((s, sk) => s + (sk.weight ?? 1), 0);
+    let r = Math.random() * total;
+    let picked = pool[pool.length - 1];
+    for (const sk of pool) { r -= (sk.weight ?? 1); if (r <= 0) { picked = sk; break; } }
+    toAdd.push(picked);
+    pool.splice(pool.indexOf(picked), 1);
   }
-  const toAdd = pool.slice(0, count);
   if (!fighter.skills) fighter.skills = [];
   toAdd.forEach(s => fighter.skills.push(s.id));
   return toAdd;
@@ -720,7 +725,7 @@ function _skwGetItems() {
   if (_skwMode === 'weapon') return _skwBuildForbiddenItems();
   if (_skwMode === 'stat')   return _skwBuildStatItems();
   return _skwBuildSkillPool(_skwFighter).map((s, i) => ({
-    label: s.name, weight: 1, color: wColor(i), _def: s,
+    label: s.name, weight: s.weight ?? 1, color: wColor(i), _def: s,  // weight từ SKILL_DEFS
   }));
 }
 
