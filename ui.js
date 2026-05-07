@@ -63,7 +63,7 @@ function buildFightersPanel() {
 
   const header = document.createElement('div');
   header.className = 'fighters-header';
-  header.innerHTML = `<span>Fighters <strong>(${state.fighters.length})</strong></span><span style="color:#444">${state.fighters.length}/12</span>`;
+  header.innerHTML = `<span>${t('ui_fighters_label')} <strong>(${state.fighters.length})</strong></span><span style="color:#444">${state.fighters.length}/12</span>`;
   panel.appendChild(header);
 
   const grid = document.createElement('div');
@@ -210,7 +210,7 @@ document.getElementById('menuBtn').addEventListener('click', () => {
 // Gravity
 document.getElementById('gravBtn').addEventListener('click', () => {
   state.gravity = !state.gravity;
-  document.getElementById('gravBtn').textContent = `🌍 Gravity: ${state.gravity ? 'On' : 'Off'}`;
+  document.getElementById('gravBtn').textContent = `🌍 ${t('ui_gravity')}: ${state.gravity ? t('ui_on') : t('ui_off')}`;
 });
 
 // Zoom slider (50%–100%) — only scales the arena canvas, HUD panels unaffected

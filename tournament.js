@@ -142,7 +142,7 @@ function _fcardFighterHTML(f, uid) {
 
   const toSkillSpan = (id, extraClass = '') => {
     const sk       = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[id] : null;
-    const label    = sk ? sk.name : id;
+    const label    = sk ? getSkillName(sk) : id;
     const descAttr = sk?.desc ? ` data-desc="${sk.desc.replace(/"/g, '&quot;')}"` : '';
     const typeAttr = sk?.type ? ` data-type="${sk.type}"` : '';
     return `<span class="fcard-skill fcard-skill-tip${extraClass}"${descAttr}${typeAttr}>${label}</span>`;
@@ -152,7 +152,7 @@ function _fcardFighterHTML(f, uid) {
     ...curSkills.map(id => toSkillSpan(id, !baseSkills.includes(id) ? ' fcard-skill-new' : '')),
     ...lostSkills.map(id => {
       const sk       = (typeof SKILL_MAP !== 'undefined') ? SKILL_MAP[id] : null;
-      const label    = sk ? sk.name : id;
+      const label    = sk ? getSkillName(sk) : id;
       const descAttr = sk?.desc ? ` data-desc="${sk.desc.replace(/"/g, '&quot;')}"` : '';
       const typeAttr = sk?.type ? ` data-type="${sk.type}"` : '';
       return `<span class="fcard-skill fcard-skill-tip fcard-skill-lost"${descAttr}${typeAttr}>${label} <span class="fcard-lost-tag">${t('skill_lost_tag')}</span></span>`;

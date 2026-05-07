@@ -1,6 +1,16 @@
 // ============================================================
 // SKILL SYSTEM
 // ============================================================
+
+// Helper: Get translated skill name
+function getSkillName(skill) {
+  if (!skill) return '???';
+  const key = 'skill_' + skill.id;
+  const translated = t(key);
+  if (translated !== key) return translated;
+  return skill.name || skill.id;
+}
+
 // ─── Tổng quan hệ thống skill ────────────────────────────────
 // Mỗi skill được định nghĩa là 1 object trong mảng SKILL_DEFS.
 // Các field quan trọng:
@@ -1296,7 +1306,7 @@ function skillOnPostCombat(ball, won, fighter) {
           fighter._copycatWheel = { candidates: candidateSkills, result: learned };
           if (learned && state?.championship && typeof csAddHistoryChange === 'function') {
             const skName = (typeof SKILL_MAP !== 'undefined' && SKILL_MAP[learned])
-              ? SKILL_MAP[learned].name : learned;
+              ? getSkillName(SKILL_MAP[learned]) : learned;
             csAddHistoryChange(fighter, `+${skName} (Copycat)`);
           }
         } else if (learned) {

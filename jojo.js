@@ -385,7 +385,6 @@ function _jojoActivateWorldFreeze(stand, state) {
   stand.owner._jojoWorldEvade = true;
 
   if (typeof stand.owner.shout === 'function') stand.owner.shout('🌍 ZA WARUDO!⏸️', 220, '#336622');
-  if (typeof spawnBigAnnouncement === 'function') spawnBigAnnouncement('⏸️ TIME STOP', '#336622', 100);
   if (typeof addBattleLog === 'function')
     addBattleLog('skill_trigger', { attacker: getBallLabel(stand.owner), aColor: stand.owner.color,
       text: `🌍 The World — Time Stop! 10s (use ${stand._worldUses}/${JOJO_WORLD_MAX_USES})` });

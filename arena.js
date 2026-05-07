@@ -377,6 +377,58 @@ function getEyeColor(ball) {
 //   demon     — sừng nhọn, đuôi mũi tên, aura đỏ, mắt đỏ
 //   god       — 8 tia sáng pulse, halo vàng (world-space), mắt vàng
 //
+// ═══════════════════════════════════════════════════════════════
+// RACE PNG ASSET PIPELINE — data-driven, không cần sửa switch/case
+// Thêm asset mới:
+//   1. Thêm key → path vào _RACE_IMG_FILES
+//   2. Thêm entry vào _RACE_ASSET_DEFS
+//   3. Xong — _drawRaceAssets() tự render
+// ═══════════════════════════════════════════════════════════════
+
+// File map: key → đường dẫn PNG
+const _RACE_IMGS = {};
+const _RACE_IMG_FILES = {
+  dragon_horn: 'assets/dragon_horn.png',
+};
+(function _loadRaceImages() {
+  for (const [key, src] of Object.entries(_RACE_IMG_FILES)) {
+    const img = new Image(); img.src = src; _RACE_IMGS[key] = img;
+  }
+})();
+
+// Asset config per race.
+// Mỗi entry: { key, scale, xOff, yOff, rot, followBall }
+//   key         — khớp với key trong _RACE_IMG_FILES
+//   scale       — scale tại r=24 (tự tỉ lệ theo radius khi vẽ)
+//   xOff, yOff  — offset px tại r=24 từ asset-positioner, sau asset rotation
+//   rot         — góc xoay asset (degrees)
+//   followBall  — true = xoay theo hướng di chuyển; false = luôn world-upright
+const _RACE_ASSET_DEFS = {
+  dragon: [
+    { key: 'dragon_horn', scale: 0.40, xOff: -1, yOff: 7, rot: 270, followBall: true },
+  ],
+};
+
+// ── _drawRaceAssets ──────────────────────────────────────────
+// Gọi SAU ctx.rotate(fa) trong drawRaceDecoration.
+// followBall=false → undo rotate(fa) bên trong → asset luôn world-upright.
+// xOff/yOff/scale đều tự scale tỉ lệ với r/24 → đúng ở mọi radius.
+function _drawRaceAssets(ctx, raceId, r, fa) {
+  const defs = _RACE_ASSET_DEFS[raceId];
+  if (!defs) return;
+  for (const d of defs) {
+    const img = _RACE_IMGS[d.key];
+    if (!img?.complete || !img.naturalWidth) continue;
+    const hs = d.scale * r / 24;
+    const iw = img.naturalWidth * hs, ih = img.naturalHeight * hs;
+    ctx.save();
+    if (!d.followBall) ctx.rotate(-fa);             // undo ball rotation → world-upright
+    ctx.rotate(d.rot * Math.PI / 180);
+    ctx.drawImage(img, -iw / 2 + d.xOff * r / 24, -(r - d.yOff * r / 24), iw, ih);
+    ctx.restore();
+  }
+}
+
 // Nếu có window._raceAssetOverrides[raceId]: dùng asset editor shape thay thế.
 // ─── drawRaceDecoration ─────────────────────────────────────
 // Tham số: ctx — canvas context; ball — Ball instance (có charRace, color, x, y, vx, vy)
@@ -648,6 +700,7 @@ function drawRaceDecoration(ctx, ball) {
     // ── DRAGON ───────────────────────────────────────────────────────────
     case 'dragon': {
       ctx.rotate(fa);
+      _drawRaceAssets(ctx, raceId, r, fa);  // dragon_horn — từ _RACE_ASSET_DEFS
       const srLabel = typeof ball.charSubrace === 'object' ? ball.charSubrace?.label : ball.charSubrace;
       const dc = ({ Crimson:'#dd2200',Stone:'#888',Amethyst:'#9922bb',Ancient:'#887722',
                     Undead:'#558855',Zephyrian:'#33aacc',Tideborn:'#1155bb',Thunder:'#cccc00',

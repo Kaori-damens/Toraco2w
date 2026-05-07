@@ -624,7 +624,7 @@ function cgUpdatePreview() {
     s.skills.forEach(sk => {
       const descAttr = sk.desc ? ` data-desc="${sk.desc.replace(/"/g,'&quot;')}"` : '';
       const typeAttr = sk.type ? ` data-type="${sk.type}"` : '';
-      html += `<div class="cgp-skill-badge fcard-skill-tip${sk.unique ? ' cgp-skill-unique' : ''}"${descAttr}${typeAttr}>${sk.name}${sk.unique ? ' <span style="font-size:10px">★</span>' : ''}</div>`;
+      html += `<div class="cgp-skill-badge fcard-skill-tip${sk.unique ? ' cgp-skill-unique' : ''}"${descAttr}${typeAttr}>${getSkillName(sk)}${sk.unique ? ' <span style="font-size:10px">★</span>' : ''}</div>`;
     });
     html += `</div>`;
   }
@@ -907,12 +907,12 @@ function cgRenderSkillPick(box) {
 
   const pickedHtml = picked.length > 0
     ? `<div class="cg-skills-picked">${picked.map(s =>
-        `<span class="cg-skill-tag" title="${s.desc}">${s.name}</span>`
+        `<span class="cg-skill-tag" title="${s.desc}">${getSkillName(s)}</span>`
       ).join('')}</div>`
     : '';
 
   const items = available.map((s, i) => ({
-    label: s.name,
+    label: getSkillName(s),
     weight: s.weight ?? 1,  // dùng weight từ SKILL_DEFS nếu có, fallback về 1
     color: wColor(i),
   }));
@@ -972,7 +972,7 @@ function cgRenderSkillPick(box) {
 
   // Debug: pick any available skill directly
   _cgDebug(box, `Pick Skill ${spinNum}/${total}`, available.map(sk => ({
-    label: sk.name,
+    label: getSkillName(sk),
     onClick: () => {
       if (cgDraftMode && sk.unique) claimUnique(sk.id);
       cgState.skills.push(sk);
