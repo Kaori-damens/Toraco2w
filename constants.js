@@ -94,6 +94,10 @@ function getRandomGameName() {
 //
 // Size guide: Small = 1v1, Medium = 4–6, Large = 7–12
 const ARENAS = {
+  // ── Soccer Mode ───────────────────────────────────────────────────
+  // Arena dùng cho Soccer Mode — type rect, radoser bounce off 4 tường.
+  // Goal openings và bóng được xử lý riêng trong soccer.js.
+  soccer: { type: 'rect', x: 100, y: 200, w: 800, h: 600, size: 'medium', label: '⚽ Soccer Field' },
   // ── Small (1v1) ───────────────────────────────────────────────────
   small_square: { type:'square', x:300, y:300, w:400, h:400, size:'small', label:'S. Square' },
   small_circle: { type:'circle', cx:500, cy:500, r:200, size:'small', label:'S. Circle' },

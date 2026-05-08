@@ -2,6 +2,49 @@
 
 ---
 
+## 🔴 CODE AUDIT FIXES (May 4, 2026)
+
+### [AUDIT-FIX #1] Global Variables Documentation
+**Status:** BACKLOG — mốt xem  
+**Estimate:** 2-3 hours  
+**Priority:** HIGH (QA efficiency)  
+**Impact:** Reduce QA test scope when globals change
+
+**Problem:** 
+- 56 files dùng global variables (STAT_FORMULAS, SKILL_FORMULAS, state, etc.) mà không có documentation
+- Khi dev sửa 1 global, QA không biết phải test file nào
+
+**Solution:**
+- [ ] Add dependency header to all 56 .js files
+- [ ] Create `DEPENDENCIES.md` (global variables reference)
+- [ ] Create `CALL_FLOW.md` (function call sequences)
+- [ ] Create `QA_TEST_STRATEGY.md` (smart test groups)
+
+**Files affected:** All 56 .js files  
+**Plan:** See `/.claude/plans/memoized-sparking-tide.md`
+
+---
+
+### [AUDIT-FIX #2] Circular Dependencies Documentation
+**Status:** BACKLOG — mốt xem  
+**Estimate:** 2 hours  
+**Priority:** HIGH (debugging)  
+**Impact:** Easier bug isolation, faster debugging
+
+**Problem:**
+- ball.js ↔ skills.js ↔ collision.js call each other
+- 1 bug có thể từ 3 files khác nhau → QA phải test cả 3
+
+**Solution:**
+- [ ] Document actual call flow (entry point → exit point)
+- [ ] Create test groups covering all 3 files at once
+- [ ] Create code review checklist for recursion guards
+
+**Files affected:** ball.js, skills.js, collision.js  
+**Plan:** See `/.claude/plans/memoized-sparking-tide.md`
+
+---
+
 ## 🗡️ Vũ khí mới: Rapier — "Finesse & Riposte"
 
 **Identity**: Vũ khí nhanh nhất melee, damage thấp nhưng thưởng nặng cho timing phản đòn.
@@ -263,9 +306,102 @@ const recorder = new MediaRecorder(stream);
 
 ---
 
+## 🎨 Vector → Image-Based Rendering (Asset Conversion)
+
+**Status:** BACKLOG — tương lai  
+**Estimate:** 3–5 ngày (tùy scope)  
+**Priority:** MEDIUM (enhancement, không ảnh hưởng gameplay)  
+**Impact:** Nâng cấp visual quality, dễ custom assets
+
+### Current State (Vector)
+- Tất cả character, weapon, effect hiện vẽ bằng **Canvas 2D primitives** (círcle, rect, polygon, path)
+- Race shapes defined via `asset-editor.js` → polygon arrays
+- Weapon shapes defined trong `weapons.js` → draw functions
+
+### Goal: Raster Image Replacement
+- Thay thế vector với PNG/sprite sheets (từ Piskel, Aseprite, GIMP)
+- Keep toàn bộ logic gameplay không thay đổi
+- Hiệu suất tương đương (hoặc tốt hơn nếu dùng sprite sheet)
+
+### Implementation Steps
+
+#### Phase 1: Asset Management (`image-loader.js`)
+- [ ] Create `image-loader.js` với cache system
+- [ ] `loadImage(url)` → Promise-based
+- [ ] `preloadImages(map)` — batch load tất cả assets trước game start
+- [ ] `getImage(url)` — lấy từ cache
+
+#### Phase 2: Ball/Character Rendering (`ball.js`)
+- [ ] Replace `draw()` vector circle → `ctx.drawImage(race-image)`
+- [ ] Handle rotation khi needed
+- [ ] Support size scaling dựa vào stats (STR → size)
+- [ ] Organize: `images/races/{race-id}.png`
+
+#### Phase 3: Weapon Rendering (`weapons.js`)
+- [ ] Replace mỗi weapon's `draw()` → image-based
+- [ ] Maintain rotation per angle
+- [ ] Organize: `images/weapons/{weapon-id}.png`
+- [ ] Sprite sheet option nếu nhiều variant (cận cảnh, cay xoay, etc.)
+
+#### Phase 4: Effects & Particles (`particles.js`)
+- [ ] Damage numbers → sprite font (hoặc giữ canvas text)
+- [ ] Explosion effects → sprite sheet + animation frame
+- [ ] Skill flashes → image overlay
+- [ ] Organize: `images/effects/{effect-id}.png`
+
+#### Phase 5: Boss & PVE Assets (`boss.js`, pve areas)
+- [ ] Boss sprites → separate images per boss
+- [ ] Boss parts (head, limbs) → sprite sheet nếu breakable
+- [ ] PVE terrain → tilemap hoặc large background images
+
+### Asset Organization
+```
+images/
+├── races/
+│   ├── human.png (64×64)
+│   ├── orc.png
+│   ├── elf.png
+│   └── ...
+├── weapons/
+│   ├── sword.png (50×10)
+│   ├── dagger.png (30×8)
+│   ├── spear.png (70×6)
+│   └── ...
+├── effects/
+│   ├── spark-sheet.png (sprite sheet 8×8 frames)
+│   ├── explosion.png
+│   └── ...
+└── bosses/
+    ├── thunderfang.png
+    ├── grakk.png
+    └── ...
+```
+
+### Files cần sửa
+| File | Sửa gì |
+|------|---------|
+| `index.html` | Thêm `<script src="image-loader.js"></script>` |
+| `game-loop.js` | Gọi `preloadImages()` trước `initGame()` |
+| `ball.js` | Thay `draw()` trong Ball class |
+| `weapons.js` | Thay `draw()` trong mỗi weapon def |
+| `particles.js` | Thay effect rendering nếu cần |
+| `boss.js` + boss files | Asset cho boss nếu implement |
+
+### Fallback Strategy
+- If image không load → fallback về vector (giữ nguyên code cũ)
+- Graceful degradation: game vẫn chơi được dù missing assets
+
+### Asset Source Recommendation
+1. **Piskel** (https://www.piskelapp.com) — dễ, miễn phí, tích hợp pixel-perfect
+2. **Aseprite** (https://www.aseprite.org) — pro, có animation support
+3. **GIMP** (https://www.gimp.org) — free alternative, phức tạp hơn
+
+---
+
 ## 📋 Ghi chú
 
 - Cả 2 vũ khí đều dùng `reverseOnHit: true` (xem thảo luận ngày 2 Apr 2026)
 - Rapier lấp khoảng trống **fast finesse counter**, Katana lấp **slow momentum bruiser**
 - Tham khảo reference tại: `weapon_ball_battles__ultra_edition/weapons/rapier.js` và `katana.js` (reference rất đơn giản, design trên là hoàn toàn mới)
 - Tất cả skills trên chỉ focus vào 1v1 hoặc FFA (không có mechanic teammate)
+- **Vector → Image Rendering** lưu ở backlog (May 6, 2026) — reference implementation xem đính kèm trong chat history

@@ -32,8 +32,12 @@
 | File | Chức năng | Tìm gì ở đây |
 |------|-----------|--------------|
 | `ball.js` | Class `Ball` — entity chính | `constructor` (stats→HP/SPD), `getDamage()`, `takeDamage()`, `update()` per-frame (weapon logic, race skills, Excalibur transform), `drawWeapon()` |
-| `chargen.js` | UI tạo nhân vật | Flow: name→race→subrace→stats→weapon→skills. `initChargen()`, `advanceCg()` |
+| `chargen.js` | UI tạo nhân vật | Flow: name→race→subrace→stats→weapon→skills→chardev. `initChargen()`, `advanceCg()`, `cgRenderCharDev()` |
 | `chargen-data.js` | Data race/subrace/skill pool | `CG_RACES`, `CG_SUBRACES`, stat ranges per race, skill pool per race |
+| `chardev.js` | Char Dev wheel data + logic | `CHARDEV_POOL` (18 entries), `applyCharDevToCgState(id, cgState)`, `cgVessels[]`, Isekai UI (`_doIsekai`, `_showIsekaiIntoChoice`, `_isekaiIntoVessel`) |
+| `jjk.js` | JJK — Domains & Curse Techniques | `jjkUpdateAll(state)`, `jjkDrawDomains/Overlays(ctx,state)`, `jjkOnHit/OnParry/OnEvade()`. 3 domains (malevolent/unlimited/chimera) + 4 curse tech. `_jjkSpawnShikigami()` |
+| `jojo.js` | JoJo — Stand System | `jojoUpdateAll(state)`, `jojoDrawStands/Overlays(ctx,state)`, `jojoOnPreCombat(ball)`, `jojoOnPostCombat(ball,won)`. 4 Stands (star_platinum/the_world/killer_queen/gold_experience) + 3 support. `jojoStandDmgReduction()`, `jojoWorldEvadeCheck()`, `jojoIsFrozen()` |
+| `onepiece.js` | One Piece — Haki & Devil Fruits | `opOnPreCombat(ball)`, `opOnHit(att,def,dmg)`, `opOnPostCombat(ball,won)`, `opOnWallBounce(ball,hitX,hitY)`, `opToriRevive(ball)`, `opGetDamageMods(ball,dmg)`, `opArmamentDefense(ball,dmg)`, `opArmamentKB(ball,kb)`, `opUpdateAll(state)`, `opDrawEffects(ctx,state)`. 3 Haki + 7 Trái Ác Quỷ unique. `state.opShockwaves[]` |
 | `roster.js` | Quản lý danh sách Radoser | Title generation (`getRadoserTitle()`), filter/search UI, localStorage persistence |
 
 ### Combat
@@ -58,9 +62,9 @@
 ### Map & Arena
 | File | Chức năng | Tìm gì ở đây |
 |------|-----------|--------------|
-| `arena.js` | Collision với tường/hình dạng arena | `checkArenaWall()` — circle/square/cross/hole arena. Wall normals, bounce |
+| `arena.js` | Collision với tường/hình dạng arena + race PNG assets | `checkArenaWall()`, `drawRaceDecoration()`, `_RACE_IMG_FILES`, `_RACE_ASSET_DEFS`, `_drawRaceAssets()` |
 | `maps.js` | PVE map definitions | `PVE_MAPS` — terrain objects: `SOLID_CIRCLE`, `SOLID_RECT`, `HAZARD_ZONE`, `SLOW_ZONE` |
-| `traps.js` | Trap objects trong PVP maps | pillar, scythe, lightning strike, explosive bomb — `initTrapObjects()`, update/draw |
+| `traps.js` | Trap objects trong PVP maps | Pillar, scythe, lightning strike, explosive bomb — `initTrapObjects()`, update/draw |
 
 ### Boss System (PVE)
 | File | Chức năng | Key mechanic |
@@ -93,6 +97,7 @@
 |------|-----------|--------------|
 | `mob-data.js` | Templates mob & encounter definitions | `MOB_TEMPLATES` — mỗi mob có race, weaponId, charStats. `ENCOUNTER_DEFS` — danh sách encounter có tên, mô tả, wave list. Thêm mob/encounter mới ở đây, không cần sửa file khác. |
 | `mob-encounter.js` | Wave controller, spawn logic, modal UI | `showMobModal()`, `startMobEncounter()`, `mobEncounterCheckWin()`. State runtime trong `_mobEnc`. Gọi từ `pve.js`. |
+| `soccer.js` | Soccer Mode 1v1 | `initSoccerMode(f1, f2)`, `soccerStep()`, `drawSoccerField(ctx)`, `drawSoccerBallAndHUD(ctx)`. `SOCCER_F` — field dimensions. `SoccerBall` class. `state.soccer` — active score/ball state. |
 
 ### Debug & Config System
 | File | Chức năng | Tìm gì ở đây |
@@ -137,6 +142,47 @@
 
 ---
 
+## Race PNG Asset Pipeline
+
+### Cách thêm asset mới cho một race
+1. **Export PNG** từ Figma (hoặc bất kỳ tool nào) → drop vào `assets/`
+2. **Mở `asset-positioner.html`** trong Chrome → drop PNG vào → kéo/xoay cho đúng vị trí → bấm **📋 Copy Code**
+3. **Thêm 1 dòng** vào `_RACE_IMG_FILES` trong `arena.js`:
+   ```js
+   my_asset_key: 'assets/my_asset.png',
+   ```
+4. **Thêm 1 entry** vào `_RACE_ASSET_DEFS` (dùng values từ positioner output):
+   ```js
+   race_id: [
+     { key: 'my_asset_key', scale: 0.40, xOff: -1, yOff: 7, rot: 270, followBall: true },
+   ],
+   ```
+5. **Xong** — không cần sửa `drawRaceDecoration` hay switch/case.
+
+### Các trường trong `_RACE_ASSET_DEFS`
+| Trường | Ý nghĩa |
+|--------|---------|
+| `key` | Khớp với key trong `_RACE_IMG_FILES` |
+| `scale` | Scale tại r=24 (tự scale tỉ lệ theo radius thực tế khi vẽ) |
+| `xOff` | Offset ngang px tại r=24, sau asset rotation — lấy từ positioner |
+| `yOff` | Offset dọc px tại r=24 — lấy từ positioner (`yOff > 0` = dịch xuống từ đỉnh ball) |
+| `rot` | Góc xoay asset (degrees) — lấy từ positioner |
+| `followBall` | `true` = xoay theo hướng di chuyển; `false` = luôn world-upright (halo, god ray…) |
+
+### asset-positioner.html
+- Công cụ visual để xác định đúng `scale`, `xOff`, `yOff`, `rot` trước khi đưa vào game
+- Drop PNG vào → kéo/xoay asset + ball → bấm **📋 Copy Code** → lấy 4 giá trị trên
+- **Zoom slider** (1×–5×) + scroll chuột để phóng to ball cho dễ chỉnh
+- **Arrow keys** để nudge 1px, **Shift+Arrow** = 10px; **Q/E** xoay asset, **A/D** xoay ball
+- Tất cả giá trị output đã được calibrate ở r=24 — game tự scale theo radius thực
+
+### Assets hiện có
+| Key | File | Race | Ghi chú |
+|-----|------|------|---------|
+| `dragon_horn` | `assets/dragon_horn.png` | `dragon` | Hai sừng, followBall=true, rot=270° |
+
+---
+
 ## Damage Formula Notes
 
 ### Fists / Iron Fist — MA scaling (Patch 89)
@@ -171,6 +217,11 @@ dmg += MA * 0.5;  // MA=10 → +5 flat
 | Weapon special (Excalibur beam, Gungnir throw, Jingubang AoE…) | `ball.js` → `update()` |
 
 ---
+
+## Test Data
+- Tất cả file JSON dùng để import test radoser **phải để trong** `testdata/`
+- Tên file convention: `test_patch<từ>_<đến>.json` — ví dụ: `test_patch143_147.json`
+- Mỗi file là roster JSON hợp lệ (format `{ version, app, exported, count, radosers[] }`) có thể import thẳng qua tab Radosers → Import
 
 ## Quy tắc file mới — BẮT BUỘC
 - **Mỗi khi tạo file `.js` mới**, PHẢI thêm ngay một dòng entry vào bảng tương ứng trong File Map ở trên (chọn section phù hợp nhất). Format: `| \`tên-file.js\` | Chức năng ngắn | Tìm gì ở đây — functions/objects chính |`

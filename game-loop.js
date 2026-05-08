@@ -141,6 +141,13 @@ function gameLoop(now) {
     } else if (!state.paused && !state.ended) {
       for (let s = 0; s < state.speed; s++) step();
       state.matchTime += state.speed;
+    } else if (!state.paused && state.ended && state.soccer?.active && state.soccer?.scoring) {
+      // Soccer scoring delay: step() đã dừng do state.ended, nhưng vẫn cần đếm frame
+      // để _soccerReset() có thể trigger sau 130 frames và hồi sinh radoser
+      state.frame++;
+      const _sc = state.soccer;
+      const _noWin = _sc.score[0] < SOCCER_F.maxGoals && _sc.score[1] < SOCCER_F.maxGoals;
+      if (_noWin && state.frame - _sc.goalFrame >= 130) _soccerReset();
     }
 
     stepsThisFrame++;
@@ -376,6 +383,9 @@ function step() {
   }
 
 
+  // Soccer mode: update bóng + check goal mỗi frame
+  if (state.soccer?.active) soccerStep();
+
   // ── Win condition check ──────────────────────────────────────
   // Mirror clone KHÔNG tính là contestant — loại khỏi alive list trước khi check
   const alive = players.filter(b => b.alive && !b.isMirrorClone);
@@ -391,7 +401,11 @@ function step() {
     // Mob encounter — delegated to mob-encounter.js
     if (typeof mobEncounterCheckWin === 'function') mobEncounterCheckWin(alive);
   } else if (!state.ended && players.length > 1) {
-    if (state.matchMode === '2v2') {
+    // Soccer: bỏ qua kill-win khi đang trong scoring pause — tránh kết thúc game sớm
+    // (radoser có thể chết trong 130f chờ reset, nhưng sẽ được hồi phục bởi _soccerReset)
+    if (state.soccer?.active && state.soccer?.scoring) {
+      // Không check win condition — chờ _soccerReset() xử lý
+    } else if (state.matchMode === '2v2') {
       const t0 = alive.filter(b => b.teamId === 0).length;
       const t1 = alive.filter(b => b.teamId === 1).length;
       if (t0 === 0 || t1 === 0) {
@@ -436,7 +450,12 @@ function render() {
   ctx.fillStyle = (state.pveMode && state.mapDef?.bgColor) ? state.mapDef.bgColor : '#080818';
   ctx.fillRect(0, 0, CW, CH);
 
-  drawArena(ctx, state.arena);
+  // Soccer mode: vẽ sân bóng thay thế drawArena
+  if (state.soccer?.active) {
+    drawSoccerField(ctx);
+  } else {
+    drawArena(ctx, state.arena);
+  }
 
   // Dynamic arena event visuals (holes, wind arrows, vent warnings, shrink ring)
   if (typeof drawArenaEvents === 'function') drawArenaEvents(ctx);
@@ -467,6 +486,9 @@ function render() {
 
   // Draw balls
   for (const b of state.players) b.draw(ctx);
+
+  // Soccer mode: vẽ bóng lên trên radosers + HUD score
+  if (state.soccer?.active) drawSoccerBallAndHUD(ctx);
 
   // JJK domain overlays (drawn above balls — Chimera shadow effect)
   if (typeof jjkDrawOverlays === 'function') jjkDrawOverlays(ctx, state);

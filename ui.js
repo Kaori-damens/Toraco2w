@@ -829,7 +829,86 @@ document.getElementById('arenaBuilderSave').addEventListener('click', () => {
 });
 
 // ============================================================
+// SOCCER MODE UI
+// ============================================================
+// soccer-card có 2 slot fighter (P1 trái, P2 phải) chọn từ cgRoster.
+// _soccerPicks[0/1] lưu charDef đang chọn cho từng slot.
+// buildSoccerPanel() — render lại 2 slot
+// soccer-start-btn → gọi initSoccerMode(p1, p2) khi đủ 2 người
+
+let _soccerPicks = [null, null];
+
+// Cập nhật UI 2 slot chọn fighter trong soccer card
+function buildSoccerPanel() {
+  for (let slot = 0; slot < 2; slot++) {
+    const f        = _soccerPicks[slot];
+    const slotEl   = document.getElementById(`soccer-slot-${slot}`);
+    const dotEl    = document.getElementById(`soccer-dot-${slot}`);
+    const nameEl   = document.getElementById(`soccer-name-${slot}`);
+    if (!slotEl) continue;
+    if (f) {
+      slotEl.classList.add('filled');
+      dotEl.style.background  = f.color;
+      dotEl.style.borderColor = f.color;
+      nameEl.textContent      = f.name || f.charName || '???';
+    } else {
+      slotEl.classList.remove('filled');
+      dotEl.style.background  = 'transparent';
+      dotEl.style.borderColor = '';
+      nameEl.textContent      = slot === 0 ? 'Chọn P1' : 'Chọn P2';
+    }
+    // Bind click mỗi lần rebuild (safe vì replaceWith pattern không cần)
+    slotEl.onclick = () => _soccerPickFighter(slot);
+  }
+  const btn = document.getElementById('soccer-start-btn');
+  if (btn) btn.disabled = !(_soccerPicks[0] && _soccerPicks[1]);
+}
+
+// Modal chọn Radoser cho một slot
+function _soccerPickFighter(slot) {
+  const roster = (typeof cgRoster !== 'undefined') ? cgRoster : [];
+  if (roster.length === 0) { alert('Chưa có Radoser nào! Tạo nhân vật trước nhé.'); return; }
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#0d1a0d;border:1px solid #2a4a2a;border-radius:14px;padding:18px 16px;max-height:65vh;overflow-y:auto;min-width:230px;max-width:300px;';
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:13px;font-weight:700;color:#66cc66;margin-bottom:12px;letter-spacing:0.5px;';
+  title.textContent   = slot === 0 ? '⚽ Chọn P1' : '⚽ Chọn P2';
+  box.appendChild(title);
+  roster.forEach(f => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;transition:background 0.1s;';
+    const dur = f.stats?.durability ?? f.charStats?.durability ?? 5;
+    row.innerHTML = `<div style="width:16px;height:16px;border-radius:50%;background:${f.color};flex-shrink:0;border:1.5px solid #fff3;"></div>`
+      + `<div style="display:flex;flex-direction:column;gap:1px;">`
+      + `<span style="font-size:12px;color:#ccc;font-weight:600;">${f.name || f.charName || '???'}</span>`
+      + `<span style="font-size:10px;color:#556;">${f.raceName || f.charRace || f.race || ''} · HP ${Math.round(100 + dur * 10)}</span>`
+      + `</div>`;
+    row.addEventListener('mouseenter', () => row.style.background = 'rgba(40,80,40,0.4)');
+    row.addEventListener('mouseleave', () => row.style.background = '');
+    row.addEventListener('click', () => {
+      _soccerPicks[slot] = f;
+      document.body.removeChild(modal);
+      buildSoccerPanel();
+    });
+    box.appendChild(row);
+  });
+  modal.appendChild(box);
+  modal.addEventListener('click', e => { if (e.target === modal) document.body.removeChild(modal); });
+  document.body.appendChild(modal);
+}
+
+document.getElementById('soccer-start-btn').addEventListener('click', () => {
+  if (!_soccerPicks[0] || !_soccerPicks[1]) return;
+  if (typeof initSoccerMode !== 'function') { alert('soccer.js chưa load!'); return; }
+  state.soccer = null;
+  initSoccerMode(_soccerPicks[0], _soccerPicks[1]);
+});
+
+// ============================================================
 // INIT — chạy một lần khi trang load
 // ============================================================
 // buildFightersPanel() — render fighter grid ban đầu (từ state.fighters = [])
 buildFightersPanel();
+buildSoccerPanel(); // render 2 slot picker trống ban đầu

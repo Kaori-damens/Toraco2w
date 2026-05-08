@@ -206,19 +206,6 @@
   <div class="menu-tab-pane" id="tab-battle">
     <div class="battle-cards">
 
-      <!-- Toraco Championship -->
-      <div class="battle-card tournament-battle-card" id="championship-card">
-        <div class="battle-card-header">
-          <div class="battle-card-icon">🏆</div>
-          <div class="battle-card-title" data-i18n="champ_card_title">Toraco Championship</div>
-        </div>
-        <div class="battle-card-desc" data-i18n="champ_card_desc">128 or 256-player mega tournament. Battle Royale → Last Stand → Double Elimination. BO3 Grand Finals.</div>
-        <button class="t-btn" id="championshipBtn" data-i18n="champ_btn_enter">🏆 Enter Championship</button>
-        <div style="margin-top:8px">
-          <button class="t-btn t-btn-resume" id="cs-resume-btn" style="display:none" data-i18n="champ_btn_resume">▶ Resume Championship</button>
-        </div>
-      </div>
-
       <!-- Quick Match -->
       <div class="battle-card" id="quick-match-card">
         <div class="battle-card-header">
@@ -274,6 +261,29 @@
         <button class="start-btn" id="startBtn" data-i18n="btn_fight">⚔️ FIGHT!</button>
       </div>
 
+      <!-- Soccer Mode -->
+      <div class="battle-card soccer-battle-card" id="soccer-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">⚽</div>
+          <div class="battle-card-title">Bóng Đá 1v1</div>
+        </div>
+        <div class="battle-card-desc">Đá bóng bằng vũ khí quay! Ghi 3 bàn hoặc hạ gục đối thủ để thắng trận.</div>
+        <div class="soccer-picker">
+          <div class="soccer-slot" id="soccer-slot-0" data-slot="0">
+            <div class="soccer-slot-dot" id="soccer-dot-0"></div>
+            <div class="soccer-slot-name" id="soccer-name-0">Chọn P1</div>
+            <div class="soccer-slot-hint">click để chọn</div>
+          </div>
+          <div class="soccer-vs">⚽</div>
+          <div class="soccer-slot" id="soccer-slot-1" data-slot="1">
+            <div class="soccer-slot-dot" id="soccer-dot-1"></div>
+            <div class="soccer-slot-name" id="soccer-name-1">Chọn P2</div>
+            <div class="soccer-slot-hint">click để chọn</div>
+          </div>
+        </div>
+        <button class="soccer-start-btn" id="soccer-start-btn" disabled>⚽ Kick Off!</button>
+      </div>
+
       <!-- Tournament -->
       <div class="battle-card tournament-battle-card" id="tournament-card">
         <div class="battle-card-header">
@@ -285,6 +295,19 @@
         <div id="tournament-resume-wrap" style="display:none;margin-top:8px">
           <div id="tournament-resume-info" style="font-size:11px;color:#778;margin-bottom:6px;text-align:center"></div>
           <button class="t-btn t-btn-resume" id="tournamentResumeBtn" data-i18n="tournament_btn_resume">▶ Resume Tournament</button>
+        </div>
+      </div>
+
+      <!-- Toraco Championship -->
+      <div class="battle-card tournament-battle-card" id="championship-card">
+        <div class="battle-card-header">
+          <div class="battle-card-icon">🏆</div>
+          <div class="battle-card-title" data-i18n="champ_card_title">Toraco Championship</div>
+        </div>
+        <div class="battle-card-desc" data-i18n="champ_card_desc">128 or 256-player mega tournament. Battle Royale → Last Stand → Double Elimination. BO3 Grand Finals.</div>
+        <button class="t-btn" id="championshipBtn" data-i18n="champ_btn_enter">🏆 Enter Championship</button>
+        <div style="margin-top:8px">
+          <button class="t-btn t-btn-resume" id="cs-resume-btn" style="display:none" data-i18n="champ_btn_resume">▶ Resume Championship</button>
         </div>
       </div>
 
@@ -819,6 +842,23 @@
     <div class="changelog-wrap">
 
       <div class="changelog-patch">
+        <div class="changelog-patch-header" data-changelog-toggle>
+          <span class="changelog-date">8 May 2026</span>
+          <span class="changelog-badge">Patch 155</span>
+          <span class="changelog-toggle-icon">▾</span>
+        </div>
+        <div class="changelog-body">
+          <div class="changelog-body-inner">
+            <ul class="changelog-list">
+              <li>⚽ <b>Soccer Mode</b>: Mode chơi mới 1v1 — chọn 2 Radoser, đá bóng vào khung thành đối thủ. Thắng khi ghi 3 bàn hoặc hạ gục đối thủ. Vũ khí quay vẫn hoạt động và tương tác vật lý với bóng!</li>
+              <li>🏟️ <b>Soccer Arena</b>: Sân bóng riêng với cỏ sọc, vòng tròn giữa, khu cấm địa, khung thành 2 bên và lưới goal.</li>
+              <li>📊 <b>Score HUD</b>: Scoreboard trên đầu sân, dot progress tracking 3 bàn, goal announcement animation.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="changelog-patch collapsed">
         <div class="changelog-patch-header" data-changelog-toggle>
           <span class="changelog-date">4 May 2026</span>
           <span class="changelog-badge">Patch 154</span>
@@ -2704,6 +2744,7 @@
 <script src="pve.js"></script>
 <script src="mob-data.js"></script>
 <script src="mob-encounter.js"></script>
+<script src="soccer.js"></script>
 <script src="arena-events.js"></script>
 <script src="pvp-reward.js"></script>
 <script src="tournament-stats.js"></script>

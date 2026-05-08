@@ -57,6 +57,10 @@ let state = {
   terrainObjects: [],    // Mảng phẳng các vật thể địa hình (boss push lava/walls vào đây)
   healOrbs:       [],    // HealOrb[] — viên hồi máu spawn trong PVE
 
+  // ── Soccer Mode ───────────────────────────────────────────────────
+  // null = không ở soccer mode. Khi active: { active, score, ball, scoring, goalFrame, goalMsg }
+  soccer: null,
+
   // ── Trap objects (PVP) ─────────────────────────────────────
   trapObjects:    [],    // TrapObject[] — pillars, scythes, lightning, bombs
 

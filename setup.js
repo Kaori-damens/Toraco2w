@@ -213,6 +213,8 @@ function stopGame() {
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   resetArenaFit();
   if (typeof stopAudienceChatter === 'function') stopAudienceChatter();
+  // Reset soccer state khi rời game
+  state.soccer = null;
 }
 
 // ─── applyArenaFit ───────────────────────────────────────────
